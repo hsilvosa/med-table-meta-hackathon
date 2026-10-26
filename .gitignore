@@ -1,0 +1,19 @@
+# Large or third-party material that must never be committed (hackathon rule: only own work, only data we have rights to)
+data/
+models/
+third_party/
+.venv*/
+__pycache__/
+*.part
+*.pyc
+
+# Spike outputs (generated images, crops, fictional sheets)
+experiments/out/
+
+# Planning notes from before this repository existed (kept locally, not part of the submission)
+docs/
+
+# Secrets and personal data
+.env
+*.key
+*prescription*private*
