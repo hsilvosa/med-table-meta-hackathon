@@ -1,0 +1,9 @@
+# Runtime dependencies of the app and the library (Python 3.12). SAM 3 / Qwen experiments use their own environment (see experiments/README.md).
+numpy==2.5.4
+opencv-python-headless==5.0.0.93
+pandas==3.1.0
+pillow==13.0.0
+pylibdmtx==0.1.10
+reportlab==5.1.0
+streamlit==1.66.1
+zxing-cpp==3.1.1

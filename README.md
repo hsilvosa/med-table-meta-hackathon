@@ -7,7 +7,9 @@ A tool for caregivers of older adults on many medicines. Photograph the packs on
 ## Status
 Early. Built so far: CIMA client and photo downloader, cut-out and synthetic-scene tools, and the identification core: GS1 Data Matrix decoding, Codigo Nacional validation, CIMA resolver with local cache, and per-pack readings (`verified` only when the code decodes, the CN check digit validates and CIMA knows the CN; expiry comes from the code). Smoke tests of SAM 3 / 3.1 and a local Qwen3.5-9B model are in `experiments/` (results in `experiments/README.md`). On top of it (branch `feat/rules`): rules (same active ingredient, same ATC class, expiry, verbatim SmPC 4.5 quotations that name another pack on the table), reconciliation of the caregiver's medication sheet against the verified packs, a plan that only contains confirmed lines with verified, unexpired packs, a printable PDF calendar, Spanish speech text and an `.ics` file (`experiments/demo_plan.py` builds a demo from invented medicines). Not done yet: confirmation UI, sheet reader, text-to-speech audio, alert engine for real SmPC text, real-photo evaluation; see `PLAN.md`.
 
-Tests: `.venv-app/Scripts/python.exe -m pytest` (43 tests; they render real GS1 Data Matrix codes and use a stored CIMA response, no network).
+Run the app: `.venv-app/Scripts/python.exe -m streamlit run app.py --server.address 127.0.0.1` (photo or typed C.N. -> verified packs -> sheet with confirmation -> findings, PDF, voice, `.ics`). Dependencies: `requirements.txt` (`requirements-dev.txt` for tests).
+
+Tests: `.venv-app/Scripts/python.exe -m pytest` (52 tests; they render real GS1 Data Matrix codes and use a stored CIMA response, no network).
 
 ## Hackathon compliance
 - All code and documents in this repository were written on 2026-10-26 or later, from scratch, and the git history starts that day. Earlier throw-away prototypes were discarded and rewritten.

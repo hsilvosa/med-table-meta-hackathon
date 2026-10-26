@@ -13,6 +13,8 @@ Everything tracked in git: `src/medtable/`, `scripts/`, `experiments/`, `PLAN.md
 | Qwen3.5-9B (GGUF by unsloth) | `Qwen/Qwen3.5-9B`, `unsloth/Qwen3.5-9B-GGUF` | Apache-2.0 | Local vision-language model (reads the medication sheet, proposes candidates). Weights in `models/`, not committed. |
 | llama.cpp (`llama-server`) | github.com/ggml-org/llama.cpp | MIT | Serves the VLM locally. |
 | zxing-cpp, pylibdmtx, OpenCV, NumPy, Pillow, PyTorch | PyPI | their own licenses | Barcode decoding, image processing, inference. |
+| Streamlit, pandas, ReportLab, pytest, pypdfium2 | PyPI | their own licenses (Apache-2.0 / BSD; ReportLab BSD) | Caregiver web UI, tables, PDF generation, tests, PDF-to-PNG in the demo script. Pinned in `requirements*.txt`. |
+| Windows speech engine (System.Speech, voice Microsoft Helena es-ES) | Installed with Windows | Windows license | Offline Spanish voice, called through PowerShell; audio is generated locally and not redistributed. |
 | CIMA data and product photos | AEMPS, https://cima.aemps.es | AEMPS legal notice and Spanish public-sector reuse conditions (cite the source, state the date of last update, do not distort the meaning) | Medicine metadata, leaflets and official pack photos. The photos (about 5 GB) are downloaded locally by `scripts/download_cima_photos.py` and are NOT committed. |
 
 ## Not included

@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from medtable import identify, synthetic, voice  # noqa: E402
 from medtable.calendar_pdf import DISCLAIMER, render_pdf  # noqa: E402
-from medtable.findings import NOT_AN_INTERACTION_CHECK  # noqa: E402
+from medtable.findings import NOT_AN_INTERACTION_CHECK, explain_problem  # noqa: E402
 from medtable.pipeline import make_plan, manual_pack  # noqa: E402
 from medtable.plan import DEFAULT_TIMES, SLOT_LABELS, to_ics  # noqa: E402
 from medtable.resolve import Resolver  # noqa: E402
@@ -118,7 +118,7 @@ rows = []
 for r in readings:
     rows.append({"Estado": "Verificado" if r.status == "verified" else "NO verificado", "Medicamento": r.medicine.name if r.medicine else "-",
                  "C.N.": r.cn or "-", "Caducidad": r.expiry.isoformat() if r.expiry else "-",
-                 "Caducado": "SÍ" if r.expired else ("no" if r.expired is not None else "-"), "Motivo": "; ".join(r.problems)})
+                 "Caducado": "SÍ" if r.expired else ("no" if r.expired is not None else "-"), "Motivo": "; ".join(explain_problem(p) for p in r.problems)})
 for p in st.session_state.manual:
     rows.append({"Estado": "Indicado por el cuidador (C.N. válido)", "Medicamento": p.medicine.name, "C.N.": p.medicine.cn, "Caducidad": "-", "Caducado": "-", "Motivo": ""})
 if rows:
