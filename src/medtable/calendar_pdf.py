@@ -77,11 +77,11 @@ def render_pdf(plan: Plan, out: Path, patient: str = "", photo_dir: Path = Path(
         photo = _photo(first.pack.medicine, photo_dir)
         cells = {e.slot: Paragraph(_dose_markup(e), dose) for e in entries}
         remarks = "; ".join(dict.fromkeys(e.line.remarks for e in entries if e.line.remarks))
-        rows.append([Image(str(photo), width=26 * mm, height=15 * mm, kind="proportional") if photo else "",
+        rows.append([Image(str(photo), width=34 * mm, height=22 * mm, kind="proportional") if photo else "",
                      Paragraph(first.name, name)] + [cells.get(s, Paragraph("-", dose)) for s in SLOTS] + [Paragraph(remarks, base)])
     if len(rows) == 1:
         rows.append(["", Paragraph("No hay medicación en el plan.", big), "", "", "", "", ""])
-    table = Table(rows, colWidths=[30 * mm, 66 * mm, 28 * mm, 28 * mm, 28 * mm, 28 * mm, 52 * mm], repeatRows=1)
+    table = Table(rows, colWidths=[38 * mm, 62 * mm, 28 * mm, 28 * mm, 28 * mm, 28 * mm, 52 * mm], repeatRows=1)
     table.setStyle(TableStyle([("SPAN", (0, 0), (1, 0)), ("GRID", (0, 0), (-1, -1), 0.6, colors.HexColor("#888888")), ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e8eef5")),
                                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5)]))
     story += [table, Spacer(1, 5 * mm), Paragraph(DISCLAIMER, small)]

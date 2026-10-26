@@ -23,7 +23,7 @@ Blender-rendered table scenes (`scripts/blender_scene.py`) decode in 98-100 % of
 
 Run the app: `.venv-app/Scripts/python.exe -m streamlit run app.py --server.address 127.0.0.1` (photo or typed C.N. -> verified packs -> sheet with confirmation -> findings, PDF, voice, `.ics`). Dependencies: `requirements.txt` (`requirements-dev.txt` for tests). `experiments/demo_plan.py` builds a demo plan from invented medicines.
 
-Tests: `.venv-app/Scripts/python.exe -m pytest` (63 tests; they render Data Matrix codes, use invented SmPC texts and a stored CIMA response, no network).
+Tests: `.venv-app/Scripts/python.exe -m pytest` (66 tests; they render Data Matrix codes, use invented SmPC texts and a stored CIMA response, no network).
 
 ## Models
 Vision-language model access goes through `src/medtable/vlm.py`, which has two interchangeable backends selected with `VLM_BACKEND` in `.env`:

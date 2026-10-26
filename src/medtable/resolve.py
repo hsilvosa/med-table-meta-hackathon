@@ -35,7 +35,7 @@ class Medicine:
     fetched: str = ""  # ISO date of the CIMA query
 
     def citation(self) -> str:
-        return f"AEMPS CIMA, {self.name} (nregistro {self.nregistro}), consulted {self.fetched}: {self.source_url}"
+        return f"AEMPS CIMA, {self.name} (nregistro {self.nregistro}), consultado el {self.fetched}: {self.source_url}"
 
     def atc_code(self, level: int) -> str | None:
         return next((a["codigo"] for a in self.atc if a.get("nivel") == level), None)

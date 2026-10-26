@@ -100,3 +100,11 @@ def test_one_sentence_naming_two_packs_of_the_same_ingredient_is_reported_once(m
     found = check_packs([pack(ACENOCUMAROL), pack(PARACETAMOL_A), pack(PARACETAMOL_B)], FakeSmpc(), TODAY)
     mentions = [f for f in found if f.kind == "smpc_mention"]
     assert len(mentions) == 1 and sorted(mentions[0].cns) == ["650001", "650002", "670001"]
+
+
+def test_a_cut_quote_ends_with_the_marker_and_a_complete_sentence_does_not():
+    long_text = "Los siguientes medicamentos potencian el efecto: " + "alopurinol, esteroides anabolizantes, androgenos, " * 12 + "paracetamol, ketoconazol, " + "otros farmacos distintos, " * 20 + "fin."
+    (_, cut), = smpc.find_mentions(long_text, ["PARACETAMOL"])
+    assert cut.endswith(smpc.CUT) and all(part in long_text for part in smpc.fragments(cut))
+    (_, whole), = smpc.find_mentions("Anticoagulantes orales (acenocumarol, warfarina): posible potenciacion del efecto anticoagulante.", ["ACENOCUMAROL"])
+    assert not whole.endswith(smpc.CUT)

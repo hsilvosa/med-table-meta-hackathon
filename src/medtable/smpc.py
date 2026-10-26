@@ -34,7 +34,7 @@ class Section:
     fetched: str
 
     def citation(self) -> str:
-        return f"AEMPS CIMA, ficha tecnica (nregistro {self.nregistro}), section {self.section}, consulted {self.fetched}: " \
+        return f"AEMPS CIMA, ficha técnica (nregistro {self.nregistro}), sección {self.section}, consultado el {self.fetched}: " \
                f"{FT_URL.format(nregistro=self.nregistro)}"
 
 
@@ -91,10 +91,11 @@ def window(sentence: str, term: str, radius: int = 170) -> str:
     if end < len(sentence):
         end = sentence.rfind(" ", where, end) if sentence.rfind(" ", where, end) > where else end
     middle = sentence[start:end].strip()
+    tail = f" {CUT}" if end < len(sentence) else ""  # the sentence goes on after the quoted piece
     if start > 0:  # keep the opening of the sentence: it says whether the list potentiates, reduces, etc.
         head_end = sentence.rfind(" ", 0, 150)
-        return f"{sentence[:head_end if head_end > 40 else 150].strip()}{ELLIPSIS}{middle}"
-    return middle
+        return f"{sentence[:head_end if head_end > 40 else 150].strip()}{ELLIPSIS}{middle}{tail}"
+    return middle + tail
 
 
 def meal_sentences(text: str) -> list[str]:
