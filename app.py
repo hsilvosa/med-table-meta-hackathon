@@ -6,6 +6,7 @@ Nothing is decided here: the code is read from the pack, the medicine comes from
 picked by the caregiver and confirmed line by line. Photos stay on this machine; only CN lookups go to the public CIMA API.
 """
 
+import shutil
 import sys
 import tempfile
 from datetime import date
@@ -97,7 +98,11 @@ with left:
                                accept_multiple_files=True)
     for upload in uploads or []:
         if upload.name not in st.session_state.readings:
-            add_photo(upload.name, cv2.imdecode(np.frombuffer(upload.getvalue(), np.uint8), cv2.IMREAD_COLOR))
+            decoded = cv2.imdecode(np.frombuffer(upload.getvalue(), np.uint8), cv2.IMREAD_COLOR)
+            if decoded is None:
+                st.error(f"{upload.name}: no se pudo abrir como imagen (use JPG o PNG; las fotos HEIC del iPhone hay que convertirlas).")
+            else:
+                add_photo(upload.name, decoded)
 with right:
     if st.button("Cargar foto de ejemplo (sintética, no son envases reales)"):
         add_photo("ejemplo", synthetic.demo_photo(DEMO_ITEMS))
@@ -109,6 +114,7 @@ with right:
         elif pack.medicine.cn not in {p.medicine.cn for p in st.session_state.manual}:
             st.session_state.manual.append(pack)
     if st.button("Empezar de nuevo"):
+        shutil.rmtree("data/cache/segments", ignore_errors=True)  # crops of the photos that SAM wrote to disk
         for key in ("readings", "manual", "sheet", "sheet_cns", "photos", "unmatched"):
             st.session_state.pop(key, None)
         st.rerun()
