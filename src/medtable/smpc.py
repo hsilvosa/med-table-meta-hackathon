@@ -64,8 +64,31 @@ def find_mentions(text: str, terms: list[str], *, max_per_term: int = 2) -> list
     for term in terms:
         wanted = f" {stem_words(term)} "
         hits = [s for s in sentences(text) if wanted in f" {stem_words(s)} "]
-        found += [(term, s) for s in hits[:max_per_term]]
+        found += [(term, window(s, term)) for s in hits[:max_per_term]]
     return found
+
+
+ELLIPSIS = " [...] "  # joins two exact fragments of the same sentence
+
+
+def window(sentence: str, term: str, radius: int = 170) -> str:
+    """Long sentences (lists of drugs) are cut to an exact substring around the term, on word boundaries."""
+    if len(sentence) <= 2 * radius:
+        return sentence
+    first = term.split()[0].lower()
+    where = sentence.lower().find(first[: max(5, len(first) - 2)])
+    if where < 0:
+        where = 0
+    start, end = max(0, where - radius), min(len(sentence), where + radius)
+    if start > 0:
+        start = sentence.find(" ", start) + 1 or start
+    if end < len(sentence):
+        end = sentence.rfind(" ", where, end) if sentence.rfind(" ", where, end) > where else end
+    middle = sentence[start:end].strip()
+    if start > 0:  # keep the opening of the sentence: it says whether the list potentiates, reduces, etc.
+        head_end = sentence.rfind(" ", 0, 150)
+        return f"{sentence[:head_end if head_end > 40 else 150].strip()}{ELLIPSIS}{middle}"
+    return middle
 
 
 def meal_sentences(text: str) -> list[str]:

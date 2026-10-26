@@ -16,7 +16,7 @@ from typing import Protocol
 from .findings import Finding
 from .identify import Reading
 from .resolve import Medicine
-from .smpc import Section, find_mentions, plain
+from .smpc import ELLIPSIS, Section, find_mentions, plain
 
 class SectionSource(Protocol):
     """Anything that returns SmPC sections: the cached CIMA client, or a stand-in in tests."""
@@ -114,7 +114,7 @@ def check_packs(packs: list[Pack], smpc: SectionSource | None = None, today: dat
             if not section:
                 continue
             for term, sentence in find_mentions(section.text, mention_terms(b)):
-                assert sentence in section.text  # a quote must be an exact substring of the AEMPS text
+                assert all(part in section.text for part in sentence.split(ELLIPSIS))  # a quote is made of exact fragments of the AEMPS text
                 negated = any(n in plain(sentence) for n in NEGATIONS)  # "no se han descrito interacciones con X": quoted, but informative
                 findings.append(Finding("smpc_mention", [a.name, b.name], [a.cn, b.cn], term, sentence, section.citation(),
                                         "info" if negated else "review"))

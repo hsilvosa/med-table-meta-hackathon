@@ -30,8 +30,8 @@ TEMPLATES = {
         "es": "{a} caduca el {detail}.",
         "en": "{a} expires on {detail}."},
     "smpc_mention": {
-        "es": "La ficha técnica de {a} (sección 4.5) menciona {detail}: «{quote}». Para revisar con su farmacéutico; no es una comprobación completa de interacciones.",
-        "en": "The SmPC of {a} (section 4.5) mentions {detail}: \"{quote}\". To review with a pharmacist; not a full interaction check."},
+        "es": "La ficha técnica de {a} (sección 4.5) menciona {detail}: «…{quote}…». Para revisar con su farmacéutico; no es una comprobación completa de interacciones.",
+        "en": "The SmPC of {a} (section 4.5) mentions {detail}: \"...{quote}...\". To review with a pharmacist; not a full interaction check."},
     "prescribed_not_found": {
         "es": "Figura en la hoja de medicación pero no se ha encontrado en la mesa: {detail}.",
         "en": "Listed on the medication sheet but not found on the table: {detail}."},

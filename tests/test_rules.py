@@ -76,3 +76,11 @@ def test_class_name_mentions_use_plural_and_accent_insensitive_matching():
 def test_without_a_smpc_source_only_the_deterministic_checks_run():
     found = check_packs([pack(IBUPROFENO), pack(ACENOCUMAROL)], None, TODAY)
     assert found == []
+
+
+def test_long_sentences_are_cut_to_an_exact_substring_around_the_term():
+    filler = "alopurinol, esteroides anabolizantes, androgenos, " * 12
+    text = "Intro corta del apartado de interacciones. " + "Los siguientes medicamentos potencian el efecto: " + filler + "paracetamol, ketoconazol, " + filler + "."
+    (term, quote), = smpc.find_mentions(text, ["PARACETAMOL"])
+    assert all(part in text for part in quote.split(smpc.ELLIPSIS)) and "paracetamol" in quote and len(quote) < 500
+    assert quote.startswith("Los siguientes medicamentos potencian")
