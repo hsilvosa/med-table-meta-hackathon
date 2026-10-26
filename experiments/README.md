@@ -14,6 +14,8 @@ Throw-away scripts that de-risked the design. Run from the repository root. They
 | `sheet_reader_eval.py` | `sheet_reader.read_sheet` (Meta or local backend) scored against the fictional sheet's truth |
 | `candidates_eval.py` | For SAM crops without a code: does the model's reading plus CIMA search put the true medicine among the candidates? |
 | `blender_decode_eval.py` | Decode rate of Data Matrix codes on Blender-rendered table scenes by camera height (needs Blender 4.5) |
+| `eval_photos.py` | Evaluation harness for a folder of photos with a `truth.json` (the packs present, by Codigo Nacional): verified correct, code found but unverified, missed, and the headline number, verified-wrong, with Clopper-Pearson intervals. Ready for the real photos; checked on the Blender scenes (48/48 at 0.5 m, 16/48 at 0.9 m, 0 verified-wrong) |
+| `demo_real_plan.py` | Same, with real CIMA data from the local cache (Sintrom, paracetamol, Gelocatil, enalapril): shows real quotes on paper |
 | `demo_plan.py` | Builds a demo plan from invented medicines: PDF, `.ics`, voice WAVs, PNG preview |
 | `make_fictional_sheet.py` | Renders the fictional medication sheet with phone-photo degradations |
 

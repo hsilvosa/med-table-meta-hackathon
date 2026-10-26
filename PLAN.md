@@ -47,7 +47,7 @@ Item states: Verified (code) / Confirmed by user / Unverified. Unverified items 
 Synthetic scenes (and a time-boxed Blender variant) are for development and stress tests only; accuracy claims come from real photos.
 
 ## Status of the work packages (end of 2026-10-26)
-1. Decoder, CN validation, resolver with cache: done (66 tests in the whole repository). Still missing: the evaluation script on real photos (coverage, confident-wrong count).
+1. Decoder, CN validation, resolver with cache: done (66 tests in the whole repository). The evaluation script exists (`experiments/eval_photos.py`: verified-correct, unverified, missed and confident-wrong with exact intervals); it still needs the real photos and their truth file (`photo name -> list of Codigo Nacional`).
 2. Localization with SAM 3 as a subprocess and VLM candidates with caregiver confirmation: done in the app (`src/medtable/candidates.py`, `scripts/segment_boxes.py`). Weak by design: the true medicine was among the candidates in 3 of 12 small crops; the app never picks for the user.
 3. Sheet reader, editable sheet, reconciliation, rules with verbatim SmPC 4.5 and 4.2 quotes: done.
 4. PDF calendar, offline Spanish voice, `.ics`: done. The voice was not listened to by the author of the code, only checked for non-empty audio; the spoken text was reviewed in text form.
