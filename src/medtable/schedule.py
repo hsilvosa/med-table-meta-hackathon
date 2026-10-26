@@ -82,14 +82,18 @@ def strength_matches(line: Line, pack: Pack) -> bool | None:
 
 
 def _score(line: Line, pack: Pack) -> int:
-    """How many of the pack's ingredient names (or its brand) appear in the line text."""
+    """0 when the line does not name this pack: all its ingredients, or its brand, must appear in the line text."""
     tokens = set(stem_words(line.text).split())
     keys = {stem_words(k) for k in ingredient_keys(pack.medicine)}
     brand = stem_words(pack.medicine.name.split()[0]) if pack.medicine.name else ""
-    score = len(keys & tokens)
-    if brand and brand in tokens and brand not in GENERIC_WORDS and plain(brand) not in FORM_WORDS:
-        score += 1
-    return score
+    brand_hit = bool(brand and brand in tokens and brand not in keys and brand not in GENERIC_WORDS and plain(brand) not in FORM_WORDS)
+    if keys and keys <= tokens:  # every active ingredient of the pack is named in the line
+        name_tokens = set(stem_words(pack.medicine.name).split())
+        extra = {t for t in tokens & name_tokens if t.isalpha() and len(t) >= 3 and t not in keys and t not in GENERIC_WORDS and t not in FORM_WORDS}
+        return len(keys) + (1 if brand_hit or extra else 0)  # a brand or laboratory word of the line that is in the pack name breaks ties
+    # A line naming only SOME of the pack's ingredients is a different medicine (valsartan vs valsartan/hydrochlorothiazide):
+    # not a candidate, unless the line carries the pack's brand name.
+    return 1 if brand_hit else 0
 
 
 @dataclass

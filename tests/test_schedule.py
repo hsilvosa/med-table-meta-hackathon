@@ -1,6 +1,6 @@
 """The medication sheet against the packs on the table."""
 
-from fixtures import (med, strength, IBUPROFENO, LORAZEPAM, METFORMINA_500, METFORMINA_850, OMEPRAZOL, PARACETAMOL_A, VALSARTAN_40,
+from fixtures import (PARACETAMOL_B, med, strength, IBUPROFENO, LORAZEPAM, METFORMINA_500, METFORMINA_850, OMEPRAZOL, PARACETAMOL_A, VALSARTAN_40,
                       VALSARTAN_HCT, pack)
 from medtable import schedule
 from medtable.schedule import Line, dose_number, lines_from_rows, reconcile
@@ -63,6 +63,25 @@ def test_ambiguity_is_asked_not_guessed():
 def test_a_typed_cn_selects_the_pack_exactly():
     result = reconcile([Line("el de la mañana", cn="6800027")], [pack(METFORMINA_850), pack(METFORMINA_500)])
     assert result.matches[0].medicine.cn == "680002"
+
+
+def test_a_laboratory_or_brand_word_in_the_line_breaks_a_tie_between_equal_ingredients():
+    packs = [pack(PARACETAMOL_A), pack(PARACETAMOL_B)]  # "PARACETAMOL ALFA 1 g" and "TERMALGIN 1 g"
+    assert reconcile([Line("Paracetamol Alfa 1 g")], packs).matches[0].medicine.cn == "650001"
+    assert reconcile([Line("Termalgin 1 g")], packs).matches[0].medicine.cn == "650002"
+    tie = reconcile([Line("Paracetamol 1 g")], packs)
+    assert tie.matches == {} and [f.kind for f in tie.findings][0] == "ambiguous_match"  # no extra word: still asked, never guessed
+
+
+def test_a_line_naming_only_one_of_the_packs_ingredients_is_not_that_pack():
+    # "Valsartan" is not "Valsartan/Hidroclorotiazida": the table has a different medicine than the sheet lists
+    result = reconcile([Line("Valsartan"), Line("Valsartan 160 mg")], [pack(VALSARTAN_HCT)])
+    assert result.matches == {} and [f.kind for f in result.findings].count("prescribed_not_found") == 2
+    assert [f.kind for f in result.findings].count("not_prescribed") == 1
+    both = reconcile([Line("Valsartan/Hidroclorotiazida 160/12,5 mg")], [pack(VALSARTAN_HCT), pack(VALSARTAN_40)])
+    assert both.matches[0].medicine.cn == "710001"
+    alone = reconcile([Line("Valsartan 40 mg")], [pack(VALSARTAN_HCT), pack(VALSARTAN_40)])
+    assert alone.matches[0].medicine.cn == "710002"
 
 
 def test_brand_names_match_through_the_first_word():
