@@ -46,7 +46,19 @@ Item states: Verified (code) / Confirmed by user / Unverified. Unverified items 
 
 Synthetic scenes (and a time-boxed Blender variant) are for development and stress tests only; accuracy claims come from real photos.
 
+## Status of the work packages (end of 2026-10-26)
+1. Decoder, CN validation, resolver with cache: done (66 tests in the whole repository). Still missing: the evaluation script on real photos (coverage, confident-wrong count).
+2. Localization with SAM 3 as a subprocess and VLM candidates with caregiver confirmation: done in the app (`src/medtable/candidates.py`, `scripts/segment_boxes.py`). Weak by design: the true medicine was among the candidates in 3 of 12 small crops; the app never picks for the user.
+3. Sheet reader, editable sheet, reconciliation, rules with verbatim SmPC 4.5 and 4.2 quotes: done.
+4. PDF calendar, offline Spanish voice, `.ics`: done. The voice was not listened to by the author of the code, only checked for non-empty audio; the spoken text was reviewed in text form.
+5. Evaluation on real photos: NOT done (no real photos yet). Every accuracy figure in the repository comes from synthetic or Blender data and is labelled as an upper bound.
+6. README is up to date; demo video and a stretch adherence check (reference image of the pill, not blind identification) are not done.
+
+Decision recorded: the code side must be photographed from 50 cm or closer (Blender scenes: 98-100 % read at 50 cm or closer, about 90 % at 70 cm, 33 % at 90 cm; perfect labels, so an upper bound).
+
+Bugs found by testing against real services and fixed (worth remembering): CIMA answers an unknown CN with an empty body, not a 404; the same strength is listed per container for liquids, so strengths are only compared for solid forms; pylibdmtx needs `distutils` on Python 3.12 and its fallback had silently been off; zxing-cpp writes rectangular GS1 symbols that real packs do not use.
+
 ## Open items
 - Real photos of tables with the Codigo Nacional annotated per pack (to be provided by the author).
 - License for the repository.
-- Whether the Datamatrix is readable from the overview photo or needs a "show the code side" step; decided by the first decode-rate measurement.
+- Whether the Datamatrix is readable from the overview photo: answered on synthetic data (50 cm or closer; see the status section); still to be confirmed on real packs.
