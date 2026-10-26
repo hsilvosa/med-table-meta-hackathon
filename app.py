@@ -93,7 +93,7 @@ st.info(DISCLAIMER)
 st.header("1. Envases")
 left, right = st.columns([3, 2])
 with left:
-    uploads = st.file_uploader("Fotos de los envases (la cara con el código Data Matrix, lo más cerca posible)", type=["jpg", "jpeg", "png"],
+    uploads = st.file_uploader("Fotos de los envases (la cara con el código Data Matrix, a 50 cm o menos)", type=["jpg", "jpeg", "png"],
                                accept_multiple_files=True)
     for upload in uploads or []:
         if upload.name not in st.session_state.readings:

@@ -15,12 +15,21 @@ def ntin_element_string(cn6: str, expiry: str = "281231", lot: str = "LOT123", s
     return f"(01)0{cn.gtin13(cn6)}(17){expiry}(10){lot}(21){serial}"
 
 
-def render_datamatrix(element_string: str, module_px: int = 8, quiet: int = 4, background: int = 255) -> np.ndarray:
-    """BGR image of a GS1 Data Matrix with `module_px` pixels per module and a quiet zone of `quiet` modules.
+def render_datamatrix(element_string: str, module_px: int = 8, quiet: int = 4, background: int = 255, square: bool = True) -> np.ndarray:
+    """BGR image of a Data Matrix carrying the human-readable GS1 text, `module_px` pixels per module, quiet zone of `quiet` modules.
 
-    zxing-cpp's own image is exactly one pixel per module, so it is enlarged here without interpolation.
+    `square=True` (default) writes a square ECC200 symbol (22x22 to 26x26 modules for these strings, like real packs) with
+    libdmtx, holding the "(01)...(17)..." text without the FNC1 flag. In GS1 mode zxing-cpp picks a long rectangular symbol
+    (for example 8x64 modules) that real packs do not use, and it offers no way to force a square one. The pipeline reads the
+    same text from both. `square=False` writes the true GS1 symbol with zxing-cpp.
     """
-    modules = np.array(zxingcpp.create_barcode(element_string, zxingcpp.BarcodeFormat.DataMatrix, gs1=True).to_image())
+    if square:
+        from pylibdmtx import pylibdmtx
+        encoded = pylibdmtx.encode(element_string.encode(), size="SquareAuto", scheme="Ascii")  # 5 px per module, 10 px margin
+        pixels = np.frombuffer(encoded.pixels, np.uint8).reshape(encoded.height, encoded.width, 3)[..., 0]
+        modules = pixels[10:-10, 10:-10][::5, ::5]
+    else:
+        modules = np.array(zxingcpp.create_barcode(element_string, zxingcpp.BarcodeFormat.DataMatrix, gs1=True).to_image())
     big = cv2.resize(modules, None, fx=module_px, fy=module_px, interpolation=cv2.INTER_NEAREST)
     big = np.pad(big, quiet * module_px, constant_values=background)
     return cv2.cvtColor(big, cv2.COLOR_GRAY2BGR)
