@@ -18,7 +18,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from medtable import identify, synthetic, voice  # noqa: E402
+from medtable import identify, sheet_reader, synthetic, vlm, voice  # noqa: E402
 from medtable.calendar_pdf import DISCLAIMER, render_pdf  # noqa: E402
 from medtable.findings import NOT_AN_INTERACTION_CHECK, explain_problem  # noqa: E402
 from medtable.pipeline import make_plan, manual_pack  # noqa: E402
@@ -135,7 +135,33 @@ sync_sheet(readings, st.session_state.manual)
 st.header("2. Hoja de medicación")
 st.write("Copie aquí la pauta de la hoja del médico: elija la dosis de cada momento del día y marque **Confirmado** cuando haya comprobado la línea. "
          "La herramienta no propone ni cambia dosis.")
-dose_col = lambda label: st.column_config.SelectboxColumn(label, options=DOSES, default="0", required=True, width="small")
+with st.expander("Leer la hoja desde una foto (opcional)"):
+    backend = vlm.backend_name()
+    if backend == "meta":
+        st.warning("Con el modelo de Meta la imagen SALE de este equipo hacia la API de Meta. Úselo solo con hojas sin datos personales "
+                   "(sin nombre, DNI ni dirección) o configure el modelo local (`VLM_BACKEND=local`).")
+    else:
+        st.caption("Modelo local: la imagen no sale de este equipo.")
+    sheet_photo = st.file_uploader("Foto de la hoja de medicación", type=["jpg", "jpeg", "png"], key="sheet_photo")
+    consent = st.checkbox("Entiendo adónde se envía la imagen y quiero leerla con el modelo", key="sheet_consent") if backend == "meta" else True
+    if st.button("Leer la hoja", disabled=not (sheet_photo and consent)):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / sheet_photo.name
+            path.write_bytes(sheet_photo.getvalue())
+            try:
+                with st.spinner("Leyendo la hoja..."):
+                    read = sheet_reader.read_sheet(path)
+            except Exception as exc:  # network, budget cap, server not running: tell the caregiver, keep manual entry available
+                st.error(f"No se pudo leer la hoja ({exc}). Puede escribir la pauta a mano.")
+            else:
+                known = set(st.session_state.sheet["medicamento"])
+                new = [r for r in read.rows if r["medicamento"] not in known]
+                st.session_state.sheet = pd.concat([st.session_state.sheet, pd.DataFrame(new, columns=COLUMNS)], ignore_index=True)
+                st.session_state.sheet_notes = read.problems + ["Revise cada fila contra la hoja: la lectura puede tener errores."]
+    for note in st.session_state.get("sheet_notes", []):
+        st.warning(note)
+extra_doses = sorted({str(v) for slot in SLOTS for v in st.session_state.sheet[slot].dropna()} - set(DOSES))  # misread cells stay visible
+dose_col = lambda label: st.column_config.SelectboxColumn(label, options=DOSES + extra_doses, default="0", required=True, width="small")
 edited = st.data_editor(
     st.session_state.sheet, num_rows="dynamic", hide_index=True, width="stretch", key="sheet_editor",
     column_config={"medicamento": st.column_config.TextColumn("Medicamento (como en la hoja)", required=True, width="large"),
