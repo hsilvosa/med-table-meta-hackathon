@@ -13,7 +13,9 @@ experiments/out/
 # Planning notes from before this repository existed (kept locally, not part of the submission)
 docs/
 
-# Secrets and personal data
+# Secrets and personal data (the template .env.example is tracked)
 .env
+.env.*
+!.env.example
 *.key
 *prescription*private*
