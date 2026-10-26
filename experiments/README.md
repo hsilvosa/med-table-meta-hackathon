@@ -9,6 +9,7 @@ Throw-away scripts that de-risked the design. Run from the repository root. They
 | `sam3_box_crops.py` | SAM 3 "box" crops of the scenes, matched to ground truth (IoU >= 0.5) |
 | `vlm_read_packs.py` | Qwen3.5-9B reading CIMA pack photos; CN checked against check digit and CIMA |
 | `vlm_eval.py` | Qwen3.5-9B on the SAM crops and on a fictional medication sheet |
+| `meta_smoke.py` | Meta Model API client (`muse-spark-1.3`): connectivity, one pack photo, the fictional sheet, cost per call |
 | `make_fictional_sheet.py` | Renders the fictional medication sheet with phone-photo degradations |
 
 ## Results (2026-10-26; small samples, read them as indications, not metrics)
@@ -18,3 +19,5 @@ Throw-away scripts that de-risked the design. Run from the repository root. They
 - **Qwen3.5-9B on full CIMA pack photos**: brand or ingredient matched in 7 of 8; 6 CN reads, 5 accepted (check digit valid and present in CIMA for that medicine), 1 rejected by the check digit.
 - **Qwen3.5-9B on small crops from synthetic scenes (73 crops, about 300 px, rotated, partly occluded)**: by the crude name check 28 correct, 2 abstentions, 43 wrong; 15 CN reads, 8 with a valid check digit, 6 of those present in CIMA for the true medicine. Wrong answers include invented ingredients and look-alike confusions. The check is crude (it also counts as wrong correct ingredients given without the brand, e.g. Xelevia read as MSD/sitagliptin), but the conclusion holds: the model must not identify packs. Identification comes from the pack code; the model only proposes candidates that the user confirms, and a CN is accepted only if the check digit, CIMA membership and the other fields agree.
 - **Qwen3.5-9B on the fictional medication sheet**: 7/7 rows, 28/28 schedule cells and all remarks exact, 15 s. One clean synthetic sheet; real sheets are untested, so every line still needs caregiver confirmation.
+
+- **Meta Model API (`muse-spark-1.3`, standard tier)**: the token works from Spain. Three calls cost USD 0.0096 in total: about USD 0.005 per image call (3,081 input tokens for a 1024x576 pack photo, 173 output of which 115 hidden reasoning; the sheet: 1,724 in, 638 out). `reasoning_effort` accepts minimal/low/medium/high/xhigh/max (not "none" for this model). On the one pack photo tried, the brand, ingredient, strength and form were right, but the Codigo Nacional was misread (648228.9 against CIMA's 848226); the check digit rejected it, which is the intended safeguard. On the sheet, the first five rows printed matched the truth exactly (the printout was cut at 700 characters); a full scored comparison against Qwen has not been run.
