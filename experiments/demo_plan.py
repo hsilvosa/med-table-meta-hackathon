@@ -29,6 +29,10 @@ out = Path("experiments/out")
 pdf = render_pdf(plan, out / "demo_plan.pdf", "Paciente de ejemplo")
 (out / "demo_plan.ics").write_text(to_ics(plan, days=30), encoding="utf-8", newline="")
 print(pdf, "\n" + speech_text(plan, "desayuno"))
+from medtable import voice  # noqa: E402
+
+if voice.available():
+    print({slot: str(path) for slot, path in voice.render_voice(plan, out / "voice").items()})
 try:
     import pypdfium2 as pdfium
     pdfium.PdfDocument(str(pdf))[0].render(scale=1.3).to_pil().save(out / "demo_plan.png")
