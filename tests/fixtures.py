@@ -45,6 +45,9 @@ SECTIONS = {
                                     "modifican su absorcion de forma relevante."),
     (OMEPRAZOL.nregistro, "4.5"): "El omeprazol puede reducir la absorcion de otros farmacos dependientes del pH gastrico. No se han descrito interacciones relevantes con la metformina.",
     (METFORMINA_850.nregistro, "4.5"): "No se han realizado estudios especificos de interacciones con otros medicamentos en este producto concreto.",
+    (METFORMINA_850.nregistro, "4.2"): ("Adultos con funcion renal normal: 850 mg dos o tres veces al dia. Los comprimidos se deben tomar durante las comidas o inmediatamente despues. "
+                                        "La dosis debe ajustarse de forma gradual."),
+    (OMEPRAZOL.nregistro, "4.2"): "Posologia habitual de 20 mg una vez al dia. Las capsulas se tragan enteras con medio vaso de agua; pueden tomarse con o sin alimentos.",
 }
 
 

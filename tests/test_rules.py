@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from fixtures import (ACENOCUMAROL, FakeSmpc, IBUPROFENO, METFORMINA_850, NAPROXENO, OMEPRAZOL, PARACETAMOL_A,
                       PARACETAMOL_B, SECTIONS, TODAY, VALSARTAN_40, VALSARTAN_HCT, pack)
 from medtable import smpc
-from medtable.rules import check_packs
+from medtable.rules import check_packs, meal_notes
 
 
 def kinds(findings):
@@ -84,3 +84,11 @@ def test_long_sentences_are_cut_to_an_exact_substring_around_the_term():
     (term, quote), = smpc.find_mentions(text, ["PARACETAMOL"])
     assert all(part in text for part in quote.split(smpc.ELLIPSIS)) and "paracetamol" in quote and len(quote) < 500
     assert quote.startswith("Los siguientes medicamentos potencian")
+
+
+def test_meal_notes_quote_section_4_2_sentences_about_food():
+    found = meal_notes([pack(METFORMINA_850), pack(OMEPRAZOL), pack(ACENOCUMAROL)], FakeSmpc())
+    assert [(f.kind, f.severity, f.cns[0]) for f in found] == [("meal_note", "info", "680001"), ("meal_note", "info", "690001")]
+    assert "durante las comidas" in found[0].quote and "con o sin alimentos" in found[1].quote
+    assert all(f.quote in SECTIONS[(f.source and (METFORMINA_850 if f.cns[0] == "680001" else OMEPRAZOL).nregistro, "4.2")] for f in found)
+    assert "el horario lo decide el cuidador" in found[0].text("es")

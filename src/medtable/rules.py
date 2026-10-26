@@ -16,7 +16,7 @@ from typing import Protocol
 from .findings import Finding
 from .identify import Reading
 from .resolve import Medicine
-from .smpc import ELLIPSIS, Section, find_mentions, plain
+from .smpc import ELLIPSIS, Section, find_mentions, meal_sentences, plain
 
 class SectionSource(Protocol):
     """Anything that returns SmPC sections: the cached CIMA client, or a stand-in in tests."""
@@ -118,4 +118,19 @@ def check_packs(packs: list[Pack], smpc: SectionSource | None = None, today: dat
                 negated = any(n in plain(sentence) for n in NEGATIONS)  # "no se han descrito interacciones con X": quoted, but informative
                 findings.append(Finding("smpc_mention", [a.name, b.name], [a.cn, b.cn], term, sentence, section.citation(),
                                         "info" if negated else "review"))
+    return findings
+
+
+def meal_notes(packs: list[Pack], smpc: SectionSource, limit: int = 2) -> list[Finding]:
+    """Sentences of section 4.2 that mention meals, fasting or food, quoted as they are. No timing is computed from them."""
+    findings, seen = [], set()
+    for pack in packs:
+        medicine = pack.medicine
+        if medicine.cn in seen:
+            continue
+        seen.add(medicine.cn)
+        section = smpc.section(medicine.nregistro, "4.2")
+        if section:
+            for sentence in meal_sentences(section.text)[:limit]:
+                findings.append(Finding("meal_note", [medicine.name], [medicine.cn], quote=sentence, source=section.citation(), severity="info"))
     return findings

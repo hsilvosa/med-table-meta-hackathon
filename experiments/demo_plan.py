@@ -12,7 +12,7 @@ sys.path.insert(0, "tests")
 from fixtures import (ACENOCUMAROL, FakeSmpc, IBUPROFENO, LORAZEPAM, METFORMINA_850, OMEPRAZOL, TODAY, pack)  # noqa: E402
 from medtable.calendar_pdf import render_pdf  # noqa: E402
 from medtable.plan import build_plan, speech_text, to_ics  # noqa: E402
-from medtable.rules import check_packs  # noqa: E402
+from medtable.rules import check_packs, meal_notes  # noqa: E402
 from medtable.schedule import SLOTS, Line, reconcile  # noqa: E402
 
 
@@ -24,7 +24,7 @@ lines = [line("Metformina 850 mg", "con las comidas", desayuno="1", cena="1"), l
          line("Lorazepam 1 mg", "solo si insomnio", acostarse="1/2"), line("Atorvastatina 20 mg", "", cena="1")]
 packs = [pack(METFORMINA_850), pack(OMEPRAZOL), pack(LORAZEPAM, TODAY - timedelta(days=5)), pack(IBUPROFENO), pack(ACENOCUMAROL)]
 recon = reconcile(lines, packs)
-plan = build_plan(lines, recon, check_packs(packs, FakeSmpc(), TODAY) + recon.findings, TODAY)
+plan = build_plan(lines, recon, check_packs(packs, FakeSmpc(), TODAY) + meal_notes(packs, FakeSmpc()) + recon.findings, TODAY)
 out = Path("experiments/out")
 pdf = render_pdf(plan, out / "demo_plan.pdf", "Paciente de ejemplo")
 (out / "demo_plan.ics").write_text(to_ics(plan, days=30), encoding="utf-8", newline="")
