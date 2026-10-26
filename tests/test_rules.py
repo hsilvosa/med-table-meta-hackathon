@@ -82,7 +82,7 @@ def test_long_sentences_are_cut_to_an_exact_substring_around_the_term():
     filler = "alopurinol, esteroides anabolizantes, androgenos, " * 12
     text = "Intro corta del apartado de interacciones. " + "Los siguientes medicamentos potencian el efecto: " + filler + "paracetamol, ketoconazol, " + filler + "."
     (term, quote), = smpc.find_mentions(text, ["PARACETAMOL"])
-    assert all(part in text for part in quote.split(smpc.ELLIPSIS)) and "paracetamol" in quote and len(quote) < 500
+    assert all(part in text for part in smpc.fragments(quote)) and "paracetamol" in quote and len(quote) < 500
     assert quote.startswith("Los siguientes medicamentos potencian")
 
 
@@ -92,3 +92,11 @@ def test_meal_notes_quote_section_4_2_sentences_about_food():
     assert "durante las comidas" in found[0].quote and "con o sin alimentos" in found[1].quote
     assert all(f.quote in SECTIONS[(f.source and (METFORMINA_850 if f.cns[0] == "680001" else OMEPRAZOL).nregistro, "4.2")] for f in found)
     assert "el horario lo decide el cuidador" in found[0].text("es")
+
+
+def test_one_sentence_naming_two_packs_of_the_same_ingredient_is_reported_once(monkeypatch):
+    monkeypatch.setitem(SECTIONS, (ACENOCUMAROL.nregistro, "4.5"),
+                        "Algunos medicamentos pueden potenciar el efecto anticoagulante de forma notable, como el paracetamol a dosis altas.")
+    found = check_packs([pack(ACENOCUMAROL), pack(PARACETAMOL_A), pack(PARACETAMOL_B)], FakeSmpc(), TODAY)
+    mentions = [f for f in found if f.kind == "smpc_mention"]
+    assert len(mentions) == 1 and sorted(mentions[0].cns) == ["650001", "650002", "670001"]

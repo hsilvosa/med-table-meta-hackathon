@@ -1,6 +1,6 @@
 """The medication sheet against the packs on the table."""
 
-from fixtures import (IBUPROFENO, LORAZEPAM, METFORMINA_500, METFORMINA_850, OMEPRAZOL, PARACETAMOL_A, VALSARTAN_40,
+from fixtures import (med, strength, IBUPROFENO, LORAZEPAM, METFORMINA_500, METFORMINA_850, OMEPRAZOL, PARACETAMOL_A, VALSARTAN_40,
                       VALSARTAN_HCT, pack)
 from medtable import schedule
 from medtable.schedule import Line, dose_number, lines_from_rows, reconcile
@@ -68,3 +68,9 @@ def test_a_typed_cn_selects_the_pack_exactly():
 def test_brand_names_match_through_the_first_word():
     result = reconcile([Line("Ibuprofeno BETA")], [pack(IBUPROFENO), pack(LORAZEPAM)])
     assert result.matches[0].medicine.cn == "660001"
+
+
+def test_liquid_forms_are_not_compared_because_cima_lists_the_amount_per_container():
+    syrup = med("720001", "IBUPROFENO CINFA 20 MG/ML SUSPENSION ORAL", ["IBUPROFENO"], "M01AE01", strengths=strength(("2.0", "g")), form="SUSPENSION ORAL")
+    assert schedule.strength_matches(Line("IBUPROFENO CINFA 20 MG/ML SUSPENSION ORAL"), pack(syrup)) is None
+    assert reconcile([Line("Ibuprofeno 20 mg/ml")], [pack(syrup)]).blocked == {}

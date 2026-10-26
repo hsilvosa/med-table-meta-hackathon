@@ -23,7 +23,7 @@ def test_unverified_reading_is_listed_and_never_planned():
     bad = Reading("unverified", (0, 0, 1, 1), "zxing", "xyz", problems=["not a GS1 element string"])
     result = make_plan([reading(OMEPRAZOL), bad], [], [row("Omeprazol 20 mg", desayuno="1")], FakeSmpc(), TODAY)
     assert [e.name for e in result.plan.entries] == [OMEPRAZOL.name]
-    assert ("not a GS1 element string", "no se pudo verificar") in result.plan.not_included
+    assert ("el código leído no es un código GS1 de medicamento", "no se pudo verificar") in result.plan.not_included
 
 
 def test_manual_pack_is_added_and_deduplicated_against_decoded_ones(tmp_path, monkeypatch):

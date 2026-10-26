@@ -69,6 +69,12 @@ def find_mentions(text: str, terms: list[str], *, max_per_term: int = 2) -> list
 
 
 ELLIPSIS = " [...] "  # joins two exact fragments of the same sentence
+CUT = "[...]"
+
+
+def fragments(quote: str) -> list[str]:
+    """The exact pieces of AEMPS text that make up a quote (long sentences are shown as pieces joined by [...])."""
+    return [part.strip() for part in quote.split(CUT) if part.strip()]
 
 
 def window(sentence: str, term: str, radius: int = 170) -> str:

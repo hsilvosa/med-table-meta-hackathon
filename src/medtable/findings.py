@@ -6,6 +6,7 @@ finding: the absence of findings is not a statement of safety, and the UI must s
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 NOT_AN_INTERACTION_CHECK = {
@@ -30,8 +31,8 @@ TEMPLATES = {
         "es": "{a} caduca el {detail}.",
         "en": "{a} expires on {detail}."},
     "smpc_mention": {
-        "es": "La ficha técnica de {a} (sección 4.5) menciona {detail}: «…{quote}…». Para revisar con su farmacéutico; no es una comprobación completa de interacciones.",
-        "en": "The SmPC of {a} (section 4.5) mentions {detail}: \"...{quote}...\". To review with a pharmacist; not a full interaction check."},
+        "es": "La ficha técnica de {a} (sección 4.5) menciona {detail}: «{quote}». Para revisar con su farmacéutico; no es una comprobación completa de interacciones.",
+        "en": "The SmPC of {a} (section 4.5) mentions {detail}: \"{quote}\". To review with a pharmacist; not a full interaction check."},
     "meal_note": {
         "es": "La ficha técnica de {a} (sección 4.2) dice sobre las comidas: «{quote}». Es una cita; el horario lo decide el cuidador con su médico o farmacéutico.",
         "en": "The SmPC of {a} (section 4.2) says about meals: \"{quote}\". This is a quotation; the schedule is decided by the caregiver with a doctor or pharmacist."},
@@ -54,6 +55,23 @@ TEMPLATES = {
         "es": "No se pudo verificar este envase ({detail}). No entra en el calendario.",
         "en": "This pack could not be verified ({detail}). It is not included in the calendar."},
 }
+
+
+def explain_problem(problem: str) -> str:
+    """Spanish wording for the (English, internal) reasons a reading could not be verified."""
+    known = (
+        (r"CIMA has no medicine with CN (\d+)", lambda m: f"AEMPS CIMA no conoce el código nacional {m.group(1)}"),
+        (r"not a GS1 element string", lambda m: "el código leído no es un código GS1 de medicamento"),
+        (r"check digit of the NTIN", lambda m: "el dígito de control del código nacional no es válido"),
+        (r"\(01\) is a regular GTIN", lambda m: "el código no contiene el código nacional español"),
+        (r"\(712\) is not a valid", lambda m: "el campo 712 no es un código nacional válido"),
+        (r"no \(01\) and no \(712\)", lambda m: "el código no contiene datos del medicamento"),
+    )
+    for pattern, wording in known:
+        match = re.search(pattern, problem)
+        if match:
+            return wording(match)
+    return problem
 
 
 @dataclass

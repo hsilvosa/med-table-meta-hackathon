@@ -17,6 +17,7 @@ from .smpc import plain, stem_words
 SLOTS = ("desayuno", "comida", "cena", "acostarse")
 DOSE_RE = re.compile(r"^(?:\d{1,2}(?:[.,]\d{1,2})?|\d/\d)$")  # 0, 1, 2, 0,5, 1/2, 3/4
 FORM_WORDS = {"comprimidos", "comprimido", "capsulas", "capsula", "efg", "recubiertos", "pelicula", "solucion", "sobres", "gotas"}
+NON_SOLID_FORMS = ("suspension", "solucion", "jarabe", "colirio", "crema", "gel", "inyect", "gotas", "pomada", "spray", "emulsion", "polvo", "parche", "inhal", "ungüento", "unguento", "enema", "supositorio", "granulado")
 MASS_TO_MG = {"mg": 1.0, "g": 1000.0, "mcg": 0.001, "ug": 0.001, "µg": 0.001, "microgramos": 0.001, "gr": 1000.0}
 
 
@@ -66,7 +67,14 @@ def _numbers(text: str) -> list[float]:
 
 
 def strength_matches(line: Line, pack: Pack) -> bool | None:
-    """True/False when both sides state strengths; None when either side has none to compare."""
+    """True/False when both sides state strengths; None when either side has none to compare.
+
+    Only solid single-dose forms are compared: for liquids, creams, drops and the like CIMA lists the amount per container
+    while names and sheets give a concentration (20 mg/ml), so the numbers are not comparable and no verdict is given.
+    """
+    form = plain(pack.medicine.form or "")
+    if any(word in form for word in NON_SOLID_FORMS) or re.search(r"/\s*(ml|l|dosis|gota|g)\b", line.text.lower()):
+        return None
     wanted = _numbers(line.text)
     actual = sorted(round(float(str(s["cantidad"]).replace(",", ".")) * MASS_TO_MG.get(str(s["unidad"]).lower(), 1.0), 6)
                     for s in pack.medicine.strengths if s.get("cantidad") not in (None, ""))

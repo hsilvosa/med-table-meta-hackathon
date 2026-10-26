@@ -13,10 +13,10 @@ from datetime import date, timedelta
 from itertools import combinations, permutations
 from typing import Protocol
 
-from .findings import Finding
+from .findings import Finding, explain_problem
 from .identify import Reading
 from .resolve import Medicine
-from .smpc import ELLIPSIS, Section, find_mentions, meal_sentences, plain
+from .smpc import Section, fragments, find_mentions, meal_sentences, plain
 
 class SectionSource(Protocol):
     """Anything that returns SmPC sections: the cached CIMA client, or a stand-in in tests."""
@@ -43,7 +43,7 @@ def packs_from_readings(readings: list[Reading]) -> tuple[list[Pack], list[Findi
         if r.status == "verified" and r.medicine:
             packs.append(Pack(r.medicine, "verified", r.expiry))
         else:
-            findings.append(Finding("unverified_item", detail="; ".join(r.problems) or "unknown"))
+            findings.append(Finding("unverified_item", detail="; ".join(explain_problem(p) for p in r.problems) or "motivo desconocido"))
     return packs, findings
 
 
@@ -114,8 +114,12 @@ def check_packs(packs: list[Pack], smpc: SectionSource | None = None, today: dat
             if not section:
                 continue
             for term, sentence in find_mentions(section.text, mention_terms(b)):
-                assert all(part in section.text for part in sentence.split(ELLIPSIS))  # a quote is made of exact fragments of the AEMPS text
+                assert all(part in section.text for part in fragments(sentence))  # a quote is made of exact fragments of the AEMPS text
                 negated = any(n in plain(sentence) for n in NEGATIONS)  # "no se han descrito interacciones con X": quoted, but informative
+                twin = next((f for f in findings if f.kind == "smpc_mention" and f.cns[0] == a.cn and f.quote == sentence), None)
+                if twin:  # two packs of the same ingredient named by one sentence: say it once
+                    twin.cns.append(b.cn)
+                    continue
                 findings.append(Finding("smpc_mention", [a.name, b.name], [a.cn, b.cn], term, sentence, section.citation(),
                                         "info" if negated else "review"))
     return findings
