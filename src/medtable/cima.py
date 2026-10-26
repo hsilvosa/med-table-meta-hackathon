@@ -35,7 +35,8 @@ def fetch(url: str, *, retries: int = 4, timeout: float = 60.0) -> bytes:
 
 def get_json(endpoint: str, **params: object) -> dict:
     query = urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
-    return json.loads(fetch(f"{API}/{endpoint}?{query}"))
+    raw = fetch(f"{API}/{endpoint}?{query}")
+    return json.loads(raw) if raw.strip() else {}  # CIMA answers an unknown code with an empty body, not with a 404
 
 
 def iter_medicines(*, marketed_only: bool = True, pause: float = 0.2) -> Iterator[dict]:

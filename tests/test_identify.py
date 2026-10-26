@@ -73,3 +73,9 @@ def test_identify_marks_verified_expired_and_unknown(tmp_path, monkeypatch):
 def test_non_code_text_is_unverified(tmp_path):
     reading = identify.read_code(decode.Detection("hello world", (0, 0, 1, 1), "zxing"), Resolver(tmp_path))
     assert reading.status == "unverified" and reading.problems
+
+
+def test_cima_empty_body_for_an_unknown_cn_means_not_found(tmp_path, monkeypatch):
+    """Observed on the real API: an unknown CN returns HTTP 200 with an empty body."""
+    monkeypatch.setattr(cima, "fetch", lambda url, **kw: b"")
+    assert Resolver(tmp_path).by_cn("123450") is None
