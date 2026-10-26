@@ -64,6 +64,7 @@ def test_no_mention_is_not_reported_as_safe():
     # omeprazol's text does name 'metformina': that is quoted, and it is the only finding; nothing says "no interactions"
     assert kinds(found) == ["smpc_mention"]
     assert "metformina" in found[0].quote.lower()
+    assert found[0].severity == "info"  # the sentence says nothing was described: quoted, not escalated
 
 
 def test_class_name_mentions_use_plural_and_accent_insensitive_matching():

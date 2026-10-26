@@ -18,8 +18,9 @@ from .schedule import SLOTS, Line, Reconciliation, dose_number
 
 SLOT_LABELS = {"desayuno": "Desayuno", "comida": "Comida", "cena": "Cena", "acostarse": "Al acostarse"}
 DEFAULT_TIMES = {"desayuno": "08:30", "comida": "14:00", "cena": "21:00", "acostarse": "23:00"}
-FORM_NOUNS = (("comprimid", "comprimido", "comprimidos"), ("capsula", "capsula", "capsulas"), ("supositor", "supositorio", "supositorios"),
+FORM_NOUNS = (("comprimid", "comprimido", "comprimidos"), ("capsula", "cápsula", "cápsulas"), ("supositor", "supositorio", "supositorios"),
               ("sobre", "sobre", "sobres"), ("granulado", "sobre", "sobres"))
+FEMININE = {"cápsula", "dosis"}
 SPOKEN = {1.0: "un", 2.0: "dos", 3.0: "tres", 4.0: "cuatro", 0.5: "medio", 0.25: "un cuarto", 0.75: "tres cuartos", 1.5: "uno y medio"}
 ABBREVIATIONS = ((r"\b(\d+)\s*h\b", r"\1 horas"), (r"\b(\d+)\s*min\b", r"\1 minutos"), (r"\b(\d+(?:[.,]\d+)?)\s*mg\b", r"\1 miligramos"),
                  (r"\b(\d+(?:[.,]\d+)?)\s*g\b", r"\1 gramos"), (r"\bc/\b", "cada"))
@@ -55,6 +56,8 @@ class Entry:
         value = dose_number(self.dose)
         singular, plural = self.noun
         word = SPOKEN.get(value, self.dose.replace("/", " barra "))
+        if singular in FEMININE:
+            word = {"un": "una", "medio": "media", "uno y medio": "una y media"}.get(word, word)
         return f"{word} {singular if (value or 0) <= 1 or word == 'uno y medio' else plural}"
 
 

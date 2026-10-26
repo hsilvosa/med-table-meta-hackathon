@@ -24,6 +24,7 @@ class SectionSource(Protocol):
     def section(self, nregistro: str, section: str) -> Section | None: ...
 
 
+NEGATIONS = ("no se han descrito", "no se ha descrito", "no se han observado", "no se ha observado", "no se han realizado", "no interacciona")
 GENERIC_WORDS = {"acido", "sodico", "potasico", "calcico", "magnesico", "hidrocloruro", "clorhidrato", "sulfato",
                  "maleato", "besilato", "tartrato", "succinato", "fosfato", "citrato"}
 
@@ -114,5 +115,7 @@ def check_packs(packs: list[Pack], smpc: SectionSource | None = None, today: dat
                 continue
             for term, sentence in find_mentions(section.text, mention_terms(b)):
                 assert sentence in section.text  # a quote must be an exact substring of the AEMPS text
-                findings.append(Finding("smpc_mention", [a.name, b.name], [a.cn, b.cn], term, sentence, section.citation()))
+                negated = any(n in plain(sentence) for n in NEGATIONS)  # "no se han descrito interacciones con X": quoted, but informative
+                findings.append(Finding("smpc_mention", [a.name, b.name], [a.cn, b.cn], term, sentence, section.citation(),
+                                        "info" if negated else "review"))
     return findings

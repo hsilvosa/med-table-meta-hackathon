@@ -23,7 +23,7 @@ def test_only_confirmed_matched_lines_reach_the_plan():
     assert [(e.slot, e.name) for e in plan.entries] == [("desayuno", OMEPRAZOL.name)]
     reasons = dict(plan.not_included)
     assert "no ha sido confirmada" in reasons["Metformina 850 mg"]
-    assert reasons["Atorvastatina 20 mg"] == "no pack found on the table"
+    assert reasons["Atorvastatina 20 mg"] == "no hay ningún envase en la mesa"
 
 
 def test_an_expired_pack_never_enters_the_calendar():
@@ -43,7 +43,7 @@ def test_dose_is_written_exactly_as_confirmed():
     comma = Entry("desayuno", pack(PARACETAMOL_A), line("Paracetamol", {"desayuno": "0,5"}), "0,5")
     assert (half.written(), two.written(), one.written(), comma.written()) == ("1/2 comprimido", "2 comprimidos", "1 comprimido", "0,5 comprimido")
     assert OMEPRAZOL.form == "CAPSULAS DURAS"
-    assert Entry("desayuno", pack(OMEPRAZOL), line("Omeprazol", {"desayuno": "2"}), "2").written() == "2 capsulas"
+    assert Entry("desayuno", pack(OMEPRAZOL), line("Omeprazol", {"desayuno": "2"}), "2").written() == "2 cápsulas"
 
 
 def test_speech_reads_fractions_and_abbreviations_correctly():
@@ -65,3 +65,8 @@ def test_ics_has_one_daily_reminder_per_slot_with_medication():
     assert "RRULE:FREQ=DAILY;COUNT=30" in ics
     assert "con las comidas\\; sin falta" in ics  # semicolons are escaped
     assert ics.startswith("BEGIN:VCALENDAR") and ics.endswith("END:VCALENDAR\r\n")
+
+
+def test_spoken_gender_agrees_with_the_unit():
+    caps = lambda d: Entry("desayuno", pack(OMEPRAZOL), line("Omeprazol", {"desayuno": d}), d).spoken()
+    assert (caps("1"), caps("2"), caps("1/2")) == ("una cápsula", "dos cápsulas", "media cápsula")

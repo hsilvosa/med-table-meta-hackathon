@@ -41,7 +41,7 @@ def test_matching_by_ingredient_and_strength():
 def test_prescribed_but_not_on_the_table():
     result = reconcile([Line("Atorvastatina 20 mg")], [pack(OMEPRAZOL)])
     assert [f.kind for f in result.findings] == ["prescribed_not_found", "not_prescribed"]
-    assert result.blocked == {0: "no pack found on the table"}
+    assert result.blocked == {0: "no hay ningún envase en la mesa"}
 
 
 def test_wrong_strength_blocks_the_line():

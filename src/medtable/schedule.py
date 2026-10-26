@@ -107,16 +107,16 @@ def reconcile(lines: list[Line], packs: list[Pack]) -> Reconciliation:
         distinct = {p.medicine.cn: p for p in candidates}
         if not distinct:
             findings.append(Finding("prescribed_not_found", detail=line.text))
-            blocked[i] = "no pack found on the table"
+            blocked[i] = "no hay ningún envase en la mesa"
         elif len(distinct) > 1:
             findings.append(Finding("ambiguous_match", [p.medicine.name for p in distinct.values()], list(distinct), line.text))
-            blocked[i] = "several packs match; pick one"
+            blocked[i] = "varios envases encajan; indique cuál es"
         else:
             pack = next(iter(distinct.values()))
             matches[i] = pack
             if strength_matches(line, pack) is False:
                 findings.append(Finding("strength_mismatch", [pack.medicine.name], [pack.medicine.cn], line.text, source=pack.medicine.citation()))
-                blocked[i] = "strength on the sheet does not match the pack"
+                blocked[i] = "la dosis de la hoja no coincide con el envase"
     matched_cns = {p.medicine.cn for p in matches.values()} | {c for f in findings if f.kind == "ambiguous_match" for c in f.cns}
     seen: set[str] = set()
     for pack in packs:
