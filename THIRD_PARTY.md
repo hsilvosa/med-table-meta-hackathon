@@ -11,7 +11,8 @@ Everything tracked in git: `src/medtable/`, `scripts/`, `experiments/`, `PLAN.md
 |---|---|---|---|
 | SAM 3 / SAM 3.1 weights and code | Meta, `facebook/sam3`, `facebook/sam3.1`, github.com/facebookresearch/sam3 (gated, access requested) | SAM license (Meta) | Locates boxes in a photo. Cloned into `third_party/`, weights in the Hugging Face cache; not redistributed. |
 | Qwen3.5-9B (GGUF by unsloth) | `Qwen/Qwen3.5-9B`, `unsloth/Qwen3.5-9B-GGUF` | Apache-2.0 | Local vision-language model (reads the medication sheet, proposes candidates). Weights in `models/`, not committed. |
-| llama.cpp (`llama-server`) | github.com/ggml-org/llama.cpp | MIT | Serves the VLM locally. |
+| llama.cpp (`llama-server`) | github.com/ggml-org/llama.cpp | MIT | Serves the local VLM. |
+| Meta Model API (Muse Spark `muse-spark-1.3`, standard tier) | https://api.meta.ai/v1, Meta | Meta Model API terms; standard tier (prompts not used for training) | Hosted vision-language model for reading labels and the medication sheet. Images sent to it leave the machine, so only public CIMA photos and fictional sheets are used. Spending is capped by `src/medtable/meta_api.py`. |
 | zxing-cpp, pylibdmtx, OpenCV, NumPy, Pillow, PyTorch | PyPI | their own licenses | Barcode decoding, image processing, inference. |
 | Streamlit, pandas, ReportLab, pytest, pypdfium2 | PyPI | their own licenses (Apache-2.0 / BSD; ReportLab BSD) | Caregiver web UI, tables, PDF generation, tests, PDF-to-PNG in the demo script. Pinned in `requirements*.txt`. |
 | Windows speech engine (System.Speech, voice Microsoft Helena es-ES) | Installed with Windows | Windows license | Offline Spanish voice, called through PowerShell; audio is generated locally and not redistributed. |

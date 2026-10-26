@@ -18,12 +18,17 @@ Does not claim: a safe plan, absence of interactions ("no mention found in the s
 | 2 | Decode the GS1 Datamatrix (zxing-cpp, then pylibdmtx); read GTIN, expiry, lot | deterministic |
 | 3 | Printed "C.N." via OCR/VLM, accepted only if the check digit validates (`src/medtable/cn.py`) | deterministic + model |
 | 4 | Resolve the CN in CIMA: ingredients, ATC, form, SmPC sections, official photo | deterministic |
-| 5 | If nothing decodes: the local VLM (Qwen3.5-9B) proposes candidates; the user confirms next to the official photo; otherwise the item is Unverified | model + human |
+| 5 | If nothing decodes: a vision-language model proposes candidates; the user confirms next to the official photo; otherwise the item is Unverified | model + human |
 | 6 | Medication sheet: the VLM reads it into rows, the caregiver confirms every line (or types them) | model + human |
 | 7 | Rules: duplicates, ATC class overlap, expiry, prescribed/not found, found/not prescribed, cited SmPC 4.5 mentions | deterministic |
 | 8 | Output: calendar PDF (official pack photo as pictogram), voice reading, `.ics` file for phone reminders; doses shown exactly as the caregiver confirmed them, never written by a model | deterministic |
 
 Item states: Verified (code) / Confirmed by user / Unverified. Unverified items never enter the calendar; they are listed under "Not included". Quotes are string-matched against the source text and dropped if they do not match.
+
+## Models and cost
+- Whenever a model must be integrated, the default is a Meta model through the Meta Model API: `muse-spark-1.3`, standard tier only (the "-contributor" models let Meta train on the prompts, so they are never used), `reasoning_effort="minimal"`. SAM 3 / 3.1 run locally. Qwen3.5-9B (local) stays as an offline fallback and as the comparison baseline.
+- Budget: hard cap of USD 100 for the whole project, enforced in code (`src/medtable/meta_api.py`: every call is logged to `data/meta_usage.jsonl`, and a call is refused when spent + worst case would pass 90% of `META_BUDGET_USD`). Measured: about USD 0.005 per image call (3,000 input tokens for a 1024x576 photo, about 200 output), i.e. roughly 20,000 image calls for USD 100.
+- Privacy: whatever is sent to the API leaves the machine. Only public CIMA photos and fictional medication sheets are used in tests and in the demo; a real prescription is never sent.
 
 ## Evidence so far (`experiments/README.md`)
 - SAM 3 and 3.1 run locally on an RTX 3060; SAM 3 found 71 of 72 boxes in 12 synthetic scenes.

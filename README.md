@@ -11,6 +11,13 @@ Run the app: `.venv-app/Scripts/python.exe -m streamlit run app.py --server.addr
 
 Tests: `.venv-app/Scripts/python.exe -m pytest` (52 tests; they render real GS1 Data Matrix codes and use a stored CIMA response, no network).
 
+## Models
+Vision-language model access goes through `src/medtable/vlm.py`, which has two interchangeable backends selected with `VLM_BACKEND` in `.env`:
+- `meta` (default): Meta Model API, `muse-spark-1.3`, standard tier, with a hard spending cap (`META_BUDGET_USD`, every call logged in `data/meta_usage.jsonl`). Images leave the machine, so only public CIMA photos and fictional documents are sent.
+- `local`: Qwen3.5-9B (Q4_K_M GGUF) served by `llama-server`, fully offline and free. Start command and settings are in the docstring of `vlm.py`. It is an alternative path: it reads a fictional medication sheet well but is unreliable on small pack crops (`experiments/README.md`), which is why identification relies on the pack code and not on any model.
+
+SAM 3 / 3.1 always run locally.
+
 ## Hackathon compliance
 - All code and documents in this repository were written on 2026-10-26 or later, from scratch, and the git history starts that day. Earlier throw-away prototypes were discarded and rewritten.
 - Third-party models, data and libraries, and what is not committed, are listed in `THIRD_PARTY.md`. The official CIMA photos were first downloaded on 2026-10-24; they are third-party data and are not in the repository.
