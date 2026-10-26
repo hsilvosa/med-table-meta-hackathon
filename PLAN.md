@@ -29,6 +29,7 @@ Item states: Verified (code) / Confirmed by user / Unverified. Unverified items 
 - SAM 3 and 3.1 run locally on an RTX 3060; SAM 3 found 71 of 72 boxes in 12 synthetic scenes.
 - Qwen3.5-9B reads a fictional medication sheet exactly (28/28 schedule cells) but is unreliable at identifying small pack crops, so identification must come from the pack code.
 - A CN is accepted only when check digit, CIMA membership and the other fields agree.
+- Identification core implemented and tested (`src/medtable/{gs1,decode,resolve,identify}.py`, 16 tests): a pack is `verified` only if its Data Matrix decodes, parses as GS1, yields a CN whose check digit validates, and CIMA knows it. On rendered (perfect) codes decoding works from about 3 px per module (about 5 with blur), which at 12 MP means a field of view of 30 cm or less; the code-side close-up step stays in the design. Not yet measured on real packs.
 
 ## Work packages
 1. Datamatrix + CN decoder and CIMA resolver with local cache; evaluation script (coverage, confident-wrong count).

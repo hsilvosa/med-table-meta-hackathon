@@ -5,7 +5,9 @@ A tool for caregivers of older adults on many medicines. Photograph the packs on
 **What it is not.** It does not give medical advice, does not decide doses, and is not a medical device. The schedule always comes from the prescription, entered or confirmed line by line by the caregiver. Every flag shown cites an AEMPS source, with the quoted sentence checked against the original text; the section 4.5 excerpts are shown for the pharmacist to review, never as a verdict. When it cannot identify an item, it asks; it never guesses.
 
 ## Status
-Early. Built so far: CIMA client and photo downloader, cut-out and synthetic-scene tools, Codigo Nacional check-digit helpers, and smoke tests of SAM 3 / 3.1 and a local Qwen3.5-9B model (`experiments/`, results in `experiments/README.md`). The rest of the pipeline (Datamatrix decoding, resolver, schedule editor, calendar, voice) is in progress; see `PLAN.md`.
+Early. Built so far: CIMA client and photo downloader, cut-out and synthetic-scene tools, and the identification core: GS1 Data Matrix decoding, Codigo Nacional validation, CIMA resolver with local cache, and per-pack readings (`verified` only when the code decodes, the CN check digit validates and CIMA knows the CN; expiry comes from the code). Smoke tests of SAM 3 / 3.1 and a local Qwen3.5-9B model are in `experiments/` (results in `experiments/README.md`). The rest of the pipeline (schedule editor, rules, calendar, voice) is in progress; see `PLAN.md`.
+
+Tests: `.venv-app/Scripts/python.exe -m pytest` (16 tests; they render real GS1 Data Matrix codes and use a stored CIMA response, no network).
 
 ## Hackathon compliance
 - All code and documents in this repository were written on 2026-10-26 or later, from scratch, and the git history starts that day. Earlier throw-away prototypes were discarded and rewritten.
