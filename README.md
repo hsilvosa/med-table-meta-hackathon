@@ -22,4 +22,4 @@ python scripts/compose_scenes.py --n 12              # synthetic desk scenes wit
 Models and photos are not in git: they are downloaded locally.
 
 ## License
-To be chosen before submission.
+Apache License 2.0 (see `LICENSE`). Copyright 2026 Hugo Silvosa Cuervo. Third-party models and data keep their own terms (see `THIRD_PARTY.md`).
