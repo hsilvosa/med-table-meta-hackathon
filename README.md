@@ -7,6 +7,13 @@ A tool for caregivers of older adults on many medicines. Photograph the packs on
 ## Status
 Early. Built so far: CIMA client and photo downloader, cut-out and synthetic-scene tools, Codigo Nacional check-digit helpers, and smoke tests of SAM 3 / 3.1 and a local Qwen3.5-9B model (`experiments/`, results in `experiments/README.md`). The rest of the pipeline (Datamatrix decoding, resolver, schedule editor, calendar, voice) is in progress; see `PLAN.md`.
 
+## Models
+Vision-language model access goes through `src/medtable/vlm.py`, which has two interchangeable backends selected with `VLM_BACKEND` in `.env`:
+- `meta` (default): Meta Model API, `muse-spark-1.3`, standard tier, with a hard spending cap (`META_BUDGET_USD`, every call logged in `data/meta_usage.jsonl`). Images leave the machine, so only public CIMA photos and fictional documents are sent.
+- `local`: Qwen3.5-9B (Q4_K_M GGUF) served by `llama-server`, fully offline and free. Start command and settings are in the docstring of `vlm.py`. It is an alternative path: it reads a fictional medication sheet well but is unreliable on small pack crops (`experiments/README.md`), which is why identification relies on the pack code and not on any model.
+
+SAM 3 / 3.1 always run locally.
+
 ## Hackathon compliance
 - All code and documents in this repository were written on 2026-10-26 or later, from scratch, and the git history starts that day. Earlier throw-away prototypes were discarded and rewritten.
 - Third-party models, data and libraries, and what is not committed, are listed in `THIRD_PARTY.md`. The official CIMA photos were first downloaded on 2026-10-24; they are third-party data and are not in the repository.
