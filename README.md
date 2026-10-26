@@ -5,15 +5,29 @@ A tool for caregivers of older adults on many medicines. Photograph the packs on
 **What it is not.** It does not give medical advice, does not decide doses, and is not a medical device. The schedule always comes from the prescription, entered or confirmed line by line by the caregiver. Every flag shown cites an AEMPS source, with the quoted sentence checked against the original text; the section 4.5 excerpts are shown for the pharmacist to review, never as a verdict. When it cannot identify an item, it asks; it never guesses.
 
 ## Status
-Early. Built so far: CIMA client and photo downloader, cut-out and synthetic-scene tools, and the identification core: GS1 Data Matrix decoding, Codigo Nacional validation, CIMA resolver with local cache, and per-pack readings (`verified` only when the code decodes, the CN check digit validates and CIMA knows the CN; expiry comes from the code). Smoke tests of SAM 3 / 3.1 and a local Qwen3.5-9B model are in `experiments/` (results in `experiments/README.md`). On top of it (branch `feat/rules`): rules (same active ingredient, same ATC class, expiry, verbatim SmPC 4.5 quotations that name another pack on the table), reconciliation of the caregiver's medication sheet against the verified packs, a plan that only contains confirmed lines with verified, unexpired packs, a printable PDF calendar, offline Spanish voice (Windows speech engine), an `.ics` file, a medication-sheet reader (Muse Spark or local Qwen; nothing it reads is trusted until confirmed) SAM 3 (as a subprocess in its own environment) to find packs without a readable code, with model-proposed CIMA candidates that the caregiver must confirm against the official photo, and a Streamlit app (`experiments/demo_plan.py` builds a demo from invented medicines). Blender-rendered scenes (`scripts/blender_scene.py`) show the codes decoding in 98-100 % of cases from 50 cm or closer and in about 90 % at 70 cm (perfect labels; real packs untested). Not done yet: confirmation UI, sheet reader, text-to-speech audio, alert engine for real SmPC text, real-photo evaluation; see `PLAN.md`.
+Working prototype, tested on synthetic data only. No real pack photos have been used yet, so no accuracy claim is made for real use.
 
-Run the app: `.venv-app/Scripts/python.exe -m streamlit run app.py --server.address 127.0.0.1` (photo or typed C.N. -> verified packs -> sheet with confirmation -> findings, PDF, voice, `.ics`). Dependencies: `requirements.txt` (`requirements-dev.txt` for tests).
+| Part | State |
+|---|---|
+| Data Matrix decoding (zxing-cpp, tiled search, libdmtx fallback), GS1 parsing, Codigo Nacional check digit | done |
+| CIMA resolver with local cache; a pack is `verified` only if the code decodes, the CN check digit is valid and CIMA knows the CN; expiry from the code | done |
+| Rules: same active ingredient, same ATC class, expiry, strength vs sheet; verbatim quotes of SmPC sections 4.5 (mentions of another pack on the table) and 4.2 (meals) | done, checked on real CIMA texts |
+| Medication sheet: reconciliation with the packs; a line enters the plan only if confirmed, verified, not expired, unambiguous and with a recognised dose | done |
+| Sheet reader (Muse Spark or local Qwen; every row comes back unconfirmed) | done; 28/28 cells on one fictional sheet |
+| Packs without a readable code: SAM 3 boxes, model-proposed CIMA candidates, caregiver confirms against the official photo | done; the true medicine was among the candidates in 3 of 12 small crops (weak by design: the model only proposes) |
+| Output: printable PDF calendar, offline Spanish voice (Windows speech engine), `.ics` reminders | done |
+| Streamlit app tying it together | done |
+| Evaluation on real photos, real-sheet reading, adherence check with a reference image | not done |
 
-Tests: `.venv-app/Scripts/python.exe -m pytest` (63 tests; they render real GS1 Data Matrix codes and use a stored CIMA response, no network).
+Blender-rendered table scenes (`scripts/blender_scene.py`) decode in 98-100 % of cases from 50 cm or closer and about 90 % at 70 cm; perfect labels on flat boxes, so an upper bound. Details and caveats: `experiments/README.md`.
+
+Run the app: `.venv-app/Scripts/python.exe -m streamlit run app.py --server.address 127.0.0.1` (photo or typed C.N. -> verified packs -> sheet with confirmation -> findings, PDF, voice, `.ics`). Dependencies: `requirements.txt` (`requirements-dev.txt` for tests). `experiments/demo_plan.py` builds a demo plan from invented medicines.
+
+Tests: `.venv-app/Scripts/python.exe -m pytest` (63 tests; they render Data Matrix codes, use invented SmPC texts and a stored CIMA response, no network).
 
 ## Models
 Vision-language model access goes through `src/medtable/vlm.py`, which has two interchangeable backends selected with `VLM_BACKEND` in `.env`:
-- `meta` (default): Meta Model API, `muse-spark-1.3`, standard tier, with a hard spending cap (`META_BUDGET_USD`, every call logged in `data/meta_usage.jsonl`). Images leave the machine, so only public CIMA photos and fictional documents are sent.
+- `meta` (default): Meta Model API, `muse-spark-1.3`, standard tier, with a hard spending cap (`META_BUDGET_USD`, every call logged in `data/meta_usage.jsonl`). Images leave the machine, so the app asks for explicit consent before each use and only public CIMA photos and fictional documents should be sent.
 - `local`: Qwen3.5-9B (Q4_K_M GGUF) served by `llama-server`, fully offline and free. Start command and settings are in the docstring of `vlm.py`. It is an alternative path: it reads a fictional medication sheet well but is unreliable on small pack crops (`experiments/README.md`), which is why identification relies on the pack code and not on any model.
 
 SAM 3 / 3.1 always run locally.
@@ -29,6 +43,7 @@ python scripts/download_cima_photos.py manifest      # list of medicines with ph
 python scripts/download_cima_photos.py images        # ~5 GB, resumable
 python scripts/make_cutouts.py --n 50                # needs SAM 3 (gated weights) and a GPU
 python scripts/compose_scenes.py --n 12              # synthetic desk scenes with labels
+python experiments/blender_decode_eval.py            # Blender 4.5: decode rate by camera height
 ```
 Models and photos are not in git: they are downloaded locally.
 
