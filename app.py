@@ -18,12 +18,13 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from medtable import identify, sheet_reader, synthetic, vlm, voice  # noqa: E402
+from medtable import candidates, decode, identify, sheet_reader, synthetic, vlm, voice  # noqa: E402
 from medtable.calendar_pdf import DISCLAIMER, render_pdf  # noqa: E402
 from medtable.findings import NOT_AN_INTERACTION_CHECK, explain_problem  # noqa: E402
 from medtable.pipeline import make_plan, manual_pack  # noqa: E402
 from medtable.plan import DEFAULT_TIMES, SLOT_LABELS, to_ics  # noqa: E402
 from medtable.resolve import Resolver  # noqa: E402
+from medtable.rules import Pack  # noqa: E402
 from medtable.schedule import SLOTS  # noqa: E402
 from medtable.smpc import Smpc  # noqa: E402
 
@@ -69,6 +70,7 @@ def state_defaults() -> None:
 def add_photo(name: str, image: np.ndarray) -> None:
     with st.spinner(f"Leyendo códigos de {name}..."):
         st.session_state.readings[name] = identify.identify(image, resolver())
+    st.session_state.setdefault("photos", {})[name] = image
 
 
 def sync_sheet(readings, manual) -> None:
@@ -107,7 +109,7 @@ with right:
         elif pack.medicine.cn not in {p.medicine.cn for p in st.session_state.manual}:
             st.session_state.manual.append(pack)
     if st.button("Empezar de nuevo"):
-        for key in ("readings", "manual", "sheet", "sheet_cns"):
+        for key in ("readings", "manual", "sheet", "sheet_cns", "photos", "unmatched"):
             st.session_state.pop(key, None)
         st.rerun()
 
@@ -130,6 +132,57 @@ if rows:
         if url:
             col.image(url, caption=f"{m.name[:34]} (foto oficial AEMPS)", width=140)
 sync_sheet(readings, st.session_state.manual)
+
+# 1b. Packs without a readable code ---------------------------------------------------------------------------------------
+with st.expander("Envases sin código legible (SAM 3 + propuesta del modelo, siempre con su confirmación)"):
+    st.write("SAM 3 localiza las cajas que no tienen un código leído. El modelo solo propone candidatos de AEMPS CIMA; "
+             "**ningún candidato entra en el plan hasta que usted lo confirme** comparando con la foto oficial.")
+    photos = st.session_state.get("photos", {})
+    if st.button("Buscar envases sin código", disabled=not photos):
+        found = []
+        for name, image in photos.items():
+            folder = Path("data/cache/segments") / Path(name).stem
+            folder.mkdir(parents=True, exist_ok=True)
+            photo_path = folder / "photo.png"
+            cv2.imwrite(str(photo_path), image)
+            try:
+                with st.spinner(f"SAM 3 localizando cajas en {name} (unos 30 s)..."):
+                    boxes = candidates.segment(photo_path, folder)
+            except Exception as exc:  # no GPU, SAM environment missing: manual entry still works
+                st.error(f"No se pudo ejecutar SAM 3 ({exc}). Puede añadir envases por código nacional.")
+                continue
+            codes = [decode.Detection(r.raw, r.bbox, r.method) for r in st.session_state.readings.get(name, [])]
+            found += [(name, b) for b in candidates.boxes_without_code(boxes, codes)]
+        st.session_state.unmatched = found
+    for number, (name, box) in enumerate(st.session_state.get("unmatched", [])[:12]):
+        left_col, right_col = st.columns([1, 3])
+        left_col.image(str(box.crop), caption=f"Caja {number + 1} de {name}", width=160)
+        with right_col:
+            key = f"proposal_{name}_{box.crop.name}"
+            backend = vlm.backend_name()
+            ok = st.checkbox("Entiendo que este recorte se envía a la API de Meta (solo si no contiene datos personales)", key=f"consent_{key}") if backend == "meta" else True
+            if st.button("Proponer candidatos", key=f"btn_{key}", disabled=not ok):
+                try:
+                    with st.spinner("Consultando el modelo y AEMPS CIMA..."):
+                        st.session_state[key] = candidates.propose(box.crop, resolver())
+                except Exception as exc:  # noqa: BLE001
+                    st.error(f"No se pudo consultar el modelo ({exc}).")
+            proposal = st.session_state.get(key)
+            if proposal:
+                if proposal.note:
+                    st.info(proposal.note)
+                labels = {f"{c.medicine.name} ({', '.join(c.why) or 'sin coincidencias claras'})": c for c in proposal.candidates}
+                choice = st.radio("¿Cuál es este envase?", ["Ninguno / no lo sé", *labels], key=f"radio_{key}") if labels else None
+                shown = list(labels.values())[:3]
+                for col, cand in zip(st.columns(max(len(shown), 1)), shown):
+                    url = cand.medicine.photos.get("materialas") or cand.medicine.photos.get("formafarmac")
+                    if url:
+                        col.image(url, caption=f"{cand.medicine.name[:30]} (foto oficial AEMPS)", width=120)
+                if choice in labels and st.button("Confirmar este envase", key=f"ok_{key}"):
+                    picked = labels[choice].medicine
+                    if picked.cn not in {p.medicine.cn for p in st.session_state.manual}:
+                        st.session_state.manual.append(Pack(picked, "confirmed"))
+                        st.rerun()
 
 # 2. Sheet ---------------------------------------------------------------------------------------------------------------
 st.header("2. Hoja de medicación")
