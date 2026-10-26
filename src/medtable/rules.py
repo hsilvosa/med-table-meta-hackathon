@@ -25,6 +25,7 @@ class SectionSource(Protocol):
 
 
 NEGATIONS = ("no se han descrito", "no se ha descrito", "no se han observado", "no se ha observado", "no se han realizado", "no interacciona")
+POSITIVE_CUES = ("potenci", "aument", "increment", "reduc", "disminu", "riesgo", "evitar", "contraindic", "precauc", "vigil", "monitoriz", "ajust")
 GENERIC_WORDS = {"acido", "sodico", "potasico", "calcico", "magnesico", "hidrocloruro", "clorhidrato", "sulfato",
                  "maleato", "besilato", "tartrato", "succinato", "fosfato", "citrato"}
 
@@ -64,6 +65,7 @@ def _clean_class_name(name: str) -> str:
 def mention_terms(medicine: Medicine) -> list[str]:
     """What another medicine's SmPC would have to say to name this one: its ingredients and its class names."""
     terms = [n for n in medicine.active_ingredients if len(n) >= 5]
+    terms += [k for k in sorted(ingredient_keys(medicine)) if k not in {plain(t) for t in terms}]  # "AMLODIPINO BESILATO" is written "amlodipino" in other SmPCs
     for atc in medicine.atc:
         if atc.get("nivel") in (3, 4):
             name = _clean_class_name(atc.get("nombre", ""))
@@ -106,16 +108,23 @@ def check_packs(packs: list[Pack], smpc: SectionSource | None = None, today: dat
             findings.append(Finding("same_atc_class", [a.name, b.name], [a.cn, b.cn], f"{code} {_clean_class_name(class_a[code])}",
                                     source=a.citation()))
 
+    unavailable: set[str] = set()
     if smpc is not None:  # section 4.5 quotations, both directions of every pair
         for a, b in permutations(distinct, 2):
             if frozenset((a.cn, b.cn)) in duplicated:
                 continue  # already flagged: A's SmPC naming its own ingredient adds nothing
             section = smpc.section(a.nregistro, "4.5")
             if not section:
+                if a.cn not in unavailable:
+                    unavailable.add(a.cn)
+                    findings.append(Finding("smpc_unavailable", [a.name], [a.cn], "4.5"))
                 continue
             for term, sentence in find_mentions(section.text, mention_terms(b)):
-                assert all(part in section.text for part in fragments(sentence))  # a quote is made of exact fragments of the AEMPS text
-                negated = any(n in plain(sentence) for n in NEGATIONS)  # "no se han descrito interacciones con X": quoted, but informative
+                if not all(part in section.text for part in fragments(sentence)):  # a quote must be made of exact fragments of the AEMPS text
+                    raise RuntimeError("quote is not an exact fragment of the AEMPS text")  # explicit: asserts vanish under python -O
+                folded = plain(sentence)
+                # "no se han descrito interacciones con X" is informative; but any warning cue in the same sentence keeps it at review level
+                negated = any(n in folded for n in NEGATIONS) and not any(cue in folded for cue in POSITIVE_CUES)
                 twin = next((f for f in findings if f.kind == "smpc_mention" and f.cns[0] == a.cn and f.quote == sentence), None)
                 if twin:  # two packs of the same ingredient named by one sentence: say it once
                     twin.cns.append(b.cn)
@@ -134,7 +143,9 @@ def meal_notes(packs: list[Pack], smpc: SectionSource, limit: int = 2) -> list[F
             continue
         seen.add(medicine.cn)
         section = smpc.section(medicine.nregistro, "4.2")
-        if section:
+        if not section:
+            findings.append(Finding("smpc_unavailable", [medicine.name], [medicine.cn], "4.2", severity="info"))
+        else:
             for sentence in meal_sentences(section.text)[:limit]:
                 findings.append(Finding("meal_note", [medicine.name], [medicine.cn], quote=sentence, source=section.citation(), severity="info"))
     return findings

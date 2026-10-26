@@ -43,5 +43,10 @@ def make_plan(readings: list[Reading], extra_packs: list[Pack], rows: list[dict]
     for line, row in zip(lines, rows):
         line.confirmed = bool(row.get("confirmado"))
     recon = reconcile(lines, packs)
-    all_findings: list[Finding] = findings + dose_findings + check_packs(packs, smpc, today) + (meal_notes(packs, smpc) if smpc else []) + recon.findings
-    return Result(packs, lines, recon, build_plan(lines, recon, all_findings, today))
+    unknown_expiry = [Finding("expiry_unknown", [p.medicine.name], [p.medicine.cn],
+                              "la caducidad no viene en el código leído" if p.state == "verified" else "el envase se añadió sin leer su código",
+                              severity="review" if p.state == "verified" else "info") for p in packs if p.expiry is None]
+    all_findings: list[Finding] = findings + dose_findings + check_packs(packs, smpc, today) + (meal_notes(packs, smpc) if smpc else []) + unknown_expiry + recon.findings
+    plan = build_plan(lines, recon, all_findings, today)
+    plan.smpc_used = smpc is not None
+    return Result(packs, lines, recon, plan)

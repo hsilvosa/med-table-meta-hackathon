@@ -36,7 +36,7 @@ def clean_dose(value: object) -> str:
     """Typographic clean-up only: unicode fractions and stray spaces. Anything else is left as read."""
     text = str(value if value is not None else "").strip()
     for symbol, plain in FRACTIONS.items():
-        text = text.replace(symbol, plain)
+        text = re.sub(rf"(?<!\d){symbol}", plain, text)  # only a standalone fraction; "1½" stays as read and is rejected
     return re.sub(r"\s*/\s*", "/", text)
 
 
@@ -54,11 +54,16 @@ def rows_from_reply(text: str) -> SheetReading:
             continue
         row = {"medicamento": str(raw["medicamento"]).strip(), "observaciones": str(raw.get("observaciones") or "").strip(),
                "confirmado": False, "cn": None}
+        empty = []
         for slot in SLOTS:
             cell = clean_dose(raw.get(slot))
             if cell and dose_number(cell) is None:
                 reading.problems.append(f"Fila {number} ({row['medicamento']}), {slot}: «{cell}» no es una dosis reconocida; corríjala.")
+            if not cell:
+                empty.append(slot)
             row[slot] = cell or "0"
+        if empty:
+            reading.problems.append(f"Fila {number} ({row['medicamento']}): celda vacía o no leída en {', '.join(empty)}; se ha puesto 0. Compruébelo en la hoja.")
         reading.rows.append(row)
     return reading
 

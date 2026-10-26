@@ -99,6 +99,9 @@ def national_code(fields: dict[str, str]) -> NationalCode:
     if gtin and re.fullmatch(r"0" + SPAIN_PREFIX + r"\d{7}", gtin):
         candidate = gtin[7:14]
         if cn_module.is_valid(candidate):
+            other = fields.get("712")
+            if other is not None and other != candidate:
+                return NationalCode(None, None, [f"(01) carries CN {candidate} but (712) carries {other!r}: the code contradicts itself"])
             return NationalCode(candidate, "ntin")
         problems.append("check digit of the NTIN does not match its Codigo Nacional")
     elif gtin:
@@ -121,4 +124,7 @@ def parse_pack_code(text: str) -> PackCode:
             expiry = parse_expiry(fields["17"])
         except ValueError:
             expiry = None
-    return PackCode(fields.get("01"), expiry, fields.get("10"), fields.get("21"), national_code(fields), fields)
+    national = national_code(fields)
+    if "17" in fields and expiry is None:
+        national.problems.append(f"expiry field (17) is not a valid date: {fields['17']!r}")
+    return PackCode(fields.get("01"), expiry, fields.get("10"), fields.get("21"), national, fields)

@@ -58,6 +58,9 @@ Decision recorded: the code side must be photographed from 50 cm or closer (Blen
 
 Bugs found by testing against real services and fixed (worth remembering): CIMA answers an unknown CN with an empty body, not a 404; the same strength is listed per container for liquids, so strengths are only compared for solid forms; pylibdmtx needs `distutils` on Python 3.12 and its fallback had silently been off; zxing-cpp writes rectangular GS1 symbols that real packs do not use.
 
+## Adversarial review (2026-10-26, subagent, read-only) and what was done
+A reviewer tried to break the design invariants; every high and medium finding was reproduced or confirmed in code and fixed with a regression test (`tests/test_review_fixes.py`, `tests/test_meta_api.py`): a pack on two sheet lines (doubled dose), all-zero confirmed lines vanishing, unknown or unreadable expiry passing silently, empty or missing sheet cells silently becoming 0, missing SmPC sections or a disabled SmPC check reading as a clean check, a model-read CN ranked first with verification wording, a CIMA answer without the scanned CN among its presentations, NTIN and (712) disagreeing, negated sentences hiding warnings, salts hiding mentions, markup in PDF text (crash and layout injection), two doses overwritten in one PDF cell, ICS lone CR and line folding, removed uploads staying in the plan, and the budget cap reading a different ledger than the one written. Still open, by decision: consent for the Meta API is enforced in the UI only (the library functions do not ask), dose plausibility bounds (a dose of 99 is accepted if the caregiver confirms it), and two physical packs with identical code text count as one.
+
 ## Open items
 - Real photos of tables with the Codigo Nacional annotated per pack (to be provided by the author).
 - License for the repository.

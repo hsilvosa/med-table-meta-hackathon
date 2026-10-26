@@ -37,6 +37,7 @@ PRICES = {
 DEFAULT_MODEL = "muse-spark-1.3"
 IMAGE_TOKENS_UPPER_BOUND = 6000  # pre-flight guess per image; real usage is logged after each call
 SAFETY_FACTOR = 0.9
+UNKNOWN_USAGE_COST_USD = 0.01  # conservative stand-in for one image call when usage is missing
 LEDGER = Path("data/meta_usage.jsonl")
 
 
@@ -69,7 +70,8 @@ def budget_usd() -> float:
     return float(os.environ.get("META_BUDGET_USD", "100"))
 
 
-def spent_usd(ledger: Path = LEDGER) -> float:
+def spent_usd(ledger: Path | None = None) -> float:
+    ledger = ledger or LEDGER  # resolved at call time, so the cap always reads the ledger that calls are written to
     if not ledger.exists():
         return 0.0
     return sum(json.loads(line)["cost_usd"] for line in ledger.read_text(encoding="utf-8").splitlines() if line.strip())
@@ -128,7 +130,7 @@ def chat(messages: list[dict], *, model: str = DEFAULT_MODEL, max_tokens: int = 
                 raise MetaAPIError(f"network error: {exc}") from None
             time.sleep(2 ** (attempt + 1))
     usage = data.get("usage") or {}
-    cost = cost_of(model, usage)
+    cost = cost_of(model, usage) if usage else UNKNOWN_USAGE_COST_USD  # never record a call as free when the API sent no usage
     LEDGER.parent.mkdir(parents=True, exist_ok=True)
     with LEDGER.open("a", encoding="utf-8") as ledger:
         ledger.write(json.dumps({"ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "model": model, "usage": usage,

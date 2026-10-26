@@ -125,6 +125,19 @@ def reconcile(lines: list[Line], packs: list[Pack]) -> Reconciliation:
             if strength_matches(line, pack) is False:
                 findings.append(Finding("strength_mismatch", [pack.medicine.name], [pack.medicine.cn], line.text, source=pack.medicine.citation()))
                 blocked[i] = "la dosis de la hoja no coincide con el envase"
+    by_pack: dict[str, list[int]] = {}
+    for i, pack in matches.items():
+        by_pack.setdefault(pack.medicine.cn, []).append(i)
+    for cn6, indexes in by_pack.items():
+        if len(indexes) > 1:
+            findings.append(Finding("pack_on_several_lines", [matches[indexes[0]].medicine.name], [cn6],
+                                    "; ".join(lines[i].text for i in indexes), source=matches[indexes[0]].medicine.citation()))
+            for i in indexes:
+                blocked[i] = "el envase está en varias líneas; deje una sola"
+    for i, line in enumerate(lines):
+        if i in matches and i not in blocked and line.doses and not line.active_slots() and all(dose_number(d) is not None for d in line.doses.values()):
+            findings.append(Finding("all_zero_line", detail=line.text))
+            blocked[i] = "la línea no tiene ninguna dosis"
     matched_cns = {p.medicine.cn for p in matches.values()} | {c for f in findings if f.kind == "ambiguous_match" for c in f.cns}
     seen: set[str] = set()
     for pack in packs:

@@ -96,6 +96,10 @@ left, right = st.columns([3, 2])
 with left:
     uploads = st.file_uploader("Fotos de los envases (la cara con el código Data Matrix, a 50 cm o menos)", type=["jpg", "jpeg", "png"],
                                accept_multiple_files=True)
+    current = {u.name for u in uploads or []}
+    for gone in [n for n in st.session_state.readings if n not in current and n != "ejemplo"]:  # a removed upload must not stay in the plan
+        st.session_state.readings.pop(gone, None)
+        st.session_state.get("photos", {}).pop(gone, None)
     for upload in uploads or []:
         if upload.name not in st.session_state.readings:
             decoded = cv2.imdecode(np.frombuffer(upload.getvalue(), np.uint8), cv2.IMREAD_COLOR)
@@ -215,8 +219,11 @@ with st.expander("Leer la hoja desde una foto (opcional)"):
             else:
                 known = set(st.session_state.sheet["medicamento"])
                 new = [r for r in read.rows if r["medicamento"] not in known]
+                skipped = [r["medicamento"] for r in read.rows if r["medicamento"] in known]
                 st.session_state.sheet = pd.concat([st.session_state.sheet, pd.DataFrame(new, columns=COLUMNS)], ignore_index=True)
-                st.session_state.sheet_notes = read.problems + ["Revise cada fila contra la hoja: la lectura puede tener errores."]
+                st.session_state.sheet_notes = read.problems + (
+                    [f"No se añadieron filas cuyo nombre ya estaba en la tabla: {', '.join(skipped)}. Revise la tabla por si eran líneas distintas."] if skipped else []
+                ) + ["Revise cada fila contra la hoja: la lectura puede tener errores."]
     for note in st.session_state.get("sheet_notes", []):
         st.warning(note)
 extra_doses = sorted({str(v) for slot in SLOTS for v in st.session_state.sheet[slot].dropna()} - set(DOSES))  # misread cells stay visible
@@ -254,8 +261,11 @@ if info:
             st.write(f.text("es"))
             if f.source:
                 st.caption(f"Fuente: {f.source}")
-st.caption("Se han revisado: principio activo duplicado, mismo grupo ATC, caducidad, coincidencia con la hoja y citas literales de las secciones 4.2 y 4.5. "
-           + NOT_AN_INTERACTION_CHECK["es"].replace("No se encontró ninguna mención en las secciones revisadas. ", "")
+ran = ("Se han revisado: principio activo duplicado, mismo grupo ATC, caducidad leída del código y coincidencia con la hoja"
+       + (", y citas literales de las secciones 4.2 y 4.5 de las fichas técnicas." if plan.smpc_used else ". NO se han consultado las fichas técnicas (casilla desmarcada)."))
+if any(f.kind == "smpc_unavailable" for f in plan.findings):
+    ran += " De algún medicamento no se pudo consultar una sección (ver los avisos)."
+st.caption(ran + " " + NOT_AN_INTERACTION_CHECK["es"].replace("No se encontró ninguna mención en las secciones revisadas. ", "")
            + " La ausencia de avisos no significa que el plan sea seguro.")
 
 if plan.entries:

@@ -36,6 +36,18 @@ TEMPLATES = {
     "meal_note": {
         "es": "La ficha técnica de {a} (sección 4.2) dice sobre las comidas: «{quote}». Es una cita; el horario lo decide el cuidador con su médico o farmacéutico.",
         "en": "The SmPC of {a} (section 4.2) says about meals: \"{quote}\". This is a quotation; the schedule is decided by the caregiver with a doctor or pharmacist."},
+    "pack_on_several_lines": {
+        "es": "El envase {a} aparece en varias líneas de la hoja ({detail}). Una sola línea por envase: únalas o corríjalas antes de continuar.",
+        "en": "The pack {a} appears on several sheet lines ({detail}). Use one line per pack: merge or correct them before continuing."},
+    "all_zero_line": {
+        "es": "La línea «{detail}» no tiene ninguna dosis (todo a 0), así que no entra en el calendario. Si es un error, corríjala.",
+        "en": "The line \"{detail}\" has no dose at all (all 0), so it is not in the calendar. If this is a mistake, correct it."},
+    "expiry_unknown": {
+        "es": "No se ha comprobado la caducidad de {a}: {detail}. Mírela en el envase.",
+        "en": "The expiry of {a} was not checked: {detail}. Look at the pack."},
+    "smpc_unavailable": {
+        "es": "No se pudo revisar la sección {detail} de la ficha técnica de {a}: esa comprobación no se ha hecho para este medicamento.",
+        "en": "Section {detail} of the SmPC of {a} could not be checked: that check was not done for this medicine."},
     "prescribed_not_found": {
         "es": "Figura en la hoja de medicación pero no se ha encontrado en la mesa: {detail}.",
         "en": "Listed on the medication sheet but not found on the table: {detail}."},

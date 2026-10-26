@@ -47,6 +47,8 @@ def synthesize(text: str, out: Path, rate: int = -2, culture: str = "es-ES") -> 
         script.write_text(SCRIPT, encoding="utf-8-sig")  # BOM so PowerShell 5 reads accents correctly
         subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script), "-TextFile", str(text_file),
                         "-Out", str(out.resolve()), "-Rate", str(rate), "-Culture", culture], check=True, capture_output=True, timeout=120)
+    if not out.exists() or out.stat().st_size < 2000:  # a WAV header alone is 44 bytes; real speech is far larger
+        raise RuntimeError(f"speech synthesis produced no audio for {out.name}")
     return out
 
 

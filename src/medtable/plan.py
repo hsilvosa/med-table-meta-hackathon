@@ -68,6 +68,7 @@ class Plan:
     findings: list[Finding]
     generated: date
     sources: list[str] = field(default_factory=list)
+    smpc_used: bool = True  # False when the SmPC sections were not consulted at all
 
     def slot_entries(self, slot: str) -> list[Entry]:
         return [e for e in self.entries if e.slot == slot]
@@ -116,7 +117,22 @@ def speech_text(plan: Plan, slot: str) -> str:
 
 
 def _ics_escape(text: str) -> str:
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     return text.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,").replace("\n", "\\n")
+
+
+def _fold(line: str) -> str:
+    """RFC 5545 content lines are at most 75 octets; continuation lines start with one space."""
+    out, current, size = [], "", 0
+    for char in line:
+        width = len(char.encode("utf-8"))
+        if size + width > (75 if not out else 74):
+            out.append(current)
+            current, size = "", 0
+        current += char
+        size += width
+    out.append(current)
+    return "\r\n ".join(out)
 
 
 def to_ics(plan: Plan, times: dict[str, str] | None = None, start: date | None = None, days: int | None = None) -> str:
@@ -138,4 +154,4 @@ def to_ics(plan: Plan, times: dict[str, str] | None = None, start: date | None =
                   f"SUMMARY:{_ics_escape('Medicación: ' + SLOT_LABELS[slot])}", f"DESCRIPTION:{_ics_escape(description)}",
                   "BEGIN:VALARM", "ACTION:DISPLAY", "TRIGGER:PT0M", "DESCRIPTION:Hora de la medicación", "END:VALARM", "END:VEVENT"]
     lines.append("END:VCALENDAR")
-    return "\r\n".join(lines) + "\r\n"
+    return "\r\n".join(_fold(line) for line in lines) + "\r\n"

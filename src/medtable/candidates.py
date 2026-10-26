@@ -107,7 +107,10 @@ def propose(crop: Path, resolver: Resolver, backend: str | None = None, limit: i
         medicine = resolver.by_cn(found)
         if medicine:
             proposal.cn_checked = found
-            proposal.candidates.append(Candidate(medicine, 10, ["el código nacional leído tiene dígito de control válido y existe en CIMA"]))
+            lead = score_candidate(medicine, read)
+            lead.score += 1.5
+            lead.why.insert(0, "el modelo leyó este código nacional (dígito de control válido y existe en CIMA, pero lo ha leído un modelo: compruébelo en la caja)")
+            proposal.candidates.append(lead)
     seen = {c.medicine.nregistro for c in proposal.candidates}
     for param, value in _search_terms(read):
         for item in cima.get_json("medicamentos", comerc=1, **{param: value}).get("resultados", [])[:limit]:

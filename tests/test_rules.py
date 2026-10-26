@@ -26,7 +26,8 @@ def test_same_class_but_different_ingredient_is_a_class_finding_not_a_duplicate(
 
 
 def test_unrelated_medicines_raise_nothing():
-    assert check_packs([pack(METFORMINA_850), pack(ACENOCUMAROL)], FakeSmpc(), TODAY) == []
+    found = check_packs([pack(METFORMINA_850), pack(ACENOCUMAROL)], FakeSmpc(), TODAY)
+    assert kinds(found) == ["smpc_unavailable"] and found[0].cns == ["670001"]  # no 4.5 text for Sintrom in the fixture: said, not silent
 
 
 def test_partial_overlap_valsartan_alone_and_in_combination():
@@ -88,7 +89,9 @@ def test_long_sentences_are_cut_to_an_exact_substring_around_the_term():
 
 def test_meal_notes_quote_section_4_2_sentences_about_food():
     found = meal_notes([pack(METFORMINA_850), pack(OMEPRAZOL), pack(ACENOCUMAROL)], FakeSmpc())
-    assert [(f.kind, f.severity, f.cns[0]) for f in found] == [("meal_note", "info", "680001"), ("meal_note", "info", "690001")]
+    assert [(f.kind, f.severity, f.cns[0]) for f in found if f.kind == "meal_note"] == [("meal_note", "info", "680001"), ("meal_note", "info", "690001")]
+    assert [f.cns[0] for f in found if f.kind == "smpc_unavailable"] == ["670001"]
+    found = [f for f in found if f.kind == "meal_note"]
     assert "durante las comidas" in found[0].quote and "con o sin alimentos" in found[1].quote
     assert all(f.quote in SECTIONS[(f.source and (METFORMINA_850 if f.cns[0] == "680001" else OMEPRAZOL).nregistro, "4.2")] for f in found)
     assert "el horario lo decide el cuidador" in found[0].text("es")

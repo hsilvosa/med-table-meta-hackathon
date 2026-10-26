@@ -12,10 +12,11 @@ GOOD = '''```json
 
 def test_rows_are_unconfirmed_and_cells_are_copied():
     reading = sheet_reader.rows_from_reply(GOOD)
-    assert reading.problems == []
+    assert len(reading.problems) == 1 and "celda vacía o no leída en comida" in reading.problems[0]  # the empty cell is reported, not silent
     assert [r["confirmado"] for r in reading.rows] == [False, False]
     assert reading.rows[0]["comida"] == "0" and reading.rows[0]["observaciones"] == "con las comidas"
     assert reading.rows[1]["acostarse"] == "1/2"  # only the typographic fraction is normalised
+    assert sheet_reader.clean_dose("1½") == "1½"  # a mixed number is kept as read (and later rejected), never mangled into "11/2"
 
 
 def test_unrecognised_dose_is_kept_and_reported_never_replaced_by_zero():
@@ -28,7 +29,8 @@ def test_unrecognised_dose_is_kept_and_reported_never_replaced_by_zero():
 def test_garbage_and_nameless_rows():
     assert sheet_reader.rows_from_reply("no puedo leer esto").rows == []
     mixed = sheet_reader.rows_from_reply('{"filas": [{"medicamento": "", "desayuno": "1"}, {"medicamento": "Omeprazol", "desayuno": "1"}]}')
-    assert [r["medicamento"] for r in mixed.rows] == ["Omeprazol"] and len(mixed.problems) == 1
+    assert [r["medicamento"] for r in mixed.rows] == ["Omeprazol"]
+    assert any("sin nombre" in p for p in mixed.problems) and any("celda vacía o no leída en comida, cena, acostarse" in p for p in mixed.problems)
 
 
 def test_read_sheet_uses_the_selected_backend(monkeypatch, tmp_path):

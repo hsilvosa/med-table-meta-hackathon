@@ -50,6 +50,9 @@ def read_code(detection: decode.Detection, resolver: Resolver, today: date | Non
     if medicine is None:
         reading.problems.append(f"CIMA has no medicine with CN {code.national.cn[:6]}")
         return reading
+    if medicine.presentation is None:
+        reading.problems.append(f"CIMA does not list CN {code.national.cn[:6]} among the presentations of {medicine.name}")
+        return reading
     reading.medicine, reading.status = medicine, "verified"
     return reading
 

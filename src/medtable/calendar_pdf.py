@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import urllib.request
 from pathlib import Path
+from xml.sax.saxutils import escape as esc
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
@@ -48,7 +49,7 @@ def _photo(medicine, photo_dir: Path, local_dir: Path = Path("data/cima/images/f
 def _dose_markup(entry) -> str:
     """Big number, smaller unit below it, so the unit word never breaks across lines."""
     number, unit = entry.written().split(" ", 1)
-    return f'{number}<br/><font size="10">{unit}</font>'
+    return f'{esc(number)}<br/><font size="10">{esc(unit)}</font>'
 
 
 def render_pdf(plan: Plan, out: Path, patient: str = "", photo_dir: Path = Path("data/cache/photos")) -> Path:
@@ -64,7 +65,7 @@ def render_pdf(plan: Plan, out: Path, patient: str = "", photo_dir: Path = Path(
     doc = SimpleDocTemplate(str(out), pagesize=landscape(A4), leftMargin=14 * mm, rightMargin=14 * mm, topMargin=12 * mm, bottomMargin=12 * mm,
                             title="Plan de medicación", author="med-table (prototipo)")
     story = [Paragraph("Plan de medicación", title),
-             Paragraph(f"Paciente: {patient or '________________________'} &nbsp;&nbsp; Fecha del plan: {plan.generated.strftime('%d/%m/%Y')}", big),
+             Paragraph(f"Paciente: {esc(patient) or '________________________'} &nbsp;&nbsp; Fecha del plan: {plan.generated.strftime('%d/%m/%Y')}", big),
              Spacer(1, 4 * mm)]
 
     meds: dict[str, list] = {}
@@ -75,10 +76,14 @@ def render_pdf(plan: Plan, out: Path, patient: str = "", photo_dir: Path = Path(
     for entries in meds.values():
         first = entries[0]
         photo = _photo(first.pack.medicine, photo_dir)
-        cells = {e.slot: Paragraph(_dose_markup(e), dose) for e in entries}
-        remarks = "; ".join(dict.fromkeys(e.line.remarks for e in entries if e.line.remarks))
+        cells = {}
+        for slot in SLOTS:  # two entries for one pack and slot are both printed, never one over the other
+            marks = [_dose_markup(e) for e in entries if e.slot == slot]
+            if marks:
+                cells[slot] = Paragraph("<br/>+<br/>".join(marks), dose)
+        remarks = esc("; ".join(dict.fromkeys(e.line.remarks for e in entries if e.line.remarks)))
         rows.append([Image(str(photo), width=34 * mm, height=22 * mm, kind="proportional") if photo else "",
-                     Paragraph(first.name, name)] + [cells.get(s, Paragraph("-", dose)) for s in SLOTS] + [Paragraph(remarks, base)])
+                     Paragraph(esc(first.name), name)] + [cells.get(s, Paragraph("-", dose)) for s in SLOTS] + [Paragraph(remarks, base)])
     if len(rows) == 1:
         rows.append(["", Paragraph("No hay medicación en el plan.", big), "", "", "", "", ""])
     table = Table(rows, colWidths=[38 * mm, 62 * mm, 28 * mm, 28 * mm, 28 * mm, 28 * mm, 52 * mm], repeatRows=1)
@@ -88,17 +93,23 @@ def render_pdf(plan: Plan, out: Path, patient: str = "", photo_dir: Path = Path(
 
     if plan.not_included:
         block = [Paragraph("<b>No incluido en el calendario</b>", ParagraphStyle("hn", parent=red, fontSize=13))]
-        block += [Paragraph(f"&bull; {what}: {why}", red) for what, why in plan.not_included]
+        block += [Paragraph(f"&bull; {esc(what)}: {esc(why)}", red) for what, why in plan.not_included]
         story += [Spacer(1, 4 * mm), KeepTogether(block)]
     review = sorted((f for f in plan.findings if f.kind != "unverified_item"), key=lambda f: f.severity != "review")
     if review:
         block = [Paragraph("<b>Para revisar con su farmacéutico</b>", ParagraphStyle("hr", parent=base, fontSize=13))]
         for f in review:
-            block.append(Paragraph(f"&bull; {f.text('es')}", base))
+            block.append(Paragraph(f"&bull; {esc(f.text('es'))}", base))
             if f.source:
-                block.append(Paragraph(f"Fuente: {f.source}", small))
+                block.append(Paragraph(f"Fuente: {esc(f.source)}", small))
         story += [Spacer(1, 4 * mm), KeepTogether(block)]
-    story += [Spacer(1, 3 * mm), Paragraph(NOT_AN_INTERACTION_CHECK["es"].replace("No se encontró ninguna mención en las secciones revisadas. ", ""), small),
-              Paragraph("Fuentes consultadas: " + (" | ".join(plan.sources) or "ninguna"), small)]
+    checked = ("Comprobaciones hechas: principio activo duplicado, grupo ATC, caducidad leída del código y coincidencia con la hoja"
+               + (", y citas literales de las secciones 4.2 y 4.5 de las fichas técnicas." if plan.smpc_used else ". NO se han consultado las fichas técnicas."))
+    missing = [f for f in plan.findings if f.kind == "smpc_unavailable"]
+    if missing:
+        checked += " No se pudo consultar alguna sección (ver arriba)."
+    story += [Spacer(1, 3 * mm), Paragraph(esc(checked), small),
+              Paragraph(esc(NOT_AN_INTERACTION_CHECK["es"].replace("No se encontró ninguna mención en las secciones revisadas. ", "")), small),
+              Paragraph("Fuentes consultadas: " + esc(" | ".join(plan.sources) or "ninguna"), small)]
     doc.build(story)
     return out
