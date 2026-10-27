@@ -72,7 +72,7 @@ def test_demo_photo_gives_recognised_boxes_and_one_that_is_not_in_the_plan(app):
     assert sorted(r.status for r in readings) == ["unverified"] + ["verified"] * 5
     assert len(app.session_state.rows) == 5 and all(r.untouched for r in app.session_state.rows)      # nothing pre-filled
     shown = texts(app)
-    assert "Medicines found: 5" in shown and "could not be recognised" in shown and "Not in the plan" in shown
+    assert "Medicines found: 5" in shown and "A box I could not recognise" in shown and "Not in the plan" in shown
     assert [b.disabled for b in app.button if b.label.startswith("Next:")] == [False]
 
 
@@ -235,6 +235,41 @@ def test_a_48_megapixel_photo_is_read_in_full_but_only_a_smaller_copy_is_kept(ap
     assert sorted(r.status for r in at.session_state.readings[name]) == ["verified", "verified"]
     kept = at.session_state.photos[name]
     assert kept.shape[1] == 4000 and at.session_state.photo_scale[name] == 0.5                 # 8000 px wide in, 4000 kept
+
+
+def test_a_medicine_can_be_removed_and_leaves_the_list_the_rows_and_the_plan(app):
+    click(app, "Load a demo photo")
+    assert "Medicines found: 5" in texts(app) and len(app.session_state.rows) == 5
+    click(app, "Remove this medicine")                                  # the first card
+    assert not app.exception and "Medicines found: 4" in texts(app)
+    assert len(app.session_state.rows) == 4 and len(app.session_state.removed_cns) == 1
+    removed = next(iter(app.session_state.removed_cns))
+    assert removed not in {r.cn for r in app.session_state.rows}
+    click(app, "Next: choose the doses")
+    assert len(doses_of(app)) == 4 * 4                                  # no buttons for the removed medicine
+    click(app, "Back")
+    assert "Medicines found: 4" in texts(app)                           # still gone after going back
+
+
+def test_a_removed_medicine_comes_back_with_a_new_photo_that_shows_it(app):
+    click(app, "Load a demo photo")
+    click(app, "Remove this medicine")
+    removed = next(iter(app.session_state.removed_cns))
+    app.session_state.readings.pop("demo"), app.session_state.photos.pop("demo")
+    click(app, "Load a demo photo")                                      # the same photo again: the box is on the table again
+    assert removed not in app.session_state.removed_cns and "Medicines found: 5" in texts(app)
+
+
+def test_a_typed_medicine_can_be_removed_and_an_unrecognised_box_dismissed(app):
+    [t for t in app.text_input if t.label == "The code on the box"][0].set_value("6541777").run()
+    click(app, "Add this medicine")
+    assert "Medicines found: 1" in texts(app)
+    click(app, "Remove this medicine")
+    assert "Medicines found: 0" in texts(app) and not app.session_state.manual and not app.session_state.rows
+    click(app, "Load a demo photo")
+    assert "A box I could not recognise" in texts(app)
+    click(app, "Dismiss")
+    assert "A box I could not recognise" not in texts(app) and not app.exception
 
 
 def test_start_over_clears_everything(app):

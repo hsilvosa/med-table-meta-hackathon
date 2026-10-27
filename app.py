@@ -56,6 +56,9 @@ h1, h2, h3 {{ letter-spacing: 0; }}
 .stButton > button, .stDownloadButton > button {{ min-height: 3.1rem; font-size: 1.05rem; font-weight: 650; border-radius: 12px; }}
 .stButton button p, .stDownloadButton button p {{ font-size: 1.15rem !important; font-weight: 700 !important; }}
 [data-testid="stButtonGroup"] button p {{ font-size: 1.15rem !important; font-weight: 700 !important; }}
+[data-testid="stBaseButton-tertiary"] {{ min-height: 2.4rem; color: #a02020; border: 1px solid #ecc3c3; background: #fff; }}
+[data-testid="stBaseButton-tertiary"] p {{ font-size: 1rem !important; font-weight: 650 !important; color: #a02020 !important; }}
+[data-testid="stBaseButton-tertiary"]:hover {{ background: #fdeeee; border-color: #d98a8a; }}
 [data-testid="stBaseButton-primary"] {{ background: #1b5e8a; border-color: #1b5e8a; }}
 [data-testid="stBaseButton-primary"]:disabled {{ background: #c9d3dd; border-color: #c9d3dd; color: #fff; }}
 [data-testid="stButtonGroup"] button {{ min-height: 2.9rem; font-size: 1.1rem; font-weight: 650; }}
@@ -140,6 +143,8 @@ def state_defaults() -> None:
     st.session_state.setdefault("photos", {})
     st.session_state.setdefault("photo_scale", {})  # kept width / original width, to bring a code's position (in original pixels) into the kept image
     st.session_state.setdefault("manual", [])
+    st.session_state.setdefault("removed_cns", set())  # medicines the caregiver took out of the list (6-digit national codes)
+    st.session_state.setdefault("removed_raw", set())  # codes that could not be recognised and were dismissed
     st.session_state.setdefault("rows", [])  # list[Row]
     st.session_state.setdefault("patient", "")  # printed on the calendar
     st.session_state.setdefault("plan_notes", "")  # printed in the notes box of the calendar
@@ -150,6 +155,17 @@ def go(step: int) -> None:
     st.session_state.step = step
     st.session_state.scroll_top = True
     st.session_state.skip_upload_sync = True      # the file uploader is re-created empty on the next visit to screen 1: that is not the user removing files
+
+
+def remove_medicine(cn: str) -> None:
+    """Take a medicine out of the list, with its sheet row. It comes back if a new photo shows it again or if its code is typed."""
+    st.session_state.removed_cns.add(cn)
+    st.session_state.manual = [p for p in st.session_state.manual if p.medicine.cn != cn]
+    st.session_state.rows = [r for r in st.session_state.rows if r.cn != cn]
+
+
+def dismiss_code(raw: str) -> None:
+    st.session_state.removed_raw.add(raw)
 
 
 def remove_photo(name: str) -> None:
@@ -185,6 +201,9 @@ MAX_KEPT_WIDTH = 4000
 def add_photo(name: str, image: np.ndarray) -> None:
     with st.spinner(f"Reading the codes in {name} (a few seconds)..."):
         st.session_state.readings[name] = identify.identify(image, resolver())     # always the full-resolution photo
+    for reading in st.session_state.readings[name]:        # a new photo that shows a removed box again brings it back
+        st.session_state.removed_cns.discard(reading.medicine.cn if reading.medicine else "")
+        st.session_state.removed_raw.discard(reading.raw)
     scale = min(1.0, MAX_KEPT_WIDTH / image.shape[1])        # what is kept for crops and for SAM: a 48 MP photo would take 150 MB of memory
     st.session_state.photos[name] = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1.0 else image
     st.session_state.photo_scale[name] = scale
@@ -295,10 +314,11 @@ today = date.today()
 
 # ---- the readings, the sheet rows and the plan are computed on every screen (cheap, cached lookups) -----------------------
 seen_raw: set[str] = set()
-entries = []          # (photo name, reading), one per physical pack (same code text = same pack)
+entries = []          # (photo name, reading), one per physical pack (same code text = same pack), without what the caregiver removed
 for name, rs in st.session_state.readings.items():
     for r in rs:
-        if r.raw not in seen_raw:
+        removed = (r.medicine.cn in st.session_state.removed_cns) if r.medicine else (r.raw in st.session_state.removed_raw)
+        if r.raw not in seen_raw and not removed:
             seen_raw.add(r.raw)
             entries.append((name, r))
 readings = [r for _, r in entries]
@@ -325,62 +345,60 @@ step = st.session_state.step
 # Screen 1: the medicines
 # =============================================================================================================================
 if step == 1:
-    header(1, "Show me the medicines",
-           "Take one photo of the medicine boxes on the table. I read the code printed on each box and look it up in the official Spanish medicine database.")
+    header(1, "Show me the medicines", "Take a photo of the medicine boxes on the table. I read the code printed on each box.")
     st.info("This is a helper for planning. It gives no medical advice and does not replace the doctor or the pharmacist.")
-    box("tip", "For a good photo", "Put the boxes on a table with the printed code facing up. Hold the phone about 90 cm (3 feet) above them or closer, "
-        "so the little square code on each box is sharp. If a box is missing afterwards, take a second photo, a little closer or from another side: the photos add up.")
-    tab_room, tab_upload, tab_code = st.tabs(["Photo from the 3D room", "Upload a photo", "Type a code"]) if EMBEDDED else \
-        st.tabs(["Upload a photo", "Type a code", "Demo photos"])
-    if not EMBEDDED:
-        tab_upload, tab_code, tab_room = tab_room, tab_upload, tab_code
-    with tab_room:
-        if EMBEDDED:
-            st.write("Use the buttons at the bottom of the room: walk to a table, hold the phone over it and take the photo. "
-                     "It appears here by itself in a few seconds.")
-        else:
+    if EMBEDDED:
+        box("tip", "Take the photo in the room", "Press the red <b>Take photo</b> button on the left of the room. The photo appears here by itself in a few seconds.")
+        add_area = st.expander("Add a medicine another way")
+    else:
+        box("tip", "For a good photo", "Put the boxes on a table with the printed codes facing up, and hold the phone about 90 cm (3 feet) above them or closer.")
+        add_area = st.container()
+    with add_area:
+        tab_upload, tab_code, tab_demo = st.tabs(["Upload a photo", "Type a code", "Demo photos"])
+        with tab_demo:
             st.write("Photos made for trying the tool. They contain no real medication or patient.")
-        c1, c2 = st.columns(2)
-        if LATEST_PHOTO.exists() and c1.button("Load the latest room photo", width="stretch"):
-            image = cv2.imread(str(LATEST_PHOTO))
-            if image is None:
-                st.error("The latest room photo could not be opened.")
-            else:
-                add_photo(f"room_{time.strftime('%H:%M:%S', time.localtime(LATEST_PHOTO.stat().st_mtime))}", image)
-                st.rerun()
-        if c2.button("Load a demo photo", width="stretch"):
-            add_photo("demo", synthetic.demo_photo(DEMO_ITEMS))
-            st.rerun()
-    with tab_upload:
-        uploads = st.file_uploader("Choose a photo of the boxes (JPG or PNG)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
-        current = {u.name for u in uploads or []}
-        previous = st.session_state.get("seen_uploads", set())
-        if st.session_state.pop("skip_upload_sync", False):
-            previous = current      # a freshly created, empty uploader after a screen change is not a removal
-        for gone in previous - current:  # a file the user removed from the uploader must not stay in the plan
-            remove_photo(gone)
-        st.session_state.seen_uploads = set(current)
-        fresh = False
-        for upload in uploads or []:
-            if upload.name not in st.session_state.readings:
-                decoded = cv2.imdecode(np.frombuffer(upload.getvalue(), np.uint8), cv2.IMREAD_COLOR)
-                if decoded is None:
-                    st.error(f"{upload.name} could not be opened as a picture. Use a JPG or PNG file (iPhone HEIC photos must be converted first).")
+            c1, c2 = st.columns(2)
+            if LATEST_PHOTO.exists() and c1.button("Load the latest room photo", width="stretch"):
+                image = cv2.imread(str(LATEST_PHOTO))
+                if image is None:
+                    st.error("The latest room photo could not be opened.")
                 else:
-                    add_photo(upload.name, decoded)
-                    fresh = True
-        if fresh:
-            st.rerun()
-    with tab_code:
-        st.write("Every box has a national code (C.N.) printed on it: six or seven digits, for example 848226.9. Type it here to add the medicine without a photo.")
-        typed = st.text_input("The code on the box", placeholder="848226.9")
-        if st.button("Add this medicine", width="stretch") and typed:
-            pack, problem = manual_pack(typed, resolver())
-            if problem:
-                st.error(problem)
-            elif pack.medicine.cn not in {p.medicine.cn for p in st.session_state.manual}:
-                st.session_state.manual.append(pack)
+                    add_photo(f"room_{time.strftime('%H:%M:%S', time.localtime(LATEST_PHOTO.stat().st_mtime))}", image)
+                    st.rerun()
+            if c2.button("Load a demo photo", width="stretch"):
+                add_photo("demo", synthetic.demo_photo(DEMO_ITEMS))
                 st.rerun()
+        with tab_upload:
+            uploads = st.file_uploader("Choose a photo of the boxes (JPG or PNG)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+            current = {u.name for u in uploads or []}
+            previous = st.session_state.get("seen_uploads", set())
+            if st.session_state.pop("skip_upload_sync", False):
+                previous = current      # a freshly created, empty uploader after a screen change is not a removal
+            for gone in previous - current:  # a file the user removed from the uploader must not stay in the plan
+                remove_photo(gone)
+            st.session_state.seen_uploads = set(current)
+            fresh = False
+            for upload in uploads or []:
+                if upload.name not in st.session_state.readings:
+                    decoded = cv2.imdecode(np.frombuffer(upload.getvalue(), np.uint8), cv2.IMREAD_COLOR)
+                    if decoded is None:
+                        st.error(f"{upload.name} could not be opened as a picture. Use a JPG or PNG file (iPhone HEIC photos must be converted first).")
+                    else:
+                        add_photo(upload.name, decoded)
+                        fresh = True
+            if fresh:
+                st.rerun()
+        with tab_code:
+            st.write("Every box has a national code (C.N.) printed on it: six or seven digits, for example 848226.9.")
+            typed = st.text_input("The code on the box", placeholder="848226.9")
+            if st.button("Add this medicine", width="stretch") and typed:
+                pack, problem = manual_pack(typed, resolver())
+                if problem:
+                    st.error(problem)
+                elif pack.medicine.cn not in {p.medicine.cn for p in st.session_state.manual}:
+                    st.session_state.removed_cns.discard(pack.medicine.cn)
+                    st.session_state.manual.append(pack)
+                    st.rerun()
 
     if st.session_state.photos:
         with st.expander(f"Photos used so far ({len(st.session_state.photos)})"):
@@ -393,17 +411,14 @@ if step == 1:
     if not entries and not st.session_state.manual:
         box("tip", "Nothing yet", "Add a photo or type a code above. The medicines I recognise will appear here.")
     for reading in verified:
-        card(official_photo(reading.medicine), f'<div class="mt-name">{esc(reading.medicine.name)}</div>' + chip("Recognised from its code", "ok")
-             + expiry_chip(reading.expiry, today) + f'<div class="mt-meta">National code {esc(reading.medicine.cn)}</div>')
+        with st.container(border=True):
+            card(official_photo(reading.medicine), f'<div class="mt-name">{esc(reading.medicine.name)}</div>' + chip("Recognised from its code", "ok")
+                 + expiry_chip(reading.expiry, today), plain=True)
+            st.button("Remove this medicine", key=f"del_{reading.medicine.cn}", on_click=remove_medicine, args=(reading.medicine.cn,), type="tertiary", width="stretch")
     for pack in st.session_state.manual:
-        card(official_photo(pack.medicine), f'<div class="mt-name">{esc(pack.medicine.name)}</div>' + chip("Added by you", "ok")
-             + f'<div class="mt-meta">National code {esc(pack.medicine.cn)}</div>')
-    if entries or st.session_state.manual:
-        box("tip", "Is a box missing?", "Count the boxes on your table. If one is not listed above, take another photo that shows it close up with its code facing up, or type its code.")
-    if unverified:
-        box("bad", f"{len(unverified)} box(es) could not be recognised",
-            "These are <b>not</b> in the plan. A box is only accepted when its code can be read and matches the official database. "
-            "You can type the national code printed on the box (tab \"Type a code\"), or try a closer, sharper photo.")
+        with st.container(border=True):
+            card(official_photo(pack.medicine), f'<div class="mt-name">{esc(pack.medicine.name)}</div>' + chip("Added by you", "ok"), plain=True)
+            st.button("Remove this medicine", key=f"del_{pack.medicine.cn}", on_click=remove_medicine, args=(pack.medicine.cn,), type="tertiary", width="stretch")
     for name, r in unverified:
         image, crop = st.session_state.photos.get(name), None
         if image is not None and r.bbox:
@@ -411,8 +426,12 @@ if step == 1:
             pad = max(x1 - x0, y1 - y0)
             crop = image[max(y0 - pad, 0):y1 + pad, max(x0 - pad, 0):x1 + pad]
             crop = crop if crop.size else None
-        card(crop, f'<div class="mt-name">A code I could not accept</div>{chip("Not in the plan", "bad")}'
-             f'<div class="mt-meta">{esc("; ".join(explain_problem(p) for p in r.problems) or "reason unknown")}</div>')
+        with st.container(border=True):
+            card(crop, f'<div class="mt-name">A box I could not recognise</div>{chip("Not in the plan", "bad")}'
+                 f'<div class="mt-meta">{esc("; ".join(explain_problem(p) for p in r.problems) or "reason unknown")}</div>', plain=True)
+            st.button("Dismiss", key=f"dismiss_{r.raw}", on_click=dismiss_code, args=(r.raw,), type="tertiary", width="stretch")
+    if entries or st.session_state.manual:
+        st.caption("Is a box missing? Take another photo that shows it close up with its code facing up, or type its code. Wrong box? Remove it.")
 
     with st.expander("A box has no code I can read? Find it in the photo and choose it from the database"):
         st.write("The computer looks for boxes in the photo that have no readable code and suggests possible medicines from the official database. "
@@ -460,6 +479,7 @@ if step == 1:
                 if choice in labels and st.button("Yes, this is the medicine", key=f"ok_{key}", type="primary"):
                     picked = labels[choice].medicine
                     if picked.cn not in {p.medicine.cn for p in st.session_state.manual}:
+                        st.session_state.removed_cns.discard(picked.cn)
                         st.session_state.manual.append(Pack(picked, "confirmed"))
                         st.rerun()
     st.write("")
@@ -470,8 +490,8 @@ if step == 1:
 # =============================================================================================================================
 elif step == 2:
     header(2, "Choose the doses",
-           "Copy the doctor's schedule. For each medicine, choose <b>how many to take</b> at each time of day. When you have checked a medicine against "
-           "the doctor's paper, tick <b>Yes, this matches the doctor's schedule</b>. I never choose an amount for you, and medicines that are not ticked stay out of the plan.")
+           "For each medicine, choose <b>how many to take</b> at each time of day, as written on the doctor's paper. "
+           "Then tick the box under it. I never choose an amount for you, and medicines that are not ticked stay out of the plan.")
     patient_field("patient_step2")
     with st.expander("Have a photo of the doctor's schedule? Let the computer copy it (optional)"):
         backend = vlm.backend_name()

@@ -161,7 +161,9 @@ function setPhoneUi() {
   $('frame').style.display = phoneMode ? 'block' : 'none';
   $('cross').style.display = phoneMode ? 'none' : 'block';
   $('modeChip').textContent = phoneMode ? 'Phone camera' : 'Walking';
-  $('gauge').style.display = phoneMode ? 'block' : 'none';
+  $('step1').classList.toggle('current', !phoneMode);
+  $('step2').classList.toggle('current', phoneMode);
+  $('step3').classList.toggle('current', phoneMode);
   $('btnPhone').classList.toggle('on', phoneMode);
   resize();
 }
@@ -172,6 +174,7 @@ $('openApp').href = appUrl;
 function planner(open) {
   document.body.classList.toggle('planner', open ?? !document.body.classList.contains('planner'));
   $('btnPlanner').classList.toggle('on', document.body.classList.contains('planner'));
+  $('btnPlanner').textContent = document.body.classList.contains('planner') ? 'Hide the planner' : 'Show the planner';
   if (document.body.classList.contains('planner')) document.exitPointerLock?.();
 }
 $('btnPlanner').addEventListener('click', () => planner());
@@ -194,22 +197,16 @@ function move(dt) {
   player.eye = THREE.MathUtils.clamp(player.eye + v * dt * 0.7, EYE_MIN, EYE_MAX);
 }
 
-function closeWelcome() { $('welcome').style.display = 'none'; }
-function openHelp() { $('welcome').style.display = 'flex'; document.exitPointerLock?.(); }
 addEventListener('keydown', e => {
   if (e.code === 'Tab') { e.preventDefault(); planner(); return; }
-  if ($('welcome').style.display !== 'none') { if (e.code === 'Enter' || e.code === 'KeyH') { closeWelcome(); } return; }
   keys.add(e.code);
   if (e.code === 'KeyP') { phoneMode = !phoneMode; setPhoneUi(); }
   if (e.code === 'KeyX') { lean = !lean; toast(lean ? 'Leaning over the table: tables no longer block you' : 'Tables block you again'); }
-  if (e.code === 'KeyH') openHelp();
   if (e.code === 'Space') { e.preventDefault(); shoot(); }
   const n = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
   if (n >= 0 && world.tables[n]) goTo(world.tables[n], e.shiftKey);
 });
 addEventListener('keyup', e => keys.delete(e.code));
-$('start').addEventListener('click', () => { closeWelcome(); canvas.requestPointerLock?.(); });
-$('btnHelp').addEventListener('click', openHelp);
 $('shutter').addEventListener('click', () => shoot());
 document.querySelectorAll('[data-table]').forEach(b => b.addEventListener('click', () => { goTo(world.tables[+b.dataset.table], false); }));
 $('btnPhone').addEventListener('click', () => { goTo(nearestTable().table, true); });
@@ -249,13 +246,16 @@ function hud() {
   const { table, dist } = nearestTable();
   const cm = Math.round(dist * 100);
   $('where').textContent = phoneMode ? `${table.name}, ${cm} cm above it` : `Near ${table.name}`;
+  const g = $('gauge');
   if (phoneMode) {
-    const g = $('gauge');
-    g.className = 'hud ' + (dist <= 0.95 ? 'good' : dist <= 1.05 ? 'mid' : 'bad');
-    g.textContent = dist <= 0.95 ? `${cm} cm: good distance, take the photo` : dist <= 1.05 ? `${cm} cm: a little far, some codes may be missed. Closer is better` : `${cm} cm: too far, the codes will not read`;
+    g.className = dist <= 0.95 ? 'good' : dist <= 1.05 ? 'mid' : 'bad';
+    g.textContent = dist <= 0.95 ? `${cm} cm above the table: good, take the photo` : dist <= 1.05 ? `${cm} cm: a little far, some codes may be missed (F lowers the view)` : `${cm} cm: too far, the codes will not read (F lowers the view)`;
+  } else {
+    g.className = '';
+    g.textContent = 'Press the button to raise the phone';
   }
   $('lookhint').textContent = locked ? 'Esc frees the mouse' : 'Click the room to look around with the mouse';
-  $('lookhint').style.display = $('welcome').style.display === 'none' && !phoneMode ? 'block' : 'none';
+  $('lookhint').style.display = phoneMode ? 'none' : 'block';
 }
 
 // ---- photo ----------------------------------------------------------------------------------------------------------
@@ -368,7 +368,6 @@ function frame(now) {
 }
 resize(); setPhoneUi(); applyCamera();
 requestAnimationFrame(frame);
-// (the welcome card explains the controls)
 
 window.__world = {
   world, shoot, setMegapixels(mp) { shot = mp === 48 ? { w: PHONE.w * 2, h: PHONE.h * 2 } : { w: PHONE.w, h: PHONE.h }; }, THREE, camera, phoneCam, pickables, labelMeshes, raycaster,
@@ -401,6 +400,6 @@ window.__world = {
     return JSON.stringify({ centre: [Math.round(p.x), Math.round(p.y)], behind: p.behind, corners: cs.map(q => [Math.round(q.x), Math.round(q.y)]), firstHit: kind(hit?.object), name: e.item.name.slice(0, 24) });
   },
   project(x, y, z) { this.syncPhone(); const p = project(new THREE.Vector3(x, y, z)); return [p.x, p.y, p.behind]; },
-  setPose(x, y, z, yaw, pitch, phone = true) { Object.assign(player, { x, z, eye: y, yaw, pitch }); lean = true; phoneMode = phone; $('welcome').style.display = 'none'; setPhoneUi(); applyCamera(); },
+  setPose(x, y, z, yaw, pitch, phone = true) { Object.assign(player, { x, z, eye: y, yaw, pitch }); lean = true; phoneMode = phone; setPhoneUi(); applyCamera(); },
 };
 if ($('hires').checked) window.__world.setMegapixels(48);       // the virtual phone starts with a 48 MP main camera, like current flagship phones (untick it for a 12 MP one)
