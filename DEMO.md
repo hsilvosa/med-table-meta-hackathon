@@ -26,11 +26,20 @@ With the phone held still, the room sends a frame to the local server every coup
 ## Boxes with no code read
 If the preview sees a pack but reads no code from it, it draws an amber dashed box on it: "No code read: move closer or add it by hand". The button "Close-up of the box with no code" in the left panel puts the phone 35 cm above that pack; hold still and the code usually reads (green box), then take the photo. A pack with no printed code at all (atorvastatin in the room) stays amber and has to be added by hand in the planner. The planner also shows a card for each such pack ("A box where I could not read a code") with a crop and the same advice; "Done" removes the card. The finder only works on a table of a middle tone: do not demo it on a white table. An amber box is a hint, not a diagnosis, and a missing one proves nothing.
 
+## Camera demo (a separate demo)
+`.venv-app/Scripts/python.exe scripts/start_camera.py`, then http://127.0.0.1:8700/camera.html. "Start the camera" (the browser asks for permission), hold the device still over the boxes: the preview works exactly as in the room (green boxes, amber boxes, the dashed amber box for a pack with no code read) and "Take photo" (or Space) sends the full-size photo to the planner in the side panel. Without a camera, "Use a photo as the camera" shows the same flow with any picture.
+- **Resolution decides the distance.** A frame 4000 px wide needs the camera about 90 cm above the boxes; a 1920 px (1080p) webcam about 45 cm; a 1280 px one about 30 cm (the page says it). This is scaled from the room: 2000 px wide frames read 100 % of the codes closer than 0.5 m and 62 % at 0.5-0.75 m (`experiments/live_scan_probe.py`). A phone browser usually gives video of 1080p or 4K and, on Android Chrome, a full-resolution still for the photo; on iPhone Safari the photo has the resolution of the video.
+- **Not measured on a real camera.** No physical webcam or phone was available while this was built. It was tested with a simulated camera stream (a picture played as video, to exercise the video path, the motion detection and the shutter) and with the stand-in photo. Real lenses focus, blur and move differently from the room's simulated phone: do a trial run on the day, with the boxes you will show. Autofocus lag and glare on glossy cartons are the likely problems.
+- **Phone:** `start_camera.py --lan --https`. A phone browser only opens the camera on a secure page, hence the self-signed certificate (a warning, once). The servers then listen on the local network: use it at home and stop it afterwards. The planner has no https, so on a phone it opens in a second tab and loads each new photo by itself; this phone path has not been tried on a phone.
+
 ## What not to claim
 - No "safe plan", "no interactions" or "verified plan in seconds".
 - No accuracy figure for real packs (none has been measured). The Blender numbers (98-100 % read at 50 cm or closer) are for perfect labels.
 - The candidate flow for packs without a readable code is weak by design (true medicine among the candidates in 3 of 12 small synthetic crops); say that the caregiver always decides.
 - Meta API calls send images off the machine; the app asks for consent each time. Show it with a fictional sheet only.
+
+## If the camera fails live
+Use "Use a photo as the camera" with a photo of the boxes, or type the codes in the planner. If the camera is blocked, allow it with the icon in the address bar.
 
 ## If something fails live
 - CIMA down: packs already seen are served from the local cache; a typed C.N. of an unseen pack needs the network.

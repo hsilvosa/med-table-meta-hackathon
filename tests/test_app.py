@@ -291,6 +291,22 @@ def test_demo_photos_have_no_boxes_without_a_code(app):
     assert not any(app.session_state.nocode.values()) and "A box where I could not read a code" not in texts(app)
 
 
+def test_photos_from_the_camera_page_are_read_from_their_own_folder_with_their_own_words(app, tmp_path):
+    from medtable import synthetic
+    import cv2
+    (tmp_path / "data" / "camera_photos").mkdir(parents=True)
+    (tmp_path / "data" / "world_photos").mkdir(parents=True)
+    cv2.imwrite(str(tmp_path / "data" / "camera_photos" / "latest.jpg"), synthetic.demo_photo([("654177", "281231")]))
+    cv2.imwrite(str(tmp_path / "data" / "world_photos" / "latest.jpg"), synthetic.demo_photo([("662025", "270430"), ("715240", "250600")]))
+    at = AppTest.from_file(APP, default_timeout=180)
+    at.query_params["source"], at.query_params["room"] = "camera", "1"
+    at.run()
+    assert "Load the latest camera photo" in [b.label for b in at.button] and "Load the latest room photo" not in [b.label for b in at.button]
+    assert "Take the photo with the camera" in texts(at)
+    click(at, "Load the latest camera photo")
+    assert not at.exception and "Medicines found: 1" in texts(at) and next(iter(at.session_state.readings)).startswith("camera_")
+
+
 def test_start_over_clears_everything(app):
     to_doses(app)
     click(app, "Start over")

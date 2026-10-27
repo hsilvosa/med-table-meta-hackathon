@@ -8,12 +8,10 @@ Streamlit app can load. Binds to 127.0.0.1 only; nothing leaves the machine.
 """
 
 import argparse
-import itertools
 import json
 import mimetypes
 import shutil
 import sys
-import threading
 import time
 import urllib.parse
 from functools import partial
@@ -24,8 +22,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-from medtable import boxes, decode, identify  # noqa: E402
-from medtable.resolve import Resolver  # noqa: E402
+from medtable import decode, live_scan  # noqa: E402       (decode: the tests replace its scan_stages)
 
 mimetypes.add_type("text/javascript", ".js")   # Windows registries often say text/plain, which blocks ES modules
 OUT = Path("data/world_photos")
@@ -45,41 +42,6 @@ def phone_effects(jpeg: bytes, seed: int) -> bytes:
     return buffer.tobytes() if ok else jpeg
 
 
-_resolver: Resolver | None = None
-_scan_lock = threading.Lock()      # one scan at a time: a scan already uses four threads
-
-
-def resolver() -> Resolver:
-    global _resolver
-    if _resolver is None:
-        _resolver = Resolver("data/cache/cima")
-    return _resolver
-
-
-def scan(jpeg: bytes, effects: bool):
-    """The live preview: find the codes in one frame and say, for each, whether it is verified (the same three checks as the planner).
-
-    A generator: it yields everything found so far after the plain read and after each zoom pass, so the room can draw a box the moment a code is found.
-    Only a position and a verdict go back to the room. Nothing is saved, and nothing here decides what the planner uses: that is the photo.
-    """
-    started = time.time()
-    if effects:
-        jpeg = phone_effects(jpeg, int(started * 1000) % 2**32)
-    frame = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR)
-    if frame is None:
-        raise ValueError("not an image")
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    last = len(decode.LIVE_PASSES)          # stage 0 is the plain read, then one stage per zoom pass
-    with _scan_lock:
-        for number, found in enumerate(decode.scan_stages(gray, decode.LIVE_PASSES)):
-            readings = [identify.read_code(d, resolver()) for d in found]
-            codes = [{"bbox": list(r.bbox), "status": r.status, "name": r.medicine.name if r.medicine else None, "expired": r.expired,
-                      "problem": r.problems[0] if r.problems else None} for r in readings]
-            done = number == last
-            nocode = boxes.without_code(boxes.find_boxes(frame), [tuple(d.bbox) for d in found]) if done else []     # packs seen where no code was read, said at the end only
-            yield {"size": [gray.shape[1], gray.shape[0]], "codes": codes, "nocode": [list(b) for b in nocode], "ms": int((time.time() - started) * 1000), "done": done}
-
-
 class Handler(SimpleHTTPRequestHandler):
     def do_POST(self) -> None:
         if self.path not in ("/photo", "/scan"):
@@ -91,21 +53,8 @@ class Handler(SimpleHTTPRequestHandler):
             return
         body = self.rfile.read(length)
         if self.path == "/scan":
-            stages = scan(body, self.headers.get("X-Effects") == "1")
-            try:
-                first = next(stages)            # the image is checked before anything is sent
-            except ValueError:
-                self.send_error(400, "not an image")
-                return
-            self.send_response(200)
-            self.send_header("Content-Type", "application/x-ndjson")      # one JSON object per line, sent as soon as it is ready; the connection closes at the end
-            self.end_headers()
-            try:
-                for stage in itertools.chain([first], stages):          # lazily: unpacking the generator would compute every stage before sending the first
-                    self.wfile.write(json.dumps(stage).encode() + bytes([10]))      # one line per stage
-                    self.wfile.flush()
-            except (BrokenPipeError, ConnectionResetError):       # the room moved on and dropped the request
-                pass
+            effects = self.headers.get("X-Effects") == "1"
+            live_scan.write_stages(self, live_scan.scan(body, (lambda jpeg: phone_effects(jpeg, int(time.time() * 1000) % 2**32)) if effects else None))
             return
         if self.headers.get("X-Effects") == "1":
             body = phone_effects(body, int(time.time() * 1000) % 2**32)

@@ -31,7 +31,7 @@ servers = [
 try:
     time.sleep(4)
     print("\n3D room:  http://127.0.0.1:8600\nApp:      http://127.0.0.1:8501\n"
-          "Walk to a table, press Shift+1/2/3, press Space to take the photo, then use 'Usar la ultima foto de la sala 3D' in the app.\n"
+          "Walk to a table, press 'Phone over the table', hold still for the green boxes, then 'Take photo': the planner on the right loads it.\n"
           "Ctrl+C to stop.", flush=True)
     if not args.no_browser:
         webbrowser.open("http://127.0.0.1:8600")

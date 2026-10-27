@@ -38,7 +38,9 @@ from medtable.schedule import SLOTS  # noqa: E402
 from medtable.smpc import Smpc  # noqa: E402
 
 DEMO_ITEMS = [("654177", "281231"), ("662025", "270430"), ("715240", "250600"), ("677379", "280131"), ("656012", "271130"), ("100008", "281231")]
-LATEST_PHOTO = Path("data/world_photos/latest.jpg")
+FROM_CAMERA = st.query_params.get("source") == "camera"      # the photos come from the camera page (scripts/serve_camera.py), not from the 3D room
+PHOTO_SOURCE = "camera" if FROM_CAMERA else "room"
+LATEST_PHOTO = Path("data/camera_photos/latest.jpg" if FROM_CAMERA else "data/world_photos/latest.jpg")
 LOCAL_PHOTOS = Path("data/cima/images/full")
 STEPS = ["Medicines", "Doses", "Check", "Print and listen"]
 SLOT_HINT = {"breakfast": "morning", "lunch": "midday", "dinner": "evening", "bedtime": "before sleep"}
@@ -316,7 +318,7 @@ def watch_room() -> None:
     st.session_state.room_seen = LATEST_PHOTO.stat().st_mtime
     image = cv2.imread(str(LATEST_PHOTO))
     if image is not None:
-        add_photo(f"room_{time.strftime('%H:%M:%S', time.localtime(LATEST_PHOTO.stat().st_mtime))}", image)
+        add_photo(f"{PHOTO_SOURCE}_{time.strftime('%H:%M:%S', time.localtime(LATEST_PHOTO.stat().st_mtime))}", image)
         st.session_state.step = 1
         st.rerun()
 
@@ -360,7 +362,10 @@ if step == 1:
     header(1, "Show me the medicines", "Take a photo of the medicine boxes on the table. I read the code printed on each box.")
     st.info("This is a helper for planning. It gives no medical advice and does not replace the doctor or the pharmacist.")
     if EMBEDDED:
-        box("tip", "Take the photo in the room", "Press the red <b>Take photo</b> button on the left of the room. The photo appears here by itself in a few seconds.")
+        if FROM_CAMERA:
+            box("tip", "Take the photo with the camera", "Point the camera at the boxes and press the red <b>Take photo</b> button. The photo appears here by itself in a few seconds.")
+        else:
+            box("tip", "Take the photo in the room", "Press the red <b>Take photo</b> button on the left of the room. The photo appears here by itself in a few seconds.")
         add_area = st.expander("Add a medicine another way")
     else:
         box("tip", "For a good photo", "Put the boxes on a table with the printed codes facing up, and hold the phone about 90 cm (3 feet) above them or closer.")
@@ -370,12 +375,12 @@ if step == 1:
         with tab_demo:
             st.write("Photos made for trying the tool. They contain no real medication or patient.")
             c1, c2 = st.columns(2)
-            if LATEST_PHOTO.exists() and c1.button("Load the latest room photo", width="stretch"):
+            if LATEST_PHOTO.exists() and c1.button(f"Load the latest {PHOTO_SOURCE} photo", width="stretch"):
                 image = cv2.imread(str(LATEST_PHOTO))
                 if image is None:
-                    st.error("The latest room photo could not be opened.")
+                    st.error(f"The latest {PHOTO_SOURCE} photo could not be opened.")
                 else:
-                    add_photo(f"room_{time.strftime('%H:%M:%S', time.localtime(LATEST_PHOTO.stat().st_mtime))}", image)
+                    add_photo(f"{PHOTO_SOURCE}_{time.strftime('%H:%M:%S', time.localtime(LATEST_PHOTO.stat().st_mtime))}", image)
                     st.rerun()
             if c2.button("Load a demo photo", width="stretch"):
                 add_photo("demo", synthetic.demo_photo(DEMO_ITEMS))
@@ -455,7 +460,7 @@ if step == 1:
             with st.container(border=True):
                 card(crop, f'<div class="mt-name">A box where I could not read a code</div>{chip("Not in the plan yet", "warn")}'
                      '<div class="mt-meta">Take a close-up photo of this box (about 30 cm above it, the printed code facing up), or type the code printed on it. '
-                     + ('In the room, press <b>Close-up of the box with no code</b> on the left, then <b>Take photo</b>. ' if EMBEDDED else "")
+                     + (('Bring the camera closer to this box, then press <b>Take photo</b>. ' if FROM_CAMERA else 'In the room, press <b>Close-up of the box with no code</b> on the left, then <b>Take photo</b>. ') if EMBEDDED else "")
                      + 'I may be wrong: it can also be something that is not a medicine.</div>', plain=True)
                 st.button("Done: I added it or it is not a medicine", key=f"nocode_{key}", on_click=nocode_dealt_with, args=(key,), type="tertiary", width="stretch")
     if entries or st.session_state.manual:
@@ -534,7 +539,7 @@ elif step == 2:
         if sheet_photo:
             sources.append(("Read the schedule", sheet_photo.name, sheet_photo.getvalue()))
         if LATEST_PHOTO.exists():
-            sources.append(("Read the latest room photo as the schedule", "room_schedule.jpg", LATEST_PHOTO.read_bytes() if consent else b""))
+            sources.append((f"Read the latest {PHOTO_SOURCE} photo as the schedule", f"{PHOTO_SOURCE}_schedule.jpg", LATEST_PHOTO.read_bytes() if consent else b""))
         for label, file_name, content in sources:
             if st.button(label, disabled=not consent, width="stretch", key=f"read_{file_name}"):
                 with tempfile.TemporaryDirectory() as tmp:

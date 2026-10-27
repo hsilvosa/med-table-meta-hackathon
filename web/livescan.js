@@ -1,0 +1,53 @@
+// Shared by the 3D room (main.js) and the camera page (camera.js): draw what the live scan found, and read the staged answer of /scan.
+// Nothing here identifies a medicine. The boxes come from the server, which runs the same decoder and checks as the planner.
+
+const GREEN = '#22c55e', AMBER = '#f59e0b', INK = '#10151a';
+
+// Draw the boxes on `canvas` (already sized to the picture it covers). `srcWidth` is the width in pixels of the frame the server looked at.
+// `state` = { boxes, nocode, born: Map }. Returns true while a box is still settling (the caller redraws on the next animation frame).
+export function drawScan(canvas, srcWidth, state, noCodeText, fontPx = 13) {
+  const g = canvas.getContext('2d'), k = canvas.width / srcWidth;
+  g.clearRect(0, 0, canvas.width, canvas.height);
+  g.font = `600 ${fontPx}px system-ui, sans-serif`; g.textBaseline = 'bottom';
+  const bar = Math.round(fontPx * 1.5), now = performance.now();
+  let animating = false;
+  for (const code of state.boxes) {
+    const [x0, y0, x1, y1] = code.bbox;
+    const id = `${Math.round((x0 + x1) / 160)},${Math.round((y0 + y1) / 160)}`;      // the same code keeps its id between stages (cells of 80 px)
+    if (!state.born.has(id)) state.born.set(id, now);
+    const age = now - state.born.get(id), pop = Math.max(0, 1 - age / 350);         // a box that has just been found starts big and settles in 0.35 s
+    if (pop > 0) animating = true;
+    const cx = (x0 + x1) / 2 * k, cy = (y0 + y1) / 2 * k, half = (Math.max((x1 - x0) * k, (y1 - y0) * k, 18) / 2 + 4) * (1 + 0.8 * pop);      // never smaller than a fingertip
+    const ok = code.status === 'verified', color = ok ? GREEN : AMBER;
+    g.lineWidth = 3 + 3 * pop; g.strokeStyle = color; g.strokeRect(cx - half, cy - half, half * 2, half * 2);
+    const label = ok ? (code.name || '').split(' ')[0].toLowerCase().replace(/^./, s => s.toUpperCase()) + (code.expired ? ' (expired)' : '') : 'Not verified';
+    const w = g.measureText(label).width + 10;
+    g.fillStyle = color; g.fillRect(cx - half, cy - half - bar, w, bar);
+    g.fillStyle = INK; g.fillText(label, cx - half + 5, cy - half - 3);
+  }
+  for (const [x0, y0, x1, y1] of state.nocode) {      // a pack was seen here and no code was read from it
+    const left = x0 * k, top = y0 * k, wide = (x1 - x0) * k, high = (y1 - y0) * k;
+    g.lineWidth = 3; g.strokeStyle = AMBER; g.setLineDash([9, 6]); g.strokeRect(left, top, wide, high); g.setLineDash([]);
+    const w = g.measureText(noCodeText).width + 10;
+    const lx = Math.min(Math.max(left, 0), Math.max(canvas.width - w, 0)), ly = top > bar + 3 ? top - bar : top + high;
+    g.fillStyle = AMBER; g.fillRect(lx, ly, w, bar); g.fillStyle = INK; g.fillText(noCodeText, lx + 5, ly + bar - 3);
+  }
+  return animating;
+}
+
+// Read the answer of /scan: one JSON line per stage, sent as soon as it is ready. `onStage(stage)` is called for each;
+// `aborted()` is checked before each one: when it is true the rest is dropped (the camera moved, the boxes would be in the wrong place).
+export async function readStages(reply, onStage, aborted) {
+  const reader = reply.body.getReader(), decoder = new TextDecoder();
+  let pending = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) return true;
+    pending += decoder.decode(value, { stream: true });
+    const lines = pending.split(String.fromCharCode(10)); pending = lines.pop();
+    for (const line of lines.filter(Boolean)) {
+      if (aborted()) { reader.cancel(); return false; }
+      onStage(JSON.parse(line));
+    }
+  }
+}

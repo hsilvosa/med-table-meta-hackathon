@@ -2,6 +2,7 @@
 // Walk around in first person, take out a virtual phone and photograph a table; the photo goes to the local server
 // (scripts/serve_world.py), which saves it with the ground truth, ready for the app (app.py) or for experiments/eval_photos.py.
 import * as THREE from 'three';
+import { drawScan, readStages } from './livescan.js';
 
 const PHONE = { w: 4000, h: 3000, hfov: 71 };                      // a 12 MP phone main camera, 4:3
 let shot = { w: PHONE.w, h: PHONE.h };                              // size of the photo that is taken: 12 MP, or 48 MP (the same lens and field of view, four times the pixels)
@@ -399,33 +400,7 @@ function grabFrame() {      // one 12 MP frame of the phone camera, copied to a 
 function drawBoxes() {
   const frameEl = $('frame'), c = $('overlay');
   c.width = frameEl.clientWidth || 1; c.height = frameEl.clientHeight || 1;
-  const g = c.getContext('2d'), k = c.width / PHONE.w;
-  g.clearRect(0, 0, c.width, c.height);
-  g.font = '600 13px system-ui, sans-serif'; g.textBaseline = 'bottom';
-  const now = performance.now();
-  let animating = false;
-  for (const code of live.boxes) {
-    const [x0, y0, x1, y1] = code.bbox;
-    const id = `${Math.round((x0 + x1) / 160)},${Math.round((y0 + y1) / 160)}`;      // the same code keeps its id between stages (cells of 80 px)
-    if (!live.born.has(id)) live.born.set(id, now);
-    const age = now - live.born.get(id), pop = Math.max(0, 1 - age / 350);         // a box that has just been found starts big and settles in 0.35 s
-    if (pop > 0) animating = true;
-    const cx = (x0 + x1) / 2 * k, cy = (y0 + y1) / 2 * k, half = (Math.max((x1 - x0) * k, (y1 - y0) * k, 18) / 2 + 4) * (1 + 0.8 * pop);      // never smaller than a fingertip
-    const ok = code.status === 'verified', color = ok ? '#22c55e' : '#f59e0b';
-    g.lineWidth = 3 + 3 * pop; g.strokeStyle = color; g.strokeRect(cx - half, cy - half, half * 2, half * 2);
-    const label = ok ? (code.name || '').split(' ')[0].toLowerCase().replace(/^./, s => s.toUpperCase()) + (code.expired ? ' (expired)' : '') : 'Not verified';
-    const w = g.measureText(label).width + 10;
-    g.fillStyle = color; g.fillRect(cx - half, cy - half - 19, w, 19);
-    g.fillStyle = '#10151a'; g.fillText(label, cx - half + 5, cy - half - 3);
-  }
-  for (const [x0, y0, x1, y1] of live.nocode) {      // a pack was seen here and no code was read from it
-    const left = x0 * k, top = y0 * k, wide = (x1 - x0) * k, high = (y1 - y0) * k;
-    g.lineWidth = 3; g.strokeStyle = '#f59e0b'; g.setLineDash([9, 6]); g.strokeRect(left, top, wide, high); g.setLineDash([]);
-    const label = nearestTable().dist <= 0.5 ? 'No code read: add it by hand' : 'No code read: move closer or add it by hand', w = g.measureText(label).width + 10;
-    const lx = Math.min(Math.max(left, 0), c.width - w), ly = top > 22 ? top - 19 : top + high;
-    g.fillStyle = '#f59e0b'; g.fillRect(lx, ly, w, 19); g.fillStyle = '#10151a'; g.fillText(label, lx + 5, ly + 16);
-  }
-  if (animating) requestAnimationFrame(drawBoxes);
+  if (drawScan(c, PHONE.w, live, nearestTable().dist <= 0.5 ? 'No code read: add it by hand' : 'No code read: move closer or add it by hand')) requestAnimationFrame(drawBoxes);
 }
 function setScanChip(text) {
   const chip = $('scanChip');
@@ -462,18 +437,9 @@ async function scanOnce(key) {
     const reply = await fetch('/scan', { method: 'POST', body: blob, headers: { 'Content-Type': 'image/jpeg', 'X-Effects': $('effects').checked ? '1' : '0' } });
     if (!reply.ok) throw new Error(`HTTP ${reply.status}`);
     live.error = false; live.scannedKey = key; live.shownKey = key; live.born.clear(); live.boxes = []; live.nocode = []; live.nocodeIndex = -1;
-    const reader = reply.body.getReader(), decoder = new TextDecoder();
-    let pending = '';
-    for (;;) {      // the server sends one line per stage (plain read, then each zoom pass): draw the boxes as they arrive
-      const { value, done } = await reader.read();
-      if (done) break;
-      pending += decoder.decode(value, { stream: true });
-      const lines = pending.split(String.fromCharCode(10)); pending = lines.pop();
-      for (const line of lines.filter(Boolean)) {
-        if (poseKey() !== key) { reader.cancel(); live.boxes = []; live.nocode = []; break; }          // the phone moved: these boxes would be in the wrong place
-        const stage = JSON.parse(line); live.boxes = stage.codes; live.nocode = stage.nocode ?? []; drawBoxes();
-      }
-    }
+    // the server sends one line per stage (plain read, then each zoom pass): draw the boxes as they arrive
+    const finished = await readStages(reply, stage => { live.boxes = stage.codes; live.nocode = stage.nocode ?? []; drawBoxes(); }, () => poseKey() !== key);
+    if (!finished) { live.boxes = []; live.nocode = []; }          // the phone moved: these boxes would be in the wrong place
   } catch (error) {
     live.error = true; live.scannedKey = key;
   } finally {
