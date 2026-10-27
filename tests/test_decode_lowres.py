@@ -61,3 +61,10 @@ def test_a_busy_photo_without_any_code_gives_no_detections():
     noise = cv2.GaussianBlur(rng.random((1300, 1800, 3)).astype(np.float32), (0, 0), 1.2)
     img = (255 * (noise - noise.min()) / np.ptp(noise)).astype(np.uint8)
     assert decode.find_datamatrix(img, libdmtx=False) == []
+
+
+def test_a_faster_scan_with_fewer_passes_still_reads_a_clear_code_and_the_live_passes_are_a_subset():
+    from medtable import synthetic
+    img = synthetic.demo_photo([("654177", "281231")])
+    assert [x.text for x in decode.find_datamatrix(img, libdmtx=False, passes=decode.LIVE_PASSES)] == [x.text for x in decode.find_datamatrix(img, libdmtx=False)]
+    assert set(decode.LIVE_PASSES) < set(decode.ZOOM_PASSES) and len(decode.LIVE_PASSES) == 2

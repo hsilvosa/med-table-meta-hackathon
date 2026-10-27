@@ -153,6 +153,7 @@ function resize() {
   // in phone mode the viewfinder rectangle must show exactly the phone's vertical field of view
   camera.fov = phoneMode ? 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(PHONE_VFOV) / 2) * h / usedH) * 180 / Math.PI : 70;
   camera.updateProjectionMatrix();
+  if (live.boxes.length) drawBoxes();
 }
 addEventListener('resize', resize);
 new ResizeObserver(resize).observe(stage);
@@ -358,6 +359,87 @@ async function shoot(options = {}) {
   }
 }
 
+// ---- live scan ------------------------------------------------------------------------------------------------------
+// While the phone is held still, a 12 MP frame is sent to /scan, which runs the same decoder and the same three checks as the planner
+// (readable code, valid national code, known to CIMA). Green box = verified, amber = a code was read but it is not verified.
+// It is only a preview to help aim: what the planner uses is the photo. Nothing is identified by this drawing.
+const live = { busy: false, boxes: [], scannedKey: null, shownKey: null, status: '', pause: 700, finished: 0, since: 0, lastKey: null };
+const liveCanvas = document.createElement('canvas'); liveCanvas.width = PHONE.w; liveCanvas.height = PHONE.h;
+const poseKey = () => [player.x, player.z, player.eye, player.yaw, player.pitch].map(v => v.toFixed(3)).join(',');
+function grabFrame() {      // one 12 MP frame of the phone camera, copied to a 2D canvas in the same task so the screen never shows the large canvas
+  applyCamera();
+  const size = renderer.getSize(new THREE.Vector2()), ratio = renderer.getPixelRatio();
+  phoneCam.position.copy(camera.position); phoneCam.quaternion.copy(camera.quaternion);
+  phoneCam.clearViewOffset(); phoneCam.updateMatrixWorld(true); phoneCam.updateProjectionMatrix();
+  renderer.setPixelRatio(1); renderer.setSize(PHONE.w, PHONE.h, false);
+  renderer.render(scene, phoneCam);
+  liveCanvas.getContext('2d').drawImage(canvas, 0, 0);
+  renderer.setPixelRatio(ratio); renderer.setSize(size.x, size.y, false);
+  renderer.render(scene, camera);
+}
+function drawBoxes() {
+  const frameEl = $('frame'), c = $('overlay');
+  c.width = frameEl.clientWidth || 1; c.height = frameEl.clientHeight || 1;
+  const g = c.getContext('2d'), k = c.width / PHONE.w;
+  g.clearRect(0, 0, c.width, c.height);
+  g.font = '600 13px system-ui, sans-serif'; g.textBaseline = 'bottom';
+  for (const code of live.boxes) {
+    const [x0, y0, x1, y1] = code.bbox;
+    const cx = (x0 + x1) / 2 * k, cy = (y0 + y1) / 2 * k, half = Math.max((x1 - x0) * k, (y1 - y0) * k, 18) / 2 + 4;      // never smaller than a fingertip
+    const ok = code.status === 'verified', color = ok ? '#22c55e' : '#f59e0b';
+    g.lineWidth = 3; g.strokeStyle = color; g.strokeRect(cx - half, cy - half, half * 2, half * 2);
+    const label = ok ? (code.name || '').split(' ')[0].toLowerCase().replace(/^./, s => s.toUpperCase()) + (code.expired ? ' (expired)' : '') : 'Not verified';
+    const w = g.measureText(label).width + 10;
+    g.fillStyle = color; g.fillRect(cx - half, cy - half - 19, w, 19);
+    g.fillStyle = '#10151a'; g.fillText(label, cx - half + 5, cy - half - 3);
+  }
+}
+function setScanChip(text) {
+  const chip = $('scanChip');
+  chip.style.display = phoneMode && $('live').checked ? 'inline-block' : 'none';
+  chip.textContent = text;
+}
+function liveStatus() {
+  if (!phoneMode || !$('live').checked) return setScanChip('');
+  const key = poseKey();
+  if (live.busy) return setScanChip('Scanning...');
+  if (live.error) return setScanChip('Live scan unavailable (photos still work)');
+  if (live.scannedKey !== key) return setScanChip('Hold still to scan');
+  const ok = live.boxes.filter(b => b.status === 'verified').length, bad = live.boxes.length - ok;
+  setScanChip(live.boxes.length ? `Preview: ${ok} recognised` + (bad ? `, ${bad} not verified` : '') : 'Preview: no codes read here');
+}
+function liveTick() {
+  const key = poseKey(), now = performance.now();
+  if (key !== live.lastKey) { live.lastKey = key; live.since = now; }
+  if (live.shownKey !== null && live.shownKey !== key && live.boxes.length) { live.boxes = []; drawBoxes(); }        // boxes of an old view would point at the wrong place
+  liveStatus();
+  const idle = phoneMode && $('live').checked && !live.busy && !shooting && !document.hidden;
+  if (!idle || live.scannedKey === key || now - live.since < 300 || now - live.finished < live.pause) return;
+  scanOnce(key);
+}
+async function scanOnce(key) {
+  live.busy = true;
+  const started = performance.now();
+  try {
+    grabFrame();
+    const blob = await new Promise(resolve => liveCanvas.toBlob(resolve, 'image/jpeg', 0.9));
+    const reply = await fetch('/scan', { method: 'POST', body: blob, headers: { 'Content-Type': 'image/jpeg', 'X-Effects': $('effects').checked ? '1' : '0' } });
+    if (!reply.ok) throw new Error(`HTTP ${reply.status}`);
+    const result = await reply.json();
+    live.error = false; live.scannedKey = key; live.shownKey = key;
+    live.boxes = poseKey() === key ? result.codes : [];
+    drawBoxes();
+  } catch (error) {
+    live.error = true; live.scannedKey = key;
+  } finally {
+    live.busy = false; live.finished = performance.now();
+    live.pause = Math.max(700, 1.5 * (live.finished - started));      // the scan never takes more than about 40 % of the computer, so the PC stays usable
+  }
+}
+setInterval(liveTick, 250);
+$('live').addEventListener('change', () => { live.boxes = []; live.scannedKey = null; live.error = false; drawBoxes(); });
+addEventListener('resize', drawBoxes);
+
 // ---- loop -----------------------------------------------------------------------------------------------------------
 let last = performance.now();
 function frame(now) {
@@ -370,6 +452,7 @@ resize(); setPhoneUi(); applyCamera();
 requestAnimationFrame(frame);
 
 window.__world = {
+  live, scanOnce, poseKey,
   world, shoot, setMegapixels(mp) { shot = mp === 48 ? { w: PHONE.w * 2, h: PHONE.h * 2 } : { w: PHONE.w, h: PHONE.h }; }, THREE, camera, phoneCam, pickables, labelMeshes, raycaster,
   // A batch of photos from random viewpoints above the tables (seeded): heights [min, max] metres above the table top, tilt up to maxTilt degrees.
   async batch(n, seed = 1, opts = {}) {

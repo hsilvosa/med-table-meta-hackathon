@@ -11,6 +11,8 @@ import argparse
 import json
 import mimetypes
 import shutil
+import sys
+import threading
 import time
 import urllib.parse
 from functools import partial
@@ -19,6 +21,10 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+from medtable import decode, identify  # noqa: E402
+from medtable.resolve import Resolver  # noqa: E402
 
 mimetypes.add_type("text/javascript", ".js")   # Windows registries often say text/plain, which blocks ES modules
 OUT = Path("data/world_photos")
@@ -38,9 +44,38 @@ def phone_effects(jpeg: bytes, seed: int) -> bytes:
     return buffer.tobytes() if ok else jpeg
 
 
+_resolver: Resolver | None = None
+_scan_lock = threading.Lock()      # one scan at a time: a scan already uses four threads
+
+
+def resolver() -> Resolver:
+    global _resolver
+    if _resolver is None:
+        _resolver = Resolver("data/cache/cima")
+    return _resolver
+
+
+def scan(jpeg: bytes, effects: bool) -> dict:
+    """The live preview: find the codes in one frame and say, for each, whether it is verified (the same three checks as the planner).
+
+    Only a position and a verdict go back to the room. Nothing is saved, and nothing here decides what the planner uses: that is the photo.
+    """
+    started = time.time()
+    if effects:
+        jpeg = phone_effects(jpeg, int(started * 1000) % 2**32)
+    gray = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_GRAYSCALE)
+    if gray is None:
+        raise ValueError("not an image")
+    with _scan_lock:
+        readings = [identify.read_code(d, resolver()) for d in decode.find_datamatrix(gray, libdmtx=False, passes=decode.LIVE_PASSES)]
+    codes = [{"bbox": list(r.bbox), "status": r.status, "name": r.medicine.name if r.medicine else None, "expired": r.expired,
+              "problem": r.problems[0] if r.problems else None} for r in readings]
+    return {"size": [gray.shape[1], gray.shape[0]], "codes": codes, "ms": int((time.time() - started) * 1000)}
+
+
 class Handler(SimpleHTTPRequestHandler):
     def do_POST(self) -> None:
-        if self.path != "/photo":
+        if self.path not in ("/photo", "/scan"):
             self.send_error(404)
             return
         length = int(self.headers.get("Content-Length", 0))
@@ -48,6 +83,18 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_error(413)
             return
         body = self.rfile.read(length)
+        if self.path == "/scan":
+            try:
+                payload = json.dumps(scan(body, self.headers.get("X-Effects") == "1")).encode()
+            except ValueError:
+                self.send_error(400, "not an image")
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            return
         if self.headers.get("X-Effects") == "1":
             body = phone_effects(body, int(time.time() * 1000) % 2**32)
         truth = json.loads(urllib.parse.unquote(self.headers.get("X-Truth", "{}")) or "{}")
@@ -70,7 +117,7 @@ class Handler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def log_message(self, fmt: str, *args) -> None:   # keep the console quiet except for photos and errors
-        if "POST" in (fmt % args) or " 404 " in (fmt % args) or " 500 " in (fmt % args):
+        if ("POST" in (fmt % args) and "/scan" not in (fmt % args)) or " 404 " in (fmt % args) or " 500 " in (fmt % args):
             super().log_message(fmt, *args)
 
 

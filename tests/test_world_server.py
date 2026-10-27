@@ -12,7 +12,9 @@ import cv2
 import numpy as np
 import pytest
 
+from fixtures import med
 from medtable import synthetic
+from medtable.resolve import Resolver
 
 
 
@@ -73,3 +75,50 @@ def test_only_the_photo_endpoint_accepts_posts_and_modules_are_served_as_javascr
     assert urllib.request.urlopen(url + "/", timeout=10).read() == b"<html>room</html>"
     import mimetypes
     assert mimetypes.guess_type("main.js")[0] == "text/javascript"
+
+
+def scan(url, jpeg, effects=False):
+    request = urllib.request.Request(url + "/scan", data=jpeg, method="POST", headers={"Content-Type": "image/jpeg", "X-Effects": "1" if effects else "0"})
+    with urllib.request.urlopen(request, timeout=60) as reply:
+        return json.load(reply)
+
+
+def jpeg_of(items):
+    ok, buffer = cv2.imencode(".jpg", synthetic.demo_photo(items))
+    assert ok
+    return buffer.tobytes()
+
+
+@pytest.fixture
+def cima(monkeypatch):
+    known = {"654177": med("654177", "SINTROM 4 mg COMPRIMIDOS", ["ACENOCUMAROL"], "B01AA07")}
+    monkeypatch.setattr(Resolver, "by_cn", lambda self, cn: known.get("".join(c for c in cn if c.isdigit())[:6]))
+
+
+def test_live_scan_reports_where_each_code_is_and_whether_it_is_verified(server, cima):
+    module, url, tmp = server
+    reply = scan(url, jpeg_of([("654177", "281231"), ("662025", "270430")]))        # the second code is valid but CIMA (here) does not know it
+    width, height = reply["size"]
+    by_status = {c["status"]: c for c in reply["codes"]}
+    assert sorted(by_status) == ["unverified", "verified"]
+    assert by_status["verified"]["name"] == "SINTROM 4 mg COMPRIMIDOS" and by_status["verified"]["expired"] is False
+    assert by_status["unverified"]["name"] is None and "CIMA has no medicine" in by_status["unverified"]["problem"]
+    for code in reply["codes"]:
+        x0, y0, x1, y1 = code["bbox"]
+        assert 0 <= x0 < x1 <= width and 0 <= y0 < y1 <= height
+    assert not (tmp / "data" / "world_photos").exists()        # a preview frame is never saved: only a photo is
+
+
+def test_live_scan_of_a_frame_without_codes_and_of_something_that_is_not_an_image(server, cima):
+    module, url, _ = server
+    ok, blank = cv2.imencode(".jpg", np.full((300, 400, 3), 200, np.uint8))
+    assert scan(url, blank.tobytes())["codes"] == []
+    with pytest.raises(urllib.error.HTTPError) as error:
+        scan(url, b"this is not a jpeg")
+    assert error.value.code == 400
+
+
+def test_live_scan_works_on_a_frame_with_the_phone_effects(server, cima):
+    module, url, _ = server
+    reply = scan(url, jpeg_of([("654177", "281231")]), effects=True)
+    assert [c["status"] for c in reply["codes"]] == ["verified"]

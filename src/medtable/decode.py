@@ -56,6 +56,9 @@ def _tiles(h: int, w: int, grid: int, overlap: float = 0.25):
 ZOOM_TILE, ZOOM_STRIDE = 640, 448        # a code is about 25 to 120 px wide in a 12 MP photo; the overlap (192 px) is larger than any of them
 # (enlargement, treatment): the first pass is gentle and cheap, the others are what rescues codes of about 1.5 pixels per module
 ZOOM_PASSES = ((2.0, "soft"), (3.0, "strong"), (4.0, "strong"), (3.0, "adaptive_sharp"))
+# The live preview of the room scans a frame every second or so, so it uses only the first two passes: 93 % instead of 98 % of the codes at 90 cm,
+# in about a third of the time (experiments/live_scan_probe.py)
+LIVE_PASSES = ZOOM_PASSES[:2]
 MIN_TILE_CONTRAST = 6.0                   # plain walls and floor have nothing to decode
 
 
@@ -109,13 +112,13 @@ def _merge(found: list[Detection]) -> list[Detection]:
     return list(seen.values())
 
 
-def find_datamatrix(img_bgr: np.ndarray, *, tiles: bool = True, libdmtx: bool = True) -> list[Detection]:
-    """Return every readable Data Matrix in the image (BGR or grayscale array)."""
+def find_datamatrix(img_bgr: np.ndarray, *, tiles: bool = True, libdmtx: bool = True, passes: tuple | None = None) -> list[Detection]:
+    """Return every readable Data Matrix in the image (BGR or grayscale array). `passes` replaces ZOOM_PASSES (a faster, less thorough scan)."""
     h, w = img_bgr.shape[:2]
     found = _zxing(img_bgr, 1.0, (0, 0), "zxing")
     if tiles:
         gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY) if img_bgr.ndim == 3 else img_bgr
-        found += find_zoomed(gray)
+        found += find_zoomed(gray, passes)
     found = _merge(found)
     if libdmtx and pylibdmtx is not None and not found:
         gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY) if img_bgr.ndim == 3 else img_bgr
