@@ -11,12 +11,12 @@
   body { display: flex; }
 
   /* left panel: always visible */
-  #side { flex: none; width: 290px; height: 100%; overflow-y: auto; background: #fff; border-right: 1px solid var(--line); padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 10px; }
+  #side { flex: none; width: 300px; height: 100%; overflow-y: auto; background: #fff; border-right: 1px solid var(--line); padding: 12px 14px 10px; display: flex; flex-direction: column; gap: 8px; }
   #side h1 { font-size: 19px; margin: 0; line-height: 1.2; }
   #side .sub { margin: 2px 0 0; font-size: 13px; color: var(--muted); line-height: 1.35; }
-  .step { border: 2px solid var(--line); border-radius: 12px; padding: 10px 12px 12px; transition: border-color .15s, background .15s; }
+  .step { border: 2px solid var(--line); border-radius: 12px; padding: 8px 10px 10px; transition: border-color .15s, background .15s; }
   .step.current { border-color: var(--brand); background: #f1f7fc; }
-  .step h2 { font-size: 15px; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+  .step h2 { font-size: 15px; margin: 0 0 6px; display: flex; align-items: center; gap: 8px; }
   .step h2 b { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--brand); color: #fff; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
   .step p { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.35; }
   .row { display: flex; gap: 6px; }
@@ -25,15 +25,16 @@
   .btn.on { background: var(--brand); color: #fff; border-color: var(--brand); }
   .row .btn { flex: 1; padding-left: 4px; padding-right: 4px; }
   .step > .btn { width: 100%; }
-  #gauge { margin-top: 8px; padding: 7px 10px; border-radius: 8px; font-size: 13px; font-weight: 650; line-height: 1.3; background: #eef1f4; color: #3d4752; }
+  #gauge { margin-top: 6px; padding: 6px 9px; border-radius: 8px; font-size: 13px; font-weight: 650; line-height: 1.3; background: #eef1f4; color: #3d4752; }
   #gauge.good { background: var(--good); color: #fff; } #gauge.mid { background: var(--mid); color: #fff; } #gauge.bad { background: var(--bad); color: #fff; }
-  #shutter { width: 100%; padding: 13px; font-size: 17px; border-radius: 12px; border: 3px solid #fff; outline: 2px solid #e5484d; background: #e5484d; color: #fff; font-weight: 750; cursor: pointer; }
+  #shutter { width: 100%; padding: 11px; font-size: 17px; border-radius: 12px; border: 3px solid #fff; outline: 2px solid #e5484d; background: #e5484d; color: #fff; font-weight: 750; cursor: pointer; }
   #shutter:hover { background: #f0585d; } #shutter:active { transform: scale(.98); }
   .keys { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; font-size: 13px; align-items: center; }
   .keys dt { margin: 0; } .keys dd { margin: 0; color: #33404d; }
   kbd { background: #fff; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; font: 600 12px ui-monospace, monospace; white-space: nowrap; }
   #side .small { font-size: 12.5px; color: var(--muted); }
   #side label { display: flex; gap: 7px; align-items: center; font-size: 12.5px; color: #33404d; cursor: pointer; margin-top: 4px; }
+  .keys { gap: 3px 10px; font-size: 12.5px; }
   #side .note { font-size: 11.5px; color: var(--muted); line-height: 1.35; margin-top: auto; }
 
   /* the room */
@@ -60,7 +61,7 @@
 </head>
 <body>
 <aside id="side">
-  <div><h1>Medication table room</h1><p class="sub">Photograph a table of medicines like a caregiver would. The planner reads the photo.</p></div>
+  <h1>Medication table room</h1>
 
   <section class="step" id="step1">
     <h2><b>1</b> Go to a table</h2>
@@ -76,15 +77,17 @@
   <section class="step" id="step3">
     <h2><b>3</b> Take the photo</h2>
     <button id="shutter" title="Space">Take photo</button>
-    <p>The planner opens on the right and reads it by itself.</p>
   </section>
 
   <section>
-    <h2 class="small" style="margin:0 0 6px">Move around</h2>
+    <h2 class="small" style="margin:0 0 4px">Move around</h2>
     <dl class="keys">
       <dt><kbd>W A S D</kbd></dt><dd>walk (Shift: faster)</dd>
       <dt><kbd>Mouse</kbd></dt><dd>look: click the room first, Esc frees it</dd>
       <dt><kbd>R</kbd> <kbd>F</kbd></dt><dd>raise / lower the view</dd>
+      <dt><kbd>X</kbd></dt><dd>lean over the table (tables stop blocking you)</dd>
+      <dt><kbd>P</kbd></dt><dd>phone camera on / off</dd>
+      <dt><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></dt><dd>go to table 1, 2, 3 (with Shift: phone over it)</dd>
       <dt><kbd>Space</kbd></dt><dd>take the photo</dd>
       <dt><kbd>Tab</kbd></dt><dd>show / hide the planner</dd>
     </dl>
@@ -97,7 +100,6 @@
     <label><input type="checkbox" id="effects" checked> Phone effects (blur, noise)</label>
   </section>
 
-  <p class="note">A stage set: flat cut-outs of the official AEMPS photos with a Data Matrix sticker made from each real national code. Table 1 also holds a fictional medication sheet. It shows the flow; it does not prove how printed codes read on real packs.</p>
 </aside>
 
 <div id="stage">
