@@ -6,6 +6,7 @@ import pypdfium2 as pdfium
 import pytest
 
 from fixtures import (ACENOCUMAROL, FakeSmpc, IBUPROFENO, LORAZEPAM, METFORMINA_850, OMEPRAZOL, SECTIONS, TODAY, med, pack, strength)
+from medtable.plan import NOT_CONFIRMED
 from medtable import cn, gs1, sheet_reader
 from medtable.calendar_pdf import render_pdf
 from medtable.identify import Reading, read_code
@@ -17,8 +18,8 @@ from medtable.rules import check_packs, mention_terms
 from medtable.schedule import SLOTS, Line, reconcile
 
 
-def row(text, confirmado=True, **doses):
-    return {"medicamento": text, "desayuno": "0", "comida": "0", "cena": "0", "acostarse": "0", "observaciones": "", "confirmado": confirmado, **doses}
+def row(text, confirmed=True, **doses):
+    return {"medicine": text, "breakfast": "0", "lunch": "0", "dinner": "0", "bedtime": "0", "remarks": "", "confirmed": confirmed, **doses}
 
 
 def reading(medicine, expiry=None):
@@ -35,16 +36,22 @@ def pdf_text(path):
 
 
 def test_two_lines_for_one_pack_never_both_reach_the_calendar():
-    result = make_plan([reading(METFORMINA_850, date(2030, 1, 1))], [], [row("Metformina 850 mg", desayuno="1"), row("Metformina 850 mg", desayuno="1")], None, TODAY)
+    result = make_plan([reading(METFORMINA_850, date(2030, 1, 1))], [], [row("Metformina 850 mg", breakfast="1"), row("Metformina 850 mg", breakfast="1")], None, TODAY)
     assert result.plan.entries == []
     assert "pack_on_several_lines" in {f.kind for f in result.plan.findings}
-    assert [why for _, why in result.plan.not_included] == ["el envase está en varias líneas; deje una sola"] * 2
+    assert [why for _, why in result.plan.not_included] == ["the pack is on several lines; keep one"] * 2
 
 
 def test_a_confirmed_line_with_all_zero_doses_is_reported():
     result = make_plan([reading(METFORMINA_850, date(2030, 1, 1))], [], [row("Metformina 850 mg")], None, TODAY)
     assert result.plan.entries == [] and "all_zero_line" in {f.kind for f in result.plan.findings}
-    assert result.plan.not_included == [("Metformina 850 mg", "la línea no tiene ninguna dosis")]
+    assert result.plan.not_included == [("Metformina 850 mg", "the line has no dose")]
+
+
+def test_an_untouched_line_is_pending_not_a_problem():
+    result = make_plan([reading(METFORMINA_850, date(2030, 1, 1))], [], [row("Metformina 850 mg", confirmed=False)], None, TODAY)
+    assert "all_zero_line" not in {f.kind for f in result.plan.findings}
+    assert result.plan.not_included == [("Metformina 850 mg", NOT_CONFIRMED)]
 
 
 def test_unknown_expiry_is_reported_for_decoded_and_typed_packs():
@@ -78,25 +85,25 @@ def test_cima_answer_without_the_scanned_cn_among_its_presentations_does_not_ver
 
 
 def test_empty_or_missing_sheet_cells_are_reported():
-    read = sheet_reader.rows_from_reply('[{"medicamento": "Omeprazol 20 mg", "desayuno": "1", "comida": ""}]')
-    assert read.rows[0]["comida"] == "0" and read.rows[0]["acostarse"] == "0"
-    assert "celda vacía o no leída en comida, cena, acostarse" in read.problems[0]
+    read = sheet_reader.rows_from_reply('[{"medicine": "Omeprazol 20 mg", "breakfast": "1", "lunch": ""}]')
+    assert read.rows[0]["lunch"] == "0" and read.rows[0]["bedtime"] == "0"
+    assert "empty or unread cell in lunch, dinner, bedtime" in read.problems[0]
 
 
 def test_missing_smpc_sections_and_disabled_check_are_visible():
     gap = check_packs([pack(IBUPROFENO), pack(LORAZEPAM)], FakeSmpc(), TODAY)  # Lorazepam has no 4.5 text in the fixture
     assert [f.cns[0] for f in gap if f.kind == "smpc_unavailable"] == ["700001"]
-    assert "no se ha hecho" in [f for f in gap if f.kind == "smpc_unavailable"][0].text("es")
-    result = make_plan([reading(METFORMINA_850, date(2030, 1, 1))], [], [row("Metformina 850 mg", desayuno="1")], None, TODAY)
+    assert "was not done" in [f for f in gap if f.kind == "smpc_unavailable"][0].text()
+    result = make_plan([reading(METFORMINA_850, date(2030, 1, 1))], [], [row("Metformina 850 mg", breakfast="1")], None, TODAY)
     assert result.plan.smpc_used is False
 
 
 def test_pdf_states_when_the_smpc_check_did_not_run(tmp_path):
-    rows = [row("Metformina 850 mg", desayuno="1")]
+    rows = [row("Metformina 850 mg", breakfast="1")]
     off = make_plan([reading(METFORMINA_850, date(2030, 1, 1))], [], rows, None, TODAY).plan
-    assert "NO se han consultado las fichas técnicas" in pdf_text(render_pdf(off, tmp_path / "a.pdf"))
+    assert "were NOT consulted" in " ".join(pdf_text(render_pdf(off, tmp_path / "a.pdf")).split())
     on = make_plan([reading(METFORMINA_850, date(2030, 1, 1))], [], rows, FakeSmpc(), TODAY).plan
-    assert "citas literales de las secciones 4.2 y 4.5" in pdf_text(render_pdf(on, tmp_path / "b.pdf"))
+    assert "verbatim quotes from sections 4.2 and 4.5" in " ".join(pdf_text(render_pdf(on, tmp_path / "b.pdf")).split())
 
 
 def test_a_negated_sentence_with_a_warning_cue_stays_at_review_level(monkeypatch):
@@ -112,7 +119,7 @@ def test_salt_names_are_searched_by_their_plain_name_too():
 
 
 def test_pdf_survives_markup_characters_and_prints_them_literally(tmp_path):
-    lines = [line("Metformina 850 mg", "tomar <b si < 2 h & con agua", desayuno="1")]
+    lines = [line("Metformina 850 mg", "tomar <b si < 2 h & con agua", breakfast="1")]
     packs = [pack(METFORMINA_850, date(2030, 1, 1))]
     plan = build_plan(lines, reconcile(lines, packs), [], TODAY)
     text = pdf_text(render_pdf(plan, tmp_path / "x.pdf", "Ana <b & <font size=40>Luis"))
@@ -123,17 +130,17 @@ def test_pdf_survives_markup_characters_and_prints_them_literally(tmp_path):
 def test_pdf_prints_both_doses_when_one_pack_has_two_entries_in_a_slot(tmp_path):
     pk = pack(METFORMINA_850, date(2030, 1, 1))
     plan = build_plan([], reconcile([], []), [], TODAY)
-    plan.entries = [Entry("desayuno", pk, line("A", desayuno="1"), "1"), Entry("desayuno", pk, line("B", desayuno="2"), "2")]
+    plan.entries = [Entry("breakfast", pk, line("A", breakfast="1"), "1"), Entry("breakfast", pk, line("B", breakfast="2"), "2")]
     text = pdf_text(render_pdf(plan, tmp_path / "y.pdf"))
-    assert "1\ncomprimido" in text.replace("\r", "") and "2\ncomprimidos" in text.replace("\r", "")
+    assert "1\ntablet" in text.replace("\r", "") and "2\ntablets" in text.replace("\r", "")
 
 
 def test_ics_escapes_lone_cr_and_folds_long_lines():
-    lines = [line("Metformina 850 mg", "Tomar\rSUMMARY:Robada " + "ñ" * 120, desayuno="1")]
+    lines = [line("Metformina 850 mg", "Tomar\rSUMMARY:Robada " + "ñ" * 120, breakfast="1")]
     packs = [pack(METFORMINA_850, date(2030, 1, 1))]
     ics = to_ics(build_plan(lines, reconcile(lines, packs), [], TODAY), start=date(2026, 10, 27))
     physical = ics.split("\r\n")
     assert all(len(p.encode("utf-8")) <= 75 for p in physical)
     unfolded = ics.replace("\r\n ", "")
     assert "\nSUMMARY:Robada" not in unfolded and "Tomar\\nSUMMARY:Robada" in unfolded
-    assert [p for p in unfolded.split("\r\n") if p.startswith("SUMMARY:")] == ["SUMMARY:Medicación: Desayuno"]
+    assert [p for p in unfolded.split("\r\n") if p.startswith("SUMMARY:")] == ["SUMMARY:Medication: Breakfast"]

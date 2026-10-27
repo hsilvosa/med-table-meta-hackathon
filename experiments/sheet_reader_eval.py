@@ -28,14 +28,14 @@ print(f"backend={reading.backend} cost=USD {reading.cost_usd:.4f} rows read {len
 wrong_cells = wrong_remarks = missing = 0
 for want in truth:
     key = norm(want["medicamento"]).split()[0]
-    got = next((r for r in reading.rows if key in norm(r["medicamento"])), None)
+    got = next((r for r in reading.rows if key in norm(r["medicine"])), None)
     if not got:
         missing += 1
         print("  MISSING", want["medicamento"])
         continue
-    cells = [got[s] for s in ("desayuno", "comida", "cena", "acostarse")]
+    cells = [got[s] for s in ("breakfast", "lunch", "dinner", "bedtime")]
     bad = sum(a != b for a, b in zip(cells, want["pauta"]))
     wrong_cells += bad
-    wrong_remarks += norm(got["observaciones"]) != norm(want["observaciones"])
-    print(f"  {want['medicamento'][:42]:42} cells {'OK' if not bad else f'{bad} WRONG {cells} vs {want['pauta']}'}; remarks {'OK' if norm(got['observaciones']) == norm(want['observaciones']) else repr(got['observaciones']) + ' vs ' + repr(want['observaciones'])}")
+    wrong_remarks += norm(got["remarks"]) != norm(want["observaciones"])
+    print(f"  {want['medicamento'][:42]:42} cells {'OK' if not bad else f'{bad} WRONG {cells} vs {want['pauta']}'}; remarks {'OK' if norm(got['remarks']) == norm(want['observaciones']) else repr(got['remarks']) + ' vs ' + repr(want['observaciones'])}")
 print(f"missing rows {missing}, wrong schedule cells {wrong_cells}/{4 * len(truth)}, remarks different {wrong_remarks}")

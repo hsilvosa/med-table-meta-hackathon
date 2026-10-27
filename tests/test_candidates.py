@@ -58,11 +58,11 @@ def test_a_cn_read_by_the_model_does_not_outrank_a_name_match_and_is_labelled_as
     fake_world(monkeypatch, reply, [{"nregistro": METFORMINA_850.nregistro}])
     proposal = propose(tmp_path / "crop.jpg", Resolver(tmp_path))
     assert [c.medicine.cn for c in proposal.candidates] == ["680001", "690001"]  # brand + ingredient + dose beat a model-read code
-    assert "lo ha leído un modelo" in proposal.candidates[1].why[0] and "verificado" not in proposal.candidates[1].why[0]
+    assert "a model read this" in proposal.candidates[1].why[0] and "verified" not in proposal.candidates[1].why[0]
 
 
 def test_unreadable_reply_and_no_results(monkeypatch, tmp_path):
     fake_world(monkeypatch, "no veo nada", [])
-    assert propose(tmp_path / "c.jpg", Resolver(tmp_path)).note.startswith("El modelo no pudo")
+    assert propose(tmp_path / "c.jpg", Resolver(tmp_path)).note.startswith("The model could not")
     fake_world(monkeypatch, '{"marca": "Inventado", "principio_activo": null, "dosis": null, "codigo_nacional": null}', [])
-    assert propose(tmp_path / "c.jpg", Resolver(tmp_path)).note.startswith("No hay candidatos")
+    assert propose(tmp_path / "c.jpg", Resolver(tmp_path)).note.startswith("CIMA has no candidates")

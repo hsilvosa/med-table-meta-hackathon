@@ -17,17 +17,18 @@ from pathlib import Path
 from . import vlm
 from .schedule import SLOTS, dose_number
 
-SHEET_PROMPT = ('Esta es la foto de una hoja de plan de medicacion. Extrae TODAS las filas de la tabla como JSON: '
-                '[{"medicamento": str, "desayuno": str, "comida": str, "cena": str, "acostarse": str, "observaciones": str}]. '
-                'Copia los valores exactamente como estan escritos (por ejemplo "1", "0", "1/2"). Si una celda esta vacia usa "". '
-                'No interpretes, no completes y no corrijas nada.')
+SHEET_PROMPT = ('This is a photo of a medication plan sheet written in Spanish. Extract ALL rows of the table as JSON: '
+                '[{"medicine": str, "breakfast": str, "lunch": str, "dinner": str, "bedtime": str, "remarks": str}]. '
+                'The dose columns are Desayuno (breakfast), Comida (lunch), Cena (dinner) and Acostarse (bedtime). '
+                'Copy the values exactly as written (for example "1", "0", "1/2"); keep the medicine name and the remarks as written, in Spanish. '
+                'If a cell is empty use "". Do not interpret, complete or correct anything.')
 FRACTIONS = {"½": "1/2", "¼": "1/4", "¾": "3/4"}
 
 
 @dataclass
 class SheetReading:
     rows: list[dict] = field(default_factory=list)
-    problems: list[str] = field(default_factory=list)  # Spanish, shown to the caregiver
+    problems: list[str] = field(default_factory=list)  # shown to the caregiver
     backend: str = ""
     cost_usd: float = 0.0
 
@@ -49,21 +50,21 @@ def rows_from_reply(text: str) -> SheetReading:
         reading.problems.append("No se pudo leer ninguna fila de la hoja. Escriba la pauta a mano.")
         return reading
     for number, raw in enumerate(data, 1):
-        if not isinstance(raw, dict) or not str(raw.get("medicamento", "")).strip():
-            reading.problems.append(f"Fila {number}: sin nombre de medicamento; se ha omitido.")
+        if not isinstance(raw, dict) or not str(raw.get("medicine", "")).strip():
+            reading.problems.append(f"Row {number}: no medicine name; skipped.")
             continue
-        row = {"medicamento": str(raw["medicamento"]).strip(), "observaciones": str(raw.get("observaciones") or "").strip(),
-               "confirmado": False, "cn": None}
+        row = {"medicine": str(raw["medicine"]).strip(), "remarks": str(raw.get("remarks") or "").strip(),
+               "confirmed": False, "cn": None}
         empty = []
         for slot in SLOTS:
             cell = clean_dose(raw.get(slot))
             if cell and dose_number(cell) is None:
-                reading.problems.append(f"Fila {number} ({row['medicamento']}), {slot}: «{cell}» no es una dosis reconocida; corríjala.")
+                reading.problems.append(f"Row {number} ({row['medicine']}), {slot}: \"{cell}\" is not a recognised dose; correct it.")
             if not cell:
                 empty.append(slot)
             row[slot] = cell or "0"
         if empty:
-            reading.problems.append(f"Fila {number} ({row['medicamento']}): celda vacía o no leída en {', '.join(empty)}; se ha puesto 0. Compruébelo en la hoja.")
+            reading.problems.append(f"Row {number} ({row['medicine']}): empty or unread cell in {', '.join(empty)}; set to 0. Check it on the sheet.")
         reading.rows.append(row)
     return reading
 

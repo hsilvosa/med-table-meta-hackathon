@@ -34,7 +34,7 @@ class Section:
     fetched: str
 
     def citation(self) -> str:
-        return f"AEMPS CIMA, ficha técnica (nregistro {self.nregistro}), sección {self.section}, consultado el {self.fetched}: " \
+        return f"AEMPS CIMA, SmPC (nregistro {self.nregistro}), section {self.section}, consulted on {self.fetched}: " \
                f"{FT_URL.format(nregistro=self.nregistro)}"
 
 

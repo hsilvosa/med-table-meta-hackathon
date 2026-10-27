@@ -18,9 +18,10 @@ from . import cima, cn, vlm
 from .decode import Detection
 from .resolve import Medicine, Resolver
 
-CROP_PROMPT = ('Esta es la foto recortada de una caja de medicamento espanola. Lee SOLO lo que se ve impreso. '
-               'Responde con JSON: {"marca": str|null, "principio_activo": str|null, "dosis": str|null, '
-               '"forma": str|null, "codigo_nacional": str|null}. Usa null si no se lee con claridad. No adivines.')
+CROP_PROMPT = ('This is a cropped photo of a Spanish medicine box. Read ONLY what is printed on it. '
+               'Answer with JSON: {"marca": str|null, "principio_activo": str|null, "dosis": str|null, '
+               '"forma": str|null, "codigo_nacional": str|null} (brand, active ingredient, strength, form, national code, as printed, in Spanish). '
+               'Use null when it is not clearly legible. Do not guess.')
 
 
 @dataclass
@@ -83,15 +84,15 @@ def score_candidate(medicine: Medicine, read: dict) -> Candidate:
     brand = fold(read.get("marca"))
     if brand and brand.split()[0] in name.split():
         score += 2
-        why.append("coincide la marca")
+        why.append("brand matches")
     ingredient = fold(read.get("principio_activo"))
     if ingredient and any(ingredient.split()[0][:6] in fold(i) for i in medicine.active_ingredients):
         score += 2
-        why.append("coincide el principio activo")
+        why.append("active ingredient matches")
     numbers = set(re.findall(r"\d+(?:[.,]\d+)?", str(read.get("dosis") or "")))
     if numbers and numbers <= set(re.findall(r"\d+(?:[.,]\d+)?", medicine.name)):
         score += 1
-        why.append("coincide la dosis")
+        why.append("strength matches")
     return Candidate(medicine, score, why)
 
 
@@ -100,7 +101,7 @@ def propose(crop: Path, resolver: Resolver, backend: str | None = None, limit: i
     reply = vlm.ask_image(crop, CROP_PROMPT, backend=backend, max_tokens=500, note="crop reader")
     read = vlm.parse_json(reply.text)
     if not isinstance(read, dict):
-        return Proposal({}, [], note="El modelo no pudo leer nada en el recorte.")
+        return Proposal({}, [], note="The model could not read anything in the crop.")
     proposal = Proposal(read, [])
     found = cn.find_cn(str(read.get("codigo_nacional") or ""))
     if found and cn.is_valid(found):
@@ -109,7 +110,7 @@ def propose(crop: Path, resolver: Resolver, backend: str | None = None, limit: i
             proposal.cn_checked = found
             lead = score_candidate(medicine, read)
             lead.score += 1.5
-            lead.why.insert(0, "el modelo leyó este código nacional (dígito de control válido y existe en CIMA, pero lo ha leído un modelo: compruébelo en la caja)")
+            lead.why.insert(0, "a model read this national code (valid check digit, exists in CIMA, but a model read it: check it on the box)")
             proposal.candidates.append(lead)
     seen = {c.medicine.nregistro for c in proposal.candidates}
     for param, value in _search_terms(read):
@@ -125,5 +126,5 @@ def propose(crop: Path, resolver: Resolver, backend: str | None = None, limit: i
     proposal.candidates.sort(key=lambda c: -c.score)
     del proposal.candidates[limit:]
     if not proposal.candidates:
-        proposal.note = "No hay candidatos en CIMA para lo que se ve en el recorte."
+        proposal.note = "CIMA has no candidates for what is visible in the crop."
     return proposal

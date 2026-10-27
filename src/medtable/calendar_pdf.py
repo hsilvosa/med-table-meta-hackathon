@@ -18,12 +18,12 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from .findings import NOT_AN_INTERACTION_CHECK
+from .findings import NOT_A_FULL_CHECK
 from .plan import SLOT_LABELS, Plan
 from .schedule import SLOTS
 
-DISCLAIMER = ("Este plan se ha preparado con la hoja de medicación que el cuidador ha confirmado línea a línea. Es una ayuda para "
-              "organizar la medicación: no sustituye al médico ni al farmacéutico. Consulte con su farmacéutico antes de usarlo.")
+DISCLAIMER = ("This plan was prepared from the medication sheet that the caregiver confirmed line by line. It is an aid to organise "
+              "medication: it does not replace the doctor or the pharmacist. Ask your pharmacist before using it.")
 
 
 def _photo(medicine, photo_dir: Path, local_dir: Path = Path("data/cima/images/full")) -> Path | None:
@@ -63,15 +63,15 @@ def render_pdf(plan: Plan, out: Path, patient: str = "", photo_dir: Path = Path(
     title = ParagraphStyle("title", parent=base, fontName="Helvetica-Bold", fontSize=24, leading=28)
 
     doc = SimpleDocTemplate(str(out), pagesize=landscape(A4), leftMargin=14 * mm, rightMargin=14 * mm, topMargin=12 * mm, bottomMargin=12 * mm,
-                            title="Plan de medicación", author="med-table (prototipo)")
-    story = [Paragraph("Plan de medicación", title),
-             Paragraph(f"Paciente: {esc(patient) or '________________________'} &nbsp;&nbsp; Fecha del plan: {plan.generated.strftime('%d/%m/%Y')}", big),
+                            title="Medication plan", author="med-table (prototype)")
+    story = [Paragraph("Medication plan", title),
+             Paragraph(f"Patient: {esc(patient) or '________________________'} &nbsp;&nbsp; Plan date: {plan.generated.strftime('%d %b %Y')}", big),
              Spacer(1, 4 * mm)]
 
     meds: dict[str, list] = {}
     for e in plan.entries:
         meds.setdefault(e.pack.medicine.cn, []).append(e)
-    header = [Paragraph("<b>Medicamento</b>", base), ""] + [Paragraph(f"<b>{SLOT_LABELS[s]}</b>", ParagraphStyle("h", parent=base, alignment=1)) for s in SLOTS] + [Paragraph("<b>Notas del cuidador</b>", base)]
+    header = [Paragraph("<b>Medicine</b>", base), ""] + [Paragraph(f"<b>{SLOT_LABELS[s]}</b>", ParagraphStyle("h", parent=base, alignment=1)) for s in SLOTS] + [Paragraph("<b>Caregiver's notes</b>", base)]
     rows = [header]
     for entries in meds.values():
         first = entries[0]
@@ -85,31 +85,31 @@ def render_pdf(plan: Plan, out: Path, patient: str = "", photo_dir: Path = Path(
         rows.append([Image(str(photo), width=34 * mm, height=22 * mm, kind="proportional") if photo else "",
                      Paragraph(esc(first.name), name)] + [cells.get(s, Paragraph("-", dose)) for s in SLOTS] + [Paragraph(remarks, base)])
     if len(rows) == 1:
-        rows.append(["", Paragraph("No hay medicación en el plan.", big), "", "", "", "", ""])
+        rows.append(["", Paragraph("No medication in the plan.", big), "", "", "", "", ""])
     table = Table(rows, colWidths=[38 * mm, 62 * mm, 28 * mm, 28 * mm, 28 * mm, 28 * mm, 52 * mm], repeatRows=1)
     table.setStyle(TableStyle([("SPAN", (0, 0), (1, 0)), ("GRID", (0, 0), (-1, -1), 0.6, colors.HexColor("#888888")), ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e8eef5")),
                                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5)]))
     story += [table, Spacer(1, 5 * mm), Paragraph(DISCLAIMER, small)]
 
     if plan.not_included:
-        block = [Paragraph("<b>No incluido en el calendario</b>", ParagraphStyle("hn", parent=red, fontSize=13))]
+        block = [Paragraph("<b>Not included in the calendar</b>", ParagraphStyle("hn", parent=red, fontSize=13))]
         block += [Paragraph(f"&bull; {esc(what)}: {esc(why)}", red) for what, why in plan.not_included]
         story += [Spacer(1, 4 * mm), KeepTogether(block)]
     review = sorted((f for f in plan.findings if f.kind != "unverified_item"), key=lambda f: f.severity != "review")
     if review:
-        block = [Paragraph("<b>Para revisar con su farmacéutico</b>", ParagraphStyle("hr", parent=base, fontSize=13))]
+        block = [Paragraph("<b>To review with your pharmacist</b>", ParagraphStyle("hr", parent=base, fontSize=13))]
         for f in review:
-            block.append(Paragraph(f"&bull; {esc(f.text('es'))}", base))
+            block.append(Paragraph(f"&bull; {esc(f.text())}", base))
             if f.source:
-                block.append(Paragraph(f"Fuente: {esc(f.source)}", small))
+                block.append(Paragraph(f"Source: {esc(f.source)}", small))
         story += [Spacer(1, 4 * mm), KeepTogether(block)]
-    checked = ("Comprobaciones hechas: principio activo duplicado, grupo ATC, caducidad leída del código y coincidencia con la hoja"
-               + (", y citas literales de las secciones 4.2 y 4.5 de las fichas técnicas." if plan.smpc_used else ". NO se han consultado las fichas técnicas."))
+    checked = ("Checks done: duplicate active ingredient, ATC group, expiry read from the code and match with the sheet"
+               + (", and verbatim quotes from sections 4.2 and 4.5 of the leaflets (SmPC; quotes stay in the original Spanish)." if plan.smpc_used else ". The leaflets (SmPC) were NOT consulted."))
     missing = [f for f in plan.findings if f.kind == "smpc_unavailable"]
     if missing:
-        checked += " No se pudo consultar alguna sección (ver arriba)."
+        checked += " Some leaflet section could not be checked (see above)."
     story += [Spacer(1, 3 * mm), Paragraph(esc(checked), small),
-              Paragraph(esc(NOT_AN_INTERACTION_CHECK["es"].replace("No se encontró ninguna mención en las secciones revisadas. ", "")), small),
-              Paragraph("Fuentes consultadas: " + esc(" | ".join(plan.sources) or "ninguna"), small)]
+              Paragraph(esc(NOT_A_FULL_CHECK + " No warning does not mean the plan is safe."), small),
+              Paragraph("Sources consulted: " + esc(" | ".join(plan.sources) or "none"), small)]
     doc.build(story)
     return out

@@ -1,6 +1,6 @@
-"""Spanish voice, offline: one WAV per moment of the day, from the plan's speech text.
+"""English voice, offline: one WAV per moment of the day, from the plan's speech text.
 
-Uses the Windows speech engine (System.Speech, voice "Microsoft Helena Desktop", es-ES) through PowerShell, so no text leaves
+Uses the Windows speech engine (System.Speech, voice "Microsoft Zira Desktop", en-US) through PowerShell, so no text leaves
 the machine and no extra package is needed. Windows only; elsewhere `available()` is False and the PDF and .ics still work.
 The text is passed in a UTF-8 file, never on the command line.
 """
@@ -29,7 +29,7 @@ $s.Dispose()
 """
 
 
-def available(culture: str = "es-ES") -> bool:
+def available(culture: str = "en-US") -> bool:
     if sys.platform != "win32":
         return False
     probe = ("Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices() "
@@ -38,7 +38,7 @@ def available(culture: str = "es-ES") -> bool:
     return culture in done.stdout.split()
 
 
-def synthesize(text: str, out: Path, rate: int = -2, culture: str = "es-ES") -> Path:
+def synthesize(text: str, out: Path, rate: int = -2, culture: str = "en-US") -> Path:
     """Write `text` as a WAV file. Rate runs from -10 to 10; -2 is a little slower than normal, for listeners with low vision or hearing."""
     out.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:

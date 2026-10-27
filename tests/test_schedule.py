@@ -7,7 +7,7 @@ from medtable.schedule import Line, dose_number, lines_from_rows, reconcile
 
 
 def row(text, d="0", c="0", n="0", a="0", obs="", **extra):
-    return {"medicamento": text, "desayuno": d, "comida": c, "cena": n, "acostarse": a, "observaciones": obs, **extra}
+    return {"medicine": text, "breakfast": d, "lunch": c, "dinner": n, "bedtime": a, "remarks": obs, **extra}
 
 
 def test_dose_parsing_accepts_only_known_shapes():
@@ -41,13 +41,13 @@ def test_matching_by_ingredient_and_strength():
 def test_prescribed_but_not_on_the_table():
     result = reconcile([Line("Atorvastatina 20 mg")], [pack(OMEPRAZOL)])
     assert [f.kind for f in result.findings] == ["prescribed_not_found", "not_prescribed"]
-    assert result.blocked == {0: "no hay ningún envase en la mesa"}
+    assert result.blocked == {0: "no pack on the table matches"}
 
 
 def test_wrong_strength_blocks_the_line():
     result = reconcile([Line("Metformina 500 mg comprimidos")], [pack(METFORMINA_850)])
     assert [f.kind for f in result.findings] == ["strength_mismatch"] and 0 in result.blocked
-    assert "no coincide" in result.findings[0].text("es")
+    assert "does not match" in result.findings[0].text()
 
 
 def test_the_line_picks_the_pack_whose_strength_agrees():

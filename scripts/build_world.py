@@ -43,7 +43,7 @@ resolver = Resolver("data/cache/cima")
 
 BOX_WIDTH_M = 0.16      # width of the cut-out image on the table (a pack seen at 3/4 is about this wide)
 LABEL_M = 0.015         # 12 mm code plus quiet zone
-TABLES = [("mesa1", "Mesa 1", -2.6, -1.4, 6), ("mesa2", "Mesa 2", 0.0, -1.4, 6), ("mesa3", "Mesa 3", 2.6, -1.4, 5)]
+TABLES = [("mesa1", "Table 1", -2.6, -1.4, 6), ("mesa2", "Table 2", 0.0, -1.4, 6), ("mesa3", "Table 3", 2.6, -1.4, 5)]
 TABLE_W, TABLE_D, TABLE_H = 1.2, 0.7, 0.75
 CASES = {0: "expired", 7: "expires_soon", 12: "unknown_cn", 3: "no_code", 15: "no_code"}  # by box number over all tables
 

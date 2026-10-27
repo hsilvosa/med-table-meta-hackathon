@@ -1,9 +1,9 @@
-"""Start the whole demo: the 3D room (port 8600) and the caregiver app (port 8501), then open both in the browser.
+"""Start the whole demo: the 3D room (port 8600) with the caregiver app (port 8501) embedded in its side panel.
 
   .venv-app/Scripts/python.exe scripts/start_demo.py [--no-browser]
 
 Builds the room data first if web/world is missing (needs data/cutouts and the network once) and fetches three.js if needed.
-Ctrl+C stops both servers. Both bind to 127.0.0.1 only.
+Ctrl+C stops both servers. Both bind to 127.0.0.1 only. Open the room page; the planner is its right-hand panel (Tab).
 """
 
 import argparse

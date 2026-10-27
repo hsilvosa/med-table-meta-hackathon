@@ -26,25 +26,25 @@ def manual_pack(cn: str, resolver: Resolver) -> tuple[Pack | None, str]:
     from . import cn as cn_module
     found = cn_module.find_cn(cn)
     if not found or not cn_module.is_valid(found):
-        return None, "El código nacional no es válido: compruebe los 7 dígitos (el último es de control)."
+        return None, "The national code is not valid: check the 7 digits (the last one is a check digit)."
     medicine = resolver.by_cn(found)
     if medicine is None:
-        return None, f"AEMPS CIMA no conoce el código nacional {found[:6]}."
+        return None, f"AEMPS CIMA does not know the national code {found[:6]}."
     return Pack(medicine, "confirmed"), ""
 
 
 def make_plan(readings: list[Reading], extra_packs: list[Pack], rows: list[dict], smpc: SectionSource | None,
               today: date | None = None) -> Result:
-    """`rows` come from the editable sheet; a row is confirmed when its "confirmado" value is true."""
+    """`rows` come from the editable sheet; a row is confirmed when its "confirmed" value is true."""
     packs, findings = packs_from_readings(readings)
     seen = {p.medicine.cn for p in packs}
     packs += [p for p in extra_packs if p.medicine.cn not in seen]
     lines, dose_findings = lines_from_rows(rows)
     for line, row in zip(lines, rows):
-        line.confirmed = bool(row.get("confirmado"))
+        line.confirmed = bool(row.get("confirmed"))
     recon = reconcile(lines, packs)
     unknown_expiry = [Finding("expiry_unknown", [p.medicine.name], [p.medicine.cn],
-                              "la caducidad no viene en el código leído" if p.state == "verified" else "el envase se añadió sin leer su código",
+                              "the code that was read carries no usable expiry" if p.state == "verified" else "the pack was added without reading its code",
                               severity="review" if p.state == "verified" else "info") for p in packs if p.expiry is None]
     all_findings: list[Finding] = findings + dose_findings + check_packs(packs, smpc, today) + (meal_notes(packs, smpc) if smpc else []) + unknown_expiry + recon.findings
     plan = build_plan(lines, recon, all_findings, today)

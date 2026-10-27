@@ -14,7 +14,7 @@ from .findings import Finding
 from .rules import GENERIC_WORDS, Pack, ingredient_keys
 from .smpc import plain, stem_words
 
-SLOTS = ("desayuno", "comida", "cena", "acostarse")
+SLOTS = ("breakfast", "lunch", "dinner", "bedtime")
 DOSE_RE = re.compile(r"^(?:\d{1,2}(?:[.,]\d{1,2})?|\d/\d)$")  # 0, 1, 2, 0,5, 1/2, 3/4
 FORM_WORDS = {"comprimidos", "comprimido", "capsulas", "capsula", "efg", "recubiertos", "pelicula", "solucion", "sobres", "gotas"}
 NON_SOLID_FORMS = ("suspension", "solucion", "jarabe", "colirio", "crema", "gel", "inyect", "gotas", "pomada", "spray", "emulsion", "polvo", "parche", "inhal", "ungüento", "unguento", "enema", "supositorio", "granulado")
@@ -48,8 +48,8 @@ def lines_from_rows(rows: list[dict]) -> tuple[list[Line], list[Finding]]:
     """Rows as returned by the sheet reader (or a form). Lines start unconfirmed; unreadable doses raise a finding."""
     lines, findings = [], []
     for row in rows:
-        line = Line(str(row.get("medicamento", "")).strip(), {s: str(row.get(s, "") or "0").strip() for s in SLOTS},
-                    str(row.get("observaciones", "") or "").strip(), row.get("cn"))
+        line = Line(str(row.get("medicine", "")).strip(), {s: str(row.get(s, "") or "0").strip() for s in SLOTS},
+                    str(row.get("remarks", "") or "").strip(), row.get("cn"))
         for slot, dose in line.doses.items():
             if dose_number(dose) is None:
                 findings.append(Finding("invalid_dose", detail=line.text, quote=dose))
@@ -119,16 +119,16 @@ def reconcile(lines: list[Line], packs: list[Pack]) -> Reconciliation:
         distinct = {p.medicine.cn: p for p in candidates}
         if not distinct:
             findings.append(Finding("prescribed_not_found", detail=line.text))
-            blocked[i] = "no hay ningún envase en la mesa"
+            blocked[i] = "no pack on the table matches"
         elif len(distinct) > 1:
             findings.append(Finding("ambiguous_match", [p.medicine.name for p in distinct.values()], list(distinct), line.text))
-            blocked[i] = "varios envases encajan; indique cuál es"
+            blocked[i] = "several packs match; say which one"
         else:
             pack = next(iter(distinct.values()))
             matches[i] = pack
             if strength_matches(line, pack) is False:
                 findings.append(Finding("strength_mismatch", [pack.medicine.name], [pack.medicine.cn], line.text, source=pack.medicine.citation()))
-                blocked[i] = "la dosis de la hoja no coincide con el envase"
+                blocked[i] = "the strength on the sheet does not match the pack"
     by_pack: dict[str, list[int]] = {}
     for i, pack in matches.items():
         by_pack.setdefault(pack.medicine.cn, []).append(i)
@@ -137,11 +137,11 @@ def reconcile(lines: list[Line], packs: list[Pack]) -> Reconciliation:
             findings.append(Finding("pack_on_several_lines", [matches[indexes[0]].medicine.name], [cn6],
                                     "; ".join(lines[i].text for i in indexes), source=matches[indexes[0]].medicine.citation()))
             for i in indexes:
-                blocked[i] = "el envase está en varias líneas; deje una sola"
+                blocked[i] = "the pack is on several lines; keep one"
     for i, line in enumerate(lines):
-        if i in matches and i not in blocked and line.doses and not line.active_slots() and all(dose_number(d) is not None for d in line.doses.values()):
+        if i in matches and i not in blocked and line.confirmed and line.doses and not line.active_slots() and all(dose_number(d) is not None for d in line.doses.values()):
             findings.append(Finding("all_zero_line", detail=line.text))
-            blocked[i] = "la línea no tiene ninguna dosis"
+            blocked[i] = "the line has no dose"
     matched_cns = {p.medicine.cn for p in matches.values()} | {c for f in findings if f.kind == "ambiguous_match" for c in f.cns}
     seen: set[str] = set()
     for pack in packs:

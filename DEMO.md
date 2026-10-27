@@ -1,16 +1,16 @@
 # Demo script (about 3 minutes)
 
-Run `.venv-app/Scripts/python.exe scripts/start_demo.py`: it opens the 3D room (http://127.0.0.1:8600) and the app (http://127.0.0.1:8501). Use only the synthetic demo photo, invented doses and public CIMA data. Never show a real prescription or a real patient name.
+Run `.venv-app/Scripts/python.exe scripts/start_demo.py`: it opens the 3D room (http://127.0.0.1:8600) with the planner app in its right-hand panel. Use only the synthetic demo photo, invented doses and public CIMA data. Never show a real prescription or a real patient name.
 
 | Time | Do | Say (the point to land) |
 |---|---|---|
-| 0:00 | Open the app; point at the blue notice | It supports the caregiver and does not replace the doctor or the pharmacist. It schedules; it does not advise. |
-| 0:20 | In the 3D room: walk to a table (WASD and mouse, click to capture the mouse), press Shift+1 to hold the virtual phone 50 cm above it, Space to take the photo. In the app: "Usar la ultima foto de la sala 3D" (or "Cargar foto de ejemplo" without the room) | Each pack is identified only by its own Data Matrix code, resolved in AEMPS CIMA. Five packs are verified with the official photo beside them; the sixth code is unknown to CIMA and is marked NOT verified. |
+| 0:00 | Open the room, press Start, open the Planner panel (Tab) and point at the blue notice | It supports the caregiver and does not replace the doctor or the pharmacist. It schedules; it does not advise. |
+| 0:20 | In the room: click "Table 1", click "Phone over the table" (the bar turns green at 50 cm), click "Take photo" | The packs are identified by the code printed on them, nothing else. The photo reaches the planner by itself. |
 | 0:50 | Show the table: expiry read from the code, one expired pack | Expiry comes from the code, not from a model. |
-| 1:10 | In the sheet, type doses for three medicines, tick "Confirmado" | The doses are the caregiver's. The tool never proposes or changes a dose. Unticked lines stay out. |
-| 1:40 | Show the plan, the "No incluido" list and the review notes | Anything unverified, expired, unconfirmed, ambiguous or with a strength that does not match is listed with the reason. Quotes from the AEMPS leaflet (section 4.5 and 4.2) are verbatim, with source and date, and are for the pharmacist: never a verdict. The page says plainly that no warning does not mean safe. |
+| 1:10 | In the sheet, type doses for three medicines, tick "Confirmed" | The doses are the caregiver's. The tool never proposes or changes a dose. Unticked lines stay out. |
+| 1:40 | Show the plan, the "Left out" list and the review notes | Anything unverified, expired, unconfirmed, ambiguous or with a strength that does not match is listed with the reason. Quotes from the AEMPS leaflet (section 4.5 and 4.2) are verbatim, with source and date, and are for the pharmacist: never a verdict. The page says plainly that no warning does not mean safe. |
 | 2:10 | Download the PDF; open it | Large print, official pack photo, one row per medicine, the "not included" block and the sources. |
-| 2:30 | Click "Generar versión en voz"; play one slot | Offline Spanish voice; the text never leaves the machine. |
+| 2:30 | Click "Read the plan aloud"; play one slot | Offline English voice; the text never leaves the machine. |
 | 2:45 | Show the `.ics` file import (optional) | Daily reminders on the phone. |
 | 2:55 | Close | Measured on synthetic data only, so no accuracy claim for real use yet; real photos are the next step. |
 
@@ -26,4 +26,4 @@ A stage set: flat cut-outs of the official CIMA photos with a Data Matrix sticke
 ## If something fails live
 - CIMA down: packs already seen are served from the local cache; a typed C.N. of an unseen pack needs the network.
 - No GPU: SAM 3 step reports an error and typing the C.N. still works.
-- No Spanish Windows voice: the voice button is hidden; PDF and `.ics` still work.
+- No English Windows voice: the voice button is hidden; PDF and `.ics` still work.

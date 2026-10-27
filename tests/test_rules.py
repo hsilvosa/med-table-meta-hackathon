@@ -16,7 +16,7 @@ def test_two_brands_of_the_same_ingredient_are_flagged_as_duplicates():
     found = check_packs([pack(PARACETAMOL_A), pack(PARACETAMOL_B)], today=TODAY)
     dup = [f for f in found if f.kind == "duplicate_ingredient"]
     assert len(dup) == 1 and set(dup[0].cns) == {"650001", "650002"}
-    assert "mismo principio activo" in dup[0].text("es") and "same active ingredient" in dup[0].text("en")
+    assert "same active ingredient" in dup[0].text()
 
 
 def test_same_class_but_different_ingredient_is_a_class_finding_not_a_duplicate():
@@ -57,7 +57,7 @@ def test_smpc_mention_quotes_the_source_verbatim_and_names_the_other_pack():
     assert all(m.quote in text for m in mentions)  # exact substrings of the source
     assert all(m.names == [IBUPROFENO.name, ACENOCUMAROL.name] for m in mentions)
     assert "acenocumarol" in mentions[0].quote.lower()
-    assert "no es una comprobación completa" in mentions[0].text("es")
+    assert "not a full interaction check" in mentions[0].text()
 
 
 def test_no_mention_is_not_reported_as_safe():
@@ -94,7 +94,7 @@ def test_meal_notes_quote_section_4_2_sentences_about_food():
     found = [f for f in found if f.kind == "meal_note"]
     assert "durante las comidas" in found[0].quote and "con o sin alimentos" in found[1].quote
     assert all(f.quote in SECTIONS[(f.source and (METFORMINA_850 if f.cns[0] == "680001" else OMEPRAZOL).nregistro, "4.2")] for f in found)
-    assert "el horario lo decide el cuidador" in found[0].text("es")
+    assert "decided by the caregiver" in found[0].text()
 
 
 def test_one_sentence_naming_two_packs_of_the_same_ingredient_is_reported_once(monkeypatch):

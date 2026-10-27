@@ -138,8 +138,9 @@ function applyCamera() {
   camera.position.set(player.x, player.eye, player.z);
   camera.rotation.set(player.pitch, player.yaw, 0);
 }
+const stage = document.getElementById('stage');
 function resize() {
-  const w = innerWidth, h = innerHeight;
+  const w = stage.clientWidth || innerWidth, h = stage.clientHeight || innerHeight;
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(w, h, false);
   camera.aspect = w / h;
   const frameH = h * FRAME_FRACTION;
@@ -152,6 +153,27 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
+new ResizeObserver(resize).observe(stage);
+const $ = id => document.getElementById(id);
+function setPhoneUi() {
+  $('frame').style.display = phoneMode ? 'block' : 'none';
+  $('cross').style.display = phoneMode ? 'none' : 'block';
+  $('modeChip').textContent = phoneMode ? 'Phone camera' : 'Walking';
+  $('gauge').style.display = phoneMode ? 'block' : 'none';
+  $('btnPhone').classList.toggle('on', phoneMode);
+  resize();
+}
+// ---- planner panel (the Streamlit app, embedded) ------------------------------------------------------------------------
+const appUrl = new URLSearchParams(location.search).get('app') || 'http://127.0.0.1:8501';
+$('app').src = `${appUrl}/?room=1&embed=true`;       // loaded at start so the planner already runs when the first photo arrives
+$('openApp').href = appUrl;
+function planner(open) {
+  document.body.classList.toggle('planner', open ?? !document.body.classList.contains('planner'));
+  $('btnPlanner').classList.toggle('on', document.body.classList.contains('planner'));
+  if (document.body.classList.contains('planner')) document.exitPointerLock?.();
+}
+$('btnPlanner').addEventListener('click', () => planner());
+$('btnClose').addEventListener('click', () => planner(false));
 
 function blocked(x, z) {
   if (Math.abs(x) > R.w / 2 - 0.3 || Math.abs(z) > R.d / 2 - 0.3) return true;
@@ -169,16 +191,28 @@ function move(dt) {
   player.eye = THREE.MathUtils.clamp(player.eye + v * dt * 0.7, EYE_MIN, EYE_MAX);
 }
 
+function closeWelcome() { $('welcome').style.display = 'none'; }
+function openHelp() { $('welcome').style.display = 'flex'; document.exitPointerLock?.(); }
 addEventListener('keydown', e => {
+  if (e.code === 'Tab') { e.preventDefault(); planner(); return; }
+  if ($('welcome').style.display !== 'none') { if (e.code === 'Enter' || e.code === 'KeyH') { closeWelcome(); } return; }
   keys.add(e.code);
-  if (e.code === 'KeyP') { phoneMode = !phoneMode; resize(); document.getElementById('frame').style.display = phoneMode ? 'block' : 'none'; document.getElementById('cross').style.display = phoneMode ? 'none' : 'block'; }
-  if (e.code === 'KeyX') { lean = !lean; toast(lean ? 'Inclinado sobre la mesa: ya no chocas con ella' : 'Colisión con las mesas activada'); }
-  if (e.code === 'KeyH') document.getElementById('help').style.display = document.getElementById('help').style.display === 'none' ? 'block' : 'none';
+  if (e.code === 'KeyP') { phoneMode = !phoneMode; setPhoneUi(); }
+  if (e.code === 'KeyX') { lean = !lean; toast(lean ? 'Leaning over the table: tables no longer block you' : 'Tables block you again'); }
+  if (e.code === 'KeyH') openHelp();
   if (e.code === 'Space') { e.preventDefault(); shoot(); }
   const n = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
   if (n >= 0 && world.tables[n]) goTo(world.tables[n], e.shiftKey);
 });
 addEventListener('keyup', e => keys.delete(e.code));
+$('start').addEventListener('click', () => { closeWelcome(); canvas.requestPointerLock?.(); });
+$('btnHelp').addEventListener('click', openHelp);
+$('shutter').addEventListener('click', () => shoot());
+document.querySelectorAll('[data-table]').forEach(b => b.addEventListener('click', () => { goTo(world.tables[+b.dataset.table], false); }));
+$('btnPhone').addEventListener('click', () => {
+  if (phoneMode && nearestTable().dist < 0.8) { phoneMode = false; setPhoneUi(); return; }       // second click: back to walking
+  const { table } = nearestTable(); goTo(table, true);
+});
 canvas.addEventListener('click', () => { if (!locked) canvas.requestPointerLock?.(); });
 document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === canvas; });
 canvas.addEventListener('mousedown', () => { dragging = true; });
@@ -193,10 +227,9 @@ function goTo(table, above) {
   if (above) {
     table.spot = ((table.spot ?? -1) + 1) % 2;           // a 50 cm photo covers about 0.7 x 0.5 m: left half, then right half
     lean = true; Object.assign(player, { x: table.x + (table.spot ? 0.26 : -0.26), z: table.z + 0.02, eye: table.h + 0.5, yaw: 0, pitch: -Math.PI / 2 + 0.02 }); phoneMode = true;
-    toast(`${table.name}: móvil a 50 cm sobre la mitad ${table.spot ? 'derecha' : 'izquierda'} (repite para cambiar de mitad)`); }
-  else { lean = false; Object.assign(player, { x: table.x, z: table.z + table.d / 2 + 0.9, eye: 1.5, yaw: 0, pitch: -0.55 }); toast(`${table.name}`); }
-  document.getElementById('frame').style.display = phoneMode ? 'block' : 'none'; document.getElementById('cross').style.display = phoneMode ? 'none' : 'block';
-  resize();
+    toast(`${table.name}: phone held 50 cm above the ${table.spot ? 'right' : 'left'} half. Press the button again for the other half.`);
+  } else { lean = false; Object.assign(player, { x: table.x, z: table.z + table.d / 2 + 0.9, eye: 1.5, yaw: 0, pitch: -0.55 }); phoneMode = false; toast(`${table.name}`); }
+  setPhoneUi();
 }
 
 // ---- HUD ------------------------------------------------------------------------------------------------------------
@@ -204,7 +237,6 @@ function toast(msg, ms = 3200) {
   const el = document.getElementById('toast'); el.textContent = msg; el.style.opacity = 1;
   clearTimeout(toast.t); toast.t = setTimeout(() => { el.style.opacity = 0; }, ms);
 }
-document.getElementById('help').innerHTML = '<b>Sala 3D: tres mesas con medicamentos</b><br>Clic: capturar el ratón · Esc: soltarlo<br>W A S D: moverse (Mayús: rápido) · ratón: mirar<br>R / F: subir / bajar los ojos<br>X: inclinarse sobre la mesa (sin colisión)<br>1 2 3: ir a la mesa · Mayús + 1 2 3: móvil a 50 cm sobre ella<br>P: sacar el móvil · Espacio: hacer la foto<br>H: ocultar esta ayuda';
 function nearestTable() {
   let best = null, dist = 1e9;
   for (const t of world.tables) {
@@ -216,10 +248,15 @@ function nearestTable() {
 }
 function hud() {
   const { table, dist } = nearestTable();
-  document.getElementById('info').innerHTML = `${table.name}: ${(dist * 100).toFixed(0)} cm de la mesa<br>${phoneMode ? 'móvil' : 'vista normal'}`;
-  const hint = document.getElementById('hint');
-  hint.style.display = phoneMode ? 'block' : 'none';
-  hint.textContent = dist > 0.55 ? `Acércate a 50 cm o menos para que el código se lea (ahora ${(dist * 100).toFixed(0)} cm)` : 'Distancia buena. Espacio para hacer la foto';
+  const cm = Math.round(dist * 100);
+  $('where').textContent = phoneMode ? `${table.name}, ${cm} cm above it` : `Near ${table.name}`;
+  if (phoneMode) {
+    const g = $('gauge');
+    g.className = 'hud ' + (dist <= 0.55 ? 'good' : dist <= 0.75 ? 'mid' : 'bad');
+    g.textContent = dist <= 0.55 ? `${cm} cm: good distance, take the photo` : dist <= 0.75 ? `${cm} cm: move closer (50 cm or less reads reliably)` : `${cm} cm: too far, the codes will not read`;
+  }
+  $('lookhint').textContent = locked ? 'Esc frees the mouse' : 'Click the room to look around with the mouse';
+  $('lookhint').style.display = $('welcome').style.display === 'none' && !phoneMode ? 'block' : 'none';
 }
 
 // ---- photo ----------------------------------------------------------------------------------------------------------
@@ -300,10 +337,10 @@ async function shoot(options = {}) {
       pose: { x: player.x, y: player.eye, z: player.z, yaw: player.yaw, pitch: player.pitch }, size: [PHONE.w, PHONE.h] };
     const reply = await fetch('/photo', { method: 'POST', body: blob, headers: { 'Content-Type': 'image/jpeg', 'X-Truth': encodeURIComponent(JSON.stringify(truth)), 'X-Effects': effects ? '1' : '0' } });
     const saved = await reply.json();
-    toast(`Foto guardada (${truth.labels.length} códigos a la vista): ${saved.name}. Ya está lista en la app.`, 5000);
+    if (!options.quiet) { toast(`Photo saved (${truth.labels.length} codes in view). The planner is reading it.`, 5000); planner(true); }
     return { ...saved, truth };
   } catch (error) {
-    toast(`No se pudo guardar la foto: ${error}`, 6000);
+    toast(`The photo could not be saved: ${error}`, 6000);
     return null;
   } finally {
     shooting = false;
@@ -318,9 +355,9 @@ function frame(now) {
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
-resize(); document.getElementById('frame').style.display = 'none'; applyCamera();
+resize(); setPhoneUi(); applyCamera();
 requestAnimationFrame(frame);
-toast('Pulsa H para ocultar la ayuda. Clic para mirar con el ratón.', 4500);
+// (the welcome card explains the controls)
 
 window.__world = {
   world, shoot, THREE, camera, phoneCam, pickables, labelMeshes, raycaster,
@@ -335,7 +372,7 @@ window.__world = {
       const h = hmin + rnd() * (hmax - hmin), tilt = rnd() * THREE.MathUtils.degToRad(opts.maxTilt ?? 25);
       Object.assign(player, { x: t.x + (rnd() - 0.5) * 0.7, z: t.z + (rnd() - 0.5) * 0.3, eye: t.h + h, yaw: rnd() * Math.PI * 2, pitch: -Math.PI / 2 + tilt });
       lean = true; phoneMode = true;
-      const r = await shoot({ effects: opts.effects ?? true });
+      const r = await shoot({ effects: opts.effects ?? true, quiet: true });
       if (r) results.push({ name: r.name, h: +h.toFixed(2), tilt: +(tilt * 180 / Math.PI).toFixed(1), labels: r.truth.labels.length });
     }
     return results;
@@ -353,5 +390,5 @@ window.__world = {
     return JSON.stringify({ centre: [Math.round(p.x), Math.round(p.y)], behind: p.behind, corners: cs.map(q => [Math.round(q.x), Math.round(q.y)]), firstHit: kind(hit?.object), name: e.item.name.slice(0, 24) });
   },
   project(x, y, z) { this.syncPhone(); const p = project(new THREE.Vector3(x, y, z)); return [p.x, p.y, p.behind]; },
-  setPose(x, y, z, yaw, pitch, phone = true) { Object.assign(player, { x, z, eye: y, yaw, pitch }); lean = true; phoneMode = phone; document.getElementById('frame').style.display = phone ? 'block' : 'none'; resize(); applyCamera(); },
+  setPose(x, y, z, yaw, pitch, phone = true) { Object.assign(player, { x, z, eye: y, yaw, pitch }); lean = true; phoneMode = phone; $('welcome').style.display = 'none'; setPhoneUi(); applyCamera(); },
 };

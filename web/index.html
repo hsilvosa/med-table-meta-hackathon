@@ -1,32 +1,112 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Sala 3D - fotografiar las mesas</title>
+<title>Medication table room</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #111; font-family: system-ui, sans-serif; color: #fff; }
-  #c { width: 100vw; height: 100vh; display: block; cursor: crosshair; }
-  .hud { position: fixed; pointer-events: none; text-shadow: 0 1px 3px #000; }
-  #help { left: 14px; top: 12px; font-size: 13px; line-height: 1.55; background: rgba(0,0,0,.5); padding: 10px 14px; border-radius: 8px; max-width: 360px; }
-  #info { right: 14px; top: 12px; font-size: 14px; text-align: right; background: rgba(0,0,0,.5); padding: 8px 12px; border-radius: 8px; }
-  #toast { left: 50%; bottom: 36px; transform: translateX(-50%); font-size: 16px; background: rgba(0,0,0,.72); padding: 10px 18px; border-radius: 10px; opacity: 0; transition: opacity .3s; max-width: 80vw; text-align: center; }
-  #cross { left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 1px solid rgba(255,255,255,.7); border-radius: 50%; }
-  #frame { left: 50%; top: 50%; transform: translate(-50%, -50%); border: 2px solid rgba(255,255,255,.9); box-shadow: 0 0 0 100vmax rgba(0,0,0,.55); display: none; }
-  #frame::after { content: ""; position: absolute; inset: 33.3% 0; border-top: 1px solid rgba(255,255,255,.35); border-bottom: 1px solid rgba(255,255,255,.35); }
-  #hint { left: 50%; top: 14px; transform: translateX(-50%); font-size: 15px; background: rgba(0,0,0,.6); padding: 6px 14px; border-radius: 8px; display: none; }
-  #opts { right: 14px; bottom: 14px; pointer-events: auto; font-size: 13px; background: rgba(0,0,0,.5); padding: 8px 12px; border-radius: 8px; }
+  :root { --ink: #1f2933; --muted: #5d6875; --line: #d3dae3; --brand: #1b5e8a; --good: #1f8a5b; --mid: #d99a00; --bad: #c0392b; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #14181d; font-family: system-ui, "Segoe UI", sans-serif; color: var(--ink); }
+  body { display: flex; }
+  #stage { position: relative; flex: 1; min-width: 0; height: 100%; overflow: hidden; }
+  #c { width: 100%; height: 100%; display: block; cursor: crosshair; }
+  .hud { position: absolute; pointer-events: none; }
+  .btn { white-space: nowrap; pointer-events: auto; cursor: pointer; border: 1px solid var(--line); background: rgba(255,255,255,.96); color: var(--ink); border-radius: 10px; padding: 8px 14px;
+         font: inherit; font-size: 14px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+  .btn:hover { background: #fff; border-color: var(--brand); }
+  .btn.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .btn kbd { font: inherit; font-size: 11px; opacity: .65; margin-left: 6px; font-weight: 500; }
+
+  /* top bar */
+  #top { left: 14px; right: 14px; top: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { background: rgba(20,24,29,.72); color: #fff; padding: 7px 13px; border-radius: 999px; font-size: 14px; backdrop-filter: blur(4px); }
+  #gauge { left: 50%; top: 58px; transform: translateX(-50%); padding: 9px 18px; border-radius: 999px; font-size: 15px; font-weight: 650; color: #fff; display: none; white-space: nowrap; }
+  #gauge.good { background: var(--good); } #gauge.mid { background: var(--mid); } #gauge.bad { background: var(--bad); }
+
+  /* dock */
+  #dock { left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; align-items: flex-end; gap: 10px; pointer-events: none; }
+  .group { background: rgba(20,24,29,.78); border-radius: 14px; padding: 8px 10px 10px; backdrop-filter: blur(4px); color: #fff; pointer-events: auto; }
+  .group small { display: block; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; opacity: .75; margin: 0 2px 6px; }
+  .row { display: flex; gap: 6px; }
+  #shutter { pointer-events: auto; width: 74px; height: 74px; border-radius: 50%; border: 5px solid #fff; background: #e5484d; color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; box-shadow: 0 3px 12px rgba(0,0,0,.45); }
+  #shutter:hover { background: #f0585d; } #shutter:active { transform: scale(.95); }
+  #opts { display: block; font-size: 12px; margin: 8px 2px 0; opacity: .85; cursor: pointer; }
+  #lookhint { left: 50%; bottom: 132px; transform: translateX(-50%); font-size: 13px; color: #fff; background: rgba(20,24,29,.6); padding: 4px 12px; border-radius: 999px; white-space: nowrap; }
+
+  /* viewfinder */
+  #cross { left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 1px solid rgba(255,255,255,.75); border-radius: 50%; }
+  #frame { left: 50%; top: 50%; transform: translate(-50%, -50%); border: 2px solid rgba(255,255,255,.95); box-shadow: 0 0 0 100vmax rgba(0,0,0,.55); display: none; }
+  #frame::before { content: ""; position: absolute; inset: 33.3% 0; border-top: 1px solid rgba(255,255,255,.3); border-bottom: 1px solid rgba(255,255,255,.3); }
+  #frame::after { content: ""; position: absolute; inset: 0 33.3%; border-left: 1px solid rgba(255,255,255,.3); border-right: 1px solid rgba(255,255,255,.3); }
+  #toast { left: 50%; top: 112px; transform: translateX(-50%); font-size: 16px; background: rgba(20,24,29,.88); color: #fff; padding: 11px 20px; border-radius: 12px; opacity: 0; transition: opacity .3s; max-width: 70%; text-align: center; }
+
+  /* welcome / help card */
+  #welcome { position: absolute; inset: 0; background: rgba(12,16,20,.78); display: flex; align-items: center; justify-content: center; z-index: 5; }
+  #welcome .card { background: #fff; border-radius: 16px; padding: 26px 30px; width: min(660px, 92%); max-height: 92%; overflow: auto; box-shadow: 0 12px 40px rgba(0,0,0,.5); }
+  #welcome h1 { margin: 0 0 4px; font-size: 24px; } #welcome p { margin: 0 0 14px; color: var(--muted); }
+  .steps { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 10px; }
+  .steps li { display: flex; gap: 12px; align-items: flex-start; }
+  .steps b.n { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .keys { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 6px 12px; font-size: 14px; margin-bottom: 18px; padding: 12px 14px; background: #f3f6f9; border-radius: 10px; }
+  .keys kbd { background: #fff; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 7px; font: 600 12px ui-monospace, monospace; white-space: nowrap; }
+  .note { font-size: 13px; color: var(--muted); margin-top: 12px; }
+  #start { font-size: 16px; padding: 11px 26px; background: var(--brand); color: #fff; border-color: var(--brand); }
+
+  /* planner panel */
+  #panel { display: none; flex-direction: column; width: min(600px, 46vw); height: 100%; background: #fff; border-left: 1px solid var(--line); }
+  body.planner #panel { display: flex; }
+  #panelbar { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); font-weight: 700; }
+  #panelbar a { font-weight: 500; font-size: 13px; color: var(--brand); margin-right: 12px; }
+  #panelbar .btn { box-shadow: none; padding: 5px 11px; }
+  #app { flex: 1; width: 100%; border: 0; }
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
-<div id="help" class="hud"></div>
-<div id="info" class="hud"></div>
-<div id="cross" class="hud"></div>
-<div id="frame" class="hud"></div>
-<div id="hint" class="hud"></div>
-<div id="toast" class="hud"></div>
-<label id="opts" class="hud"><input type="checkbox" id="effects" checked> efectos de móvil (desenfoque leve, ruido, JPEG)</label>
+<div id="stage">
+  <canvas id="c"></canvas>
+  <div id="cross" class="hud"></div>
+  <div id="frame" class="hud"></div>
+  <div id="top" class="hud">
+    <div class="chips"><span class="chip" id="modeChip">Walking</span><span class="chip" id="where"></span></div>
+    <div class="row"><button class="btn" id="btnPlanner">Planner<kbd>Tab</kbd></button><button class="btn" id="btnHelp">Help<kbd>H</kbd></button></div>
+  </div>
+  <div id="gauge" class="hud"></div>
+  <div id="toast" class="hud"></div>
+  <div id="lookhint" class="hud"></div>
+  <div id="dock" class="hud">
+    <div class="group"><small>1. Walk to a table</small>
+      <div class="row"><button class="btn" data-table="0">Table 1</button><button class="btn" data-table="1">Table 2</button><button class="btn" data-table="2">Table 3</button></div></div>
+    <div class="group"><small>2. Hold the phone over it</small>
+      <div class="row"><button class="btn" id="btnPhone" title="Shift+1/2/3">Phone over the table</button></div>
+      <label id="opts"><input type="checkbox" id="effects" checked> Phone effects (blur, noise)</label></div>
+    <div><button id="shutter" title="Take the photo (Space)">Take photo</button></div>
+  </div>
+  <div id="welcome">
+    <div class="card">
+      <h1>Medication table room</h1>
+      <p>A practice room: photograph a table of medicines as a caregiver would, and see how the planner reads it.</p>
+      <ol class="steps">
+        <li><b class="n">1</b><div><b>Walk to a table.</b> Use the Table buttons, or W A S D and the mouse.</div></li>
+        <li><b class="n">2</b><div><b>Hold the phone over it.</b> Packs are read from a code about 1 cm wide, so keep the phone <b>50 cm or closer</b>. The bar at the top turns green when the distance is good.</div></li>
+        <li><b class="n">3</b><div><b>Take the photo.</b> The planner opens on the right and reads it: verified packs, a medication sheet to fill in, then a printable plan.</div></li>
+      </ol>
+      <div class="keys">
+        <kbd>W A S D</kbd><span>move (Shift: faster)</span><kbd>Mouse</kbd><span>look (click the room; Esc frees it)</span>
+        <kbd>R / F</kbd><span>raise / lower the eyes</span><kbd>X</kbd><span>lean over the table (no collision)</span>
+        <kbd>P</kbd><span>phone camera on / off</span><kbd>Space</kbd><span>take the photo</span>
+        <kbd>Tab</kbd><span>show / hide the planner</span><kbd>H</kbd><span>this help</span>
+      </div>
+      <button class="btn" id="start">Start</button>
+      <div class="note">This is a stage set: flat cut-outs of the official AEMPS photos, each with a Data Matrix sticker generated from its real national code (C.N.). Table 1 also holds a fictional medication sheet. It shows the flow and measures the optics; it does not prove how printed codes read on real packs.</div>
+    </div>
+  </div>
+</div>
+<aside id="panel">
+  <div id="panelbar"><span>Planner</span><span><a id="openApp" target="_blank" rel="noopener">Open in a tab</a><button class="btn" id="btnClose">Hide</button></span></div>
+  <iframe id="app" title="Medication planner"></iframe>
+</aside>
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
 <script type="module" src="./main.js"></script>
 </body>

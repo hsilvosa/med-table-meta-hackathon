@@ -27,8 +27,8 @@ def line(text, remarks="", **doses):
     return Line(text, {**dict.fromkeys(SLOTS, "0"), **doses}, remarks, confirmed=True)
 
 
-lines = [line("Sintrom 1 mg", "según pauta de hematología", cena="1/2"), line("Paracetamol Cinfa 1 g", "cada 8 h si dolor", desayuno="1", cena="1"),
-         line("Enalapril 10 mg", desayuno="1")]
+lines = [line("Sintrom 1 mg", "según pauta de hematología", dinner="1/2"), line("Paracetamol Cinfa 1 g", "cada 8 h si dolor", breakfast="1", dinner="1"),
+         line("Enalapril 10 mg", breakfast="1")]
 recon = reconcile(lines, packs)
 plan = build_plan(lines, recon, check_packs(packs, smpc, today) + meal_notes(packs, smpc) + recon.findings, today)
 out = render_pdf(plan, Path("experiments/out/real_plan.pdf"), "Paciente de ejemplo")
