@@ -77,3 +77,16 @@ def test_reset_clears_everything(app):
     click(app, "Cargar foto de ejemplo")
     click(app, "Empezar de nuevo")
     assert len(app.session_state.sheet) == 0 and not app.session_state.readings and not app.exception
+
+
+def test_the_latest_photo_of_the_3d_room_can_be_loaded(app, tmp_path):
+    import cv2
+    from medtable import synthetic
+    (tmp_path / "data" / "world_photos").mkdir(parents=True)
+    cv2.imwrite(str(tmp_path / "data" / "world_photos" / "latest.jpg"), synthetic.demo_photo([("654177", "281231"), ("662025", "270430")]))
+    at = AppTest.from_file(APP, default_timeout=120).run()
+    click(at, "Usar la última foto de la sala 3D")
+    assert not at.exception
+    readings = [r for rs in at.session_state.readings.values() for r in rs]
+    assert sorted(r.status for r in readings) == ["verified", "verified"]
+    assert not any(n.startswith("sala3d_") is False for n in at.session_state.readings)

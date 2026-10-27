@@ -9,6 +9,7 @@ picked by the caregiver and confirmed line by line. Photos stay on this machine;
 import shutil
 import sys
 import tempfile
+import time
 from datetime import date
 from pathlib import Path
 
@@ -97,7 +98,7 @@ with left:
     uploads = st.file_uploader("Fotos de los envases (la cara con el código Data Matrix, a 50 cm o menos)", type=["jpg", "jpeg", "png"],
                                accept_multiple_files=True)
     current = {u.name for u in uploads or []}
-    for gone in [n for n in st.session_state.readings if n not in current and n != "ejemplo"]:  # a removed upload must not stay in the plan
+    for gone in [n for n in st.session_state.readings if n not in current and n != "ejemplo" and not n.startswith("sala3d_")]:  # a removed upload must not stay in the plan
         st.session_state.readings.pop(gone, None)
         st.session_state.get("photos", {}).pop(gone, None)
     for upload in uploads or []:
@@ -110,6 +111,15 @@ with left:
 with right:
     if st.button("Cargar foto de ejemplo (sintética, no son envases reales)"):
         add_photo("ejemplo", synthetic.demo_photo(DEMO_ITEMS))
+    latest = Path("data/world_photos/latest.jpg")
+    if latest.exists():
+        stamp = time.strftime("%H:%M:%S", time.localtime(latest.stat().st_mtime))
+        if st.button(f"Usar la última foto de la sala 3D (hecha a las {stamp})"):
+            image = cv2.imread(str(latest))
+            if image is None:
+                st.error("No se pudo abrir la última foto de la sala 3D.")
+            else:
+                add_photo(f"sala3d_{stamp}", image)
     typed = st.text_input("O escriba el código nacional impreso en el envase (C.N.)", placeholder="848226.9")
     if st.button("Añadir envase por código nacional") and typed:
         pack, problem = manual_pack(typed, resolver())

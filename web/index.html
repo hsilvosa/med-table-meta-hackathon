@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Sala 3D - fotografiar las mesas</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #111; font-family: system-ui, sans-serif; color: #fff; }
+  #c { width: 100vw; height: 100vh; display: block; cursor: crosshair; }
+  .hud { position: fixed; pointer-events: none; text-shadow: 0 1px 3px #000; }
+  #help { left: 14px; top: 12px; font-size: 13px; line-height: 1.55; background: rgba(0,0,0,.5); padding: 10px 14px; border-radius: 8px; max-width: 360px; }
+  #info { right: 14px; top: 12px; font-size: 14px; text-align: right; background: rgba(0,0,0,.5); padding: 8px 12px; border-radius: 8px; }
+  #toast { left: 50%; bottom: 36px; transform: translateX(-50%); font-size: 16px; background: rgba(0,0,0,.72); padding: 10px 18px; border-radius: 10px; opacity: 0; transition: opacity .3s; max-width: 80vw; text-align: center; }
+  #cross { left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 1px solid rgba(255,255,255,.7); border-radius: 50%; }
+  #frame { left: 50%; top: 50%; transform: translate(-50%, -50%); border: 2px solid rgba(255,255,255,.9); box-shadow: 0 0 0 100vmax rgba(0,0,0,.55); display: none; }
+  #frame::after { content: ""; position: absolute; inset: 33.3% 0; border-top: 1px solid rgba(255,255,255,.35); border-bottom: 1px solid rgba(255,255,255,.35); }
+  #hint { left: 50%; top: 14px; transform: translateX(-50%); font-size: 15px; background: rgba(0,0,0,.6); padding: 6px 14px; border-radius: 8px; display: none; }
+  #opts { right: 14px; bottom: 14px; pointer-events: auto; font-size: 13px; background: rgba(0,0,0,.5); padding: 8px 12px; border-radius: 8px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="help" class="hud"></div>
+<div id="info" class="hud"></div>
+<div id="cross" class="hud"></div>
+<div id="frame" class="hud"></div>
+<div id="hint" class="hud"></div>
+<div id="toast" class="hud"></div>
+<label id="opts" class="hud"><input type="checkbox" id="effects" checked> efectos de móvil (desenfoque leve, ruido, JPEG)</label>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.js" } }</script>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
