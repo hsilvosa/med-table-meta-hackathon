@@ -58,7 +58,7 @@ def test_a_cn_read_by_the_model_does_not_outrank_a_name_match_and_is_labelled_as
     fake_world(monkeypatch, reply, [{"nregistro": METFORMINA_850.nregistro}])
     proposal = propose(tmp_path / "crop.jpg", Resolver(tmp_path))
     assert [c.medicine.cn for c in proposal.candidates] == ["680001", "690001"]  # brand + ingredient + dose beat a model-read code
-    assert "a model read this" in proposal.candidates[1].why[0] and "verified" not in proposal.candidates[1].why[0]
+    assert "a model read this code" in proposal.candidates[1].why[0] and "verified" not in proposal.candidates[1].why[0]
 
 
 def test_unreadable_reply_and_no_results(monkeypatch, tmp_path):

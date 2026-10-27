@@ -5,17 +5,17 @@ Run `.venv-app/Scripts/python.exe scripts/start_demo.py`: it opens the 3D room (
 | Time | Do | Say (the point to land) |
 |---|---|---|
 | 0:00 | Open the room, press Start, open the Planner panel (Tab) and point at the blue notice | It supports the caregiver and does not replace the doctor or the pharmacist. It schedules; it does not advise. |
-| 0:20 | In the room: click "Table 1", click "Phone over the table" (the bar turns green at 50 cm), click "Take photo" | The packs are identified by the code printed on them, nothing else. The photo reaches the planner by itself. |
-| 0:50 | Step 1 shows the medicines found: expiry read from the code, one expired pack, one box not recognised and left out | Expiry comes from the code, not from a model. |
-| 1:10 | Step 2: for three medicines pick the amounts with the big buttons and tick "Yes, this matches the doctor's schedule" | The doses are the caregiver's. The tool never proposes or changes a dose. Unticked lines stay out. |
-| 1:40 | Step 3: show the plan, the "Left out" list and the review notes | Anything unverified, expired, unconfirmed, ambiguous or with a strength that does not match is listed with the reason. Quotes from the AEMPS leaflet (section 4.5 and 4.2) are verbatim, with source and date, and are for the pharmacist: never a verdict. The page says plainly that no warning does not mean safe. |
-| 2:10 | Step 4: download the PDF; open it | Large print, official pack photo, one row per medicine, the "Left out" block and the sources. |
-| 2:30 | Click "Read the plan aloud"; play one slot | Offline English voice; the text never leaves the machine. |
+| 0:20 | In the room: "Table 1", "Phone over the table" (the bar turns green at 50 cm), "Take photo"; then "Move to the other half of the table" and take a second photo | The packs are identified by the code printed on them, nothing else. Each photo reaches the planner by itself. |
+| 0:50 | Step 1 lists the medicines found: expiry read from the code, one expired pack (enalapril). Open "A box has no code I can read?" and run it for the atorvastatin box | A model only suggests; the caregiver confirms against the official picture. Nothing enters the plan on its own. |
+| 1:10 | Step 2: type a name; open "Have a photo of the doctor's schedule?", upload `experiments/out/sheet.jpg`, tick the consent, "Read the schedule"; check a few lines against the paper and tick "Yes, this matches the doctor's schedule" | The doses are the caregiver's. The computer copied the paper, the caregiver confirms line by line; nothing is ticked for them. Unticked lines stay out. |
+| 1:40 | Step 3: the plan, the "Left out" cards (each says what to do) and "To ask your pharmacist" | Anything unverified, expired, unconfirmed, ambiguous or with a strength that does not match is listed with the reason. Quotes from the AEMPS leaflet (4.5 and 4.2) are verbatim, with the source. |
+| 2:10 | Step 4: add a note for the whole plan, look at the preview, download the PDF | Page 1 is for the fridge: pictograms, times, large print, official pack photo, notes. Page 2 is for the pharmacist: what was left out, the quotes and the sources. |
+| 2:30 | "Read the plan aloud"; play one slot | Offline English voice; the text never leaves the machine. |
 | 2:45 | Show the `.ics` file import (optional) | Daily reminders on the phone. |
 | 2:55 | Close | Measured on synthetic data only, so no accuracy claim for real use yet; real photos are the next step. |
 
 ## What the 3D room is
-A stage set: flat cut-outs of the official CIMA photos with a Data Matrix sticker that this repository generates from each medicine's real Codigo Nacional. Say so. It shows the flow and measures the optics (read rate by distance), not how real printed codes behave. Built-in cases to point at: an expired pack, one expiring within a month, a code CIMA does not know (stays unverified), packs with no visible code (SAM + candidates, the caregiver decides), loose pills (never identified) and the fictional medication sheet on table 1.
+A stage set: flat cut-outs of the official CIMA photos with a Data Matrix sticker that this repository generates from each medicine's real Codigo Nacional. Say so. It shows the flow and measures the optics (read rate by distance), not how real printed codes behave. Built-in cases to point at: an expired pack, one expiring within a month, a code CIMA does not know (stays unverified), packs with no visible code (SAM + candidates, the caregiver decides), loose pills (never identified), and the fictional medication sheet on table 1, which lists most of the boxes of tables 1 and 2 plus one medicine that has no box (bisoprolol); amlodipine has a box and no line on the sheet.
 
 ## What not to claim
 - No "safe plan", "no interactions" or "verified plan in seconds".

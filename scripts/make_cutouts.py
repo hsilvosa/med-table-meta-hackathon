@@ -1,6 +1,6 @@
 """Cut packs and dosage forms out of the CIMA studio photos as transparent PNGs, using SAM 3 text prompts.
 
-  python scripts/make_cutouts.py [--n 50 --seed 0 | --all] [--out data/cutouts]      (needs .venv-sam3 and a GPU)
+  python scripts/make_cutouts.py [--n 50 --seed 0 | --all | --only 73300,68167] [--out data/cutouts]      (needs .venv-sam3 and a GPU)
 
 Packs (`materialas` photos) are found with the prompt "box"; dosage forms (`formafarmac` photos) with
 "pill" / "tablet" / "capsule". Every candidate mask must pass sanity checks (size, border contact,
@@ -153,13 +153,18 @@ def main() -> None:
     ap.add_argument("--n", type=int, default=50)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--all", action="store_true")
+    ap.add_argument("--only", default="", help="comma-separated nregistro list: cut out exactly these medicines")
     ap.add_argument("--cima", type=Path, default=Path("data/cima"))
     ap.add_argument("--out", type=Path, default=Path("data/cutouts"))
     a = ap.parse_args()
 
     meds = [json.loads(line) for line in (a.cima / "manifest.jsonl").open(encoding="utf-8")]
     meds = [m for m in meds if {f["tipo"] for f in m["fotos"]} >= {"materialas", "formafarmac"}]
-    if not a.all:
+    if a.only:
+        wanted = a.only.split(",")
+        meds = [m for m in meds if m["nregistro"] in wanted]
+        meds.sort(key=lambda m: wanted.index(m["nregistro"]))      # keep the order given: the room places them in that order
+    elif not a.all:
         random.Random(a.seed).shuffle(meds)
         meds = meds[: a.n]
     for sub in ("box", "pill"):

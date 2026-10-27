@@ -161,6 +161,7 @@ function setPhoneUi() {
   $('modeChip').textContent = phoneMode ? 'Phone camera' : 'Walking';
   $('gauge').style.display = phoneMode ? 'block' : 'none';
   $('btnPhone').classList.toggle('on', phoneMode);
+  $('btnPhone').textContent = phoneMode && lean ? 'Move to the other half of the table' : 'Phone over the table';
   resize();
 }
 // ---- planner panel (the Streamlit app, embedded) ------------------------------------------------------------------------
@@ -209,10 +210,7 @@ $('start').addEventListener('click', () => { closeWelcome(); canvas.requestPoint
 $('btnHelp').addEventListener('click', openHelp);
 $('shutter').addEventListener('click', () => shoot());
 document.querySelectorAll('[data-table]').forEach(b => b.addEventListener('click', () => { goTo(world.tables[+b.dataset.table], false); }));
-$('btnPhone').addEventListener('click', () => {
-  if (phoneMode && nearestTable().dist < 0.8) { phoneMode = false; setPhoneUi(); return; }       // second click: back to walking
-  const { table } = nearestTable(); goTo(table, true);
-});
+$('btnPhone').addEventListener('click', () => { goTo(nearestTable().table, true); });      // first click: over the left half; again: the other half
 canvas.addEventListener('click', () => { if (!locked) canvas.requestPointerLock?.(); });
 document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === canvas; });
 canvas.addEventListener('mousedown', () => { dragging = true; });
@@ -227,7 +225,7 @@ function goTo(table, above) {
   if (above) {
     table.spot = ((table.spot ?? -1) + 1) % 2;           // a 50 cm photo covers about 0.7 x 0.5 m: left half, then right half
     lean = true; Object.assign(player, { x: table.x + (table.spot ? 0.26 : -0.26), z: table.z + 0.02, eye: table.h + 0.5, yaw: 0, pitch: -Math.PI / 2 + 0.02 }); phoneMode = true;
-    toast(`${table.name}: phone held 50 cm above the ${table.spot ? 'right' : 'left'} half. Press the button again for the other half.`);
+    toast(`${table.name}: phone held 50 cm above the ${table.spot ? 'right' : 'left'} half. Use the button again for the other half; a Table button takes you back to walking.`);
   } else { lean = false; Object.assign(player, { x: table.x, z: table.z + table.d / 2 + 0.9, eye: 1.5, yaw: 0, pitch: -0.55 }); phoneMode = false; toast(`${table.name}`); }
   setPhoneUi();
 }

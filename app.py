@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 from medtable import candidates, decode, identify, sheet_reader, synthetic, vlm, voice  # noqa: E402
 from medtable.calendar_pdf import render_pdf  # noqa: E402
 from medtable.findings import NOT_A_FULL_CHECK, explain_problem  # noqa: E402
-from medtable.form import CHOICE_LABELS, CHOICE_VALUES, OTHER, Row, choice_for, merge_read_rows, sync_pack_rows  # noqa: E402
+from medtable.form import CHOICE_LABELS, CHOICE_VALUES, OTHER, QUICK_NOTES, Row, choice_for, merge_read_rows, sync_pack_rows  # noqa: E402
 from medtable.pipeline import make_plan, manual_pack  # noqa: E402
 from medtable.plan import DEFAULT_TIMES, NOT_CONFIRMED, SLOT_LABELS, to_ics  # noqa: E402
 from medtable.resolve import Resolver  # noqa: E402
@@ -140,12 +140,41 @@ def state_defaults() -> None:
     st.session_state.setdefault("photos", {})
     st.session_state.setdefault("manual", [])
     st.session_state.setdefault("rows", [])  # list[Row]
+    st.session_state.setdefault("patient", "")  # printed on the calendar
+    st.session_state.setdefault("plan_notes", "")  # printed in the notes box of the calendar
     st.session_state.setdefault("room_seen", time.time())  # only room photos taken after the session started load by themselves
 
 
 def go(step: int) -> None:
     st.session_state.step = step
     st.session_state.scroll_top = True
+    st.session_state.skip_upload_sync = True      # the file uploader is re-created empty on the next visit to screen 1: that is not the user removing files
+
+
+def remove_photo(name: str) -> None:
+    st.session_state.readings.pop(name, None)
+    st.session_state.photos.pop(name, None)
+
+
+def patient_field(key: str) -> None:
+    """The name printed on the calendar. It is asked on the doses screen and again before printing; both edit the same value."""
+    def changed() -> None:
+        st.session_state.patient = st.session_state[key].strip()
+    st.text_input("Who is this plan for? (optional)", value=st.session_state.patient, key=key, on_change=changed, placeholder="For example: Maria Lopez",
+                  help="Printed at the top of the calendar. Leave it empty to write the name by hand.")
+
+
+def page_preview(pdf_path: Path):
+    """First page of the PDF as a picture, so the caregiver sees what will be printed. None when the renderer is not installed."""
+    try:
+        import pypdfium2 as pdfium
+    except ImportError:
+        return None
+    document = pdfium.PdfDocument(str(pdf_path))
+    try:
+        return document[0].render(scale=1.4).to_pil()
+    finally:
+        document.close()
 
 
 def add_photo(name: str, image: np.ndarray) -> None:
@@ -187,6 +216,23 @@ def card(source, body: str, plain: bool = False) -> None:
 
 def box(kind: str, title: str, text: str = "") -> None:
     st.markdown(f'<div class="mt-box {kind}"><b class="t">{esc(title)}</b>{text}</div>', unsafe_allow_html=True)
+
+
+def what_to_do(reason: str) -> str:
+    """One plain next step for the usual reasons a medicine is left out of the plan."""
+    if reason == "no pack on the table matches":
+        return "Go back to Medicines and add a photo that shows this box, or type the code printed on it."
+    if reason.startswith("the pack expired"):
+        return "Do not use it. Ask a pharmacist for a new pack."
+    if reason.startswith("the pack is on several lines"):
+        return "Go back to Doses and keep one line for this medicine."
+    if reason.startswith("several packs match"):
+        return "Go back to Doses and write the name of the medicine the way it appears on the box."
+    if reason.startswith("the strength on the sheet does not match"):
+        return "Compare the strength on the box with the doctor's paper and correct the line."
+    if reason.startswith("unrecognised dose"):
+        return "Go back to Doses and choose the amount with the buttons."
+    return ""
 
 
 def source_html(source: str) -> str:
@@ -301,9 +347,12 @@ if step == 1:
     with tab_upload:
         uploads = st.file_uploader("Choose a photo of the boxes (JPG or PNG)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
         current = {u.name for u in uploads or []}
-        for gone in [n for n in st.session_state.readings if n not in current and n != "demo" and not n.startswith("room_")]:  # a removed upload must not stay in the plan
-            st.session_state.readings.pop(gone, None)
-            st.session_state.photos.pop(gone, None)
+        previous = st.session_state.get("seen_uploads", set())
+        if st.session_state.pop("skip_upload_sync", False):
+            previous = current      # a freshly created, empty uploader after a screen change is not a removal
+        for gone in previous - current:  # a file the user removed from the uploader must not stay in the plan
+            remove_photo(gone)
+        st.session_state.seen_uploads = set(current)
         fresh = False
         for upload in uploads or []:
             if upload.name not in st.session_state.readings:
@@ -326,15 +375,24 @@ if step == 1:
                 st.session_state.manual.append(pack)
                 st.rerun()
 
+    if st.session_state.photos:
+        with st.expander(f"Photos used so far ({len(st.session_state.photos)})"):
+            for photo_name in list(st.session_state.photos):
+                left, right = st.columns([3, 1])
+                left.write(photo_name)
+                right.button("Remove", key=f"rm_{photo_name}", on_click=remove_photo, args=(photo_name,), width="stretch")
     st.markdown(f'<p class="mt-title" style="font-size:1.35rem;margin-top:1.2rem">Medicines found: {len(medicines)}</p>', unsafe_allow_html=True)
+
     if not entries and not st.session_state.manual:
         box("tip", "Nothing yet", "Add a photo or type a code above. The medicines I recognise will appear here.")
     for reading in verified:
         card(official_photo(reading.medicine), f'<div class="mt-name">{esc(reading.medicine.name)}</div>' + chip("Recognised from its code", "ok")
              + expiry_chip(reading.expiry, today) + f'<div class="mt-meta">National code {esc(reading.medicine.cn)}</div>')
     for pack in st.session_state.manual:
-        card(official_photo(pack.medicine), f'<div class="mt-name">{esc(pack.medicine.name)}</div>' + chip("Added by code", "ok")
+        card(official_photo(pack.medicine), f'<div class="mt-name">{esc(pack.medicine.name)}</div>' + chip("Added by you", "ok")
              + f'<div class="mt-meta">National code {esc(pack.medicine.cn)}</div>')
+    if entries or st.session_state.manual:
+        box("tip", "Is a box missing?", "Count the boxes on your table. If one is not listed above, take another photo that shows it close up with its code facing up, or type its code.")
     if unverified:
         box("bad", f"{len(unverified)} box(es) could not be recognised",
             "These are <b>not</b> in the plan. A box is only accepted when its code can be read and matches the official database. "
@@ -384,7 +442,7 @@ if step == 1:
             if proposal:
                 if proposal.note:
                     st.info(proposal.note)
-                labels = {f"{c.medicine.name} ({', '.join(c.why) or 'no clear match'})": c for c in proposal.candidates}
+                labels = {f"**{c.medicine.name}**  \n{' · '.join(c.why) or 'no clear match'}": c for c in proposal.candidates}
                 choice = st.radio("Which medicine is this?", ["None of these / I do not know", *labels], key=f"radio_{key}") if labels else None
                 shown = list(labels.values())[:3]
                 for col, cand in zip(st.columns(max(len(shown), 1)), shown):
@@ -406,47 +464,52 @@ elif step == 2:
     header(2, "Choose the doses",
            "Copy the doctor's schedule. For each medicine, choose <b>how many to take</b> at each time of day. When you have checked a medicine against "
            "the doctor's paper, tick <b>Yes, this matches the doctor's schedule</b>. I never choose an amount for you, and medicines that are not ticked stay out of the plan.")
+    patient_field("patient_step2")
     with st.expander("Have a photo of the doctor's schedule? Let the computer copy it (optional)"):
         backend = vlm.backend_name()
         if backend == "meta":
             st.warning("The photo LEAVES this computer and goes to the Meta API. Use it only for a sheet without personal data "
-                       "(no name, ID number or address), or set VLM_BACKEND=local to keep it on this machine.")
+                       "(no name, ID number or address). To keep it on this computer, whoever installed the tool can switch it to the offline model (VLM_BACKEND=local).")
         else:
             st.caption("Local model: the picture does not leave this computer.")
         sheet_photo = st.file_uploader("Photo of the schedule", type=["jpg", "jpeg", "png"], key="sheet_photo")
         consent = st.checkbox("I understand where the picture is sent and want the computer to read it", key="sheet_consent") if backend == "meta" else True
-        if st.button("Read the schedule", disabled=not (sheet_photo and consent), width="stretch"):
-            with tempfile.TemporaryDirectory() as tmp:
-                path = Path(tmp) / sheet_photo.name
-                path.write_bytes(sheet_photo.getvalue())
-                try:
-                    with st.spinner("Reading the schedule..."):
-                        read = sheet_reader.read_sheet(path)
-                except Exception as exc:  # network, budget cap, server not running: tell the caregiver, keep manual entry available
-                    st.error(f"The schedule could not be read ({exc}). You can choose the doses by hand below.")
-                else:
-                    packs_now = [Pack(m, "verified") for m in medicines]
-                    changed, merge_notes = merge_read_rows(rows, read.rows, packs_now)
-                    for row in changed:   # forget the on-screen state of those rows so the buttons show what was read
-                        for slot in SLOTS:
-                            st.session_state.pop(f"dose_{row.id}_{slot}", None)
-                            st.session_state.pop(f"other_{row.id}_{slot}", None)
-                        st.session_state.pop(f"remarks_{row.id}", None)
-                    st.session_state.sheet_notes = read.problems + merge_notes + ["Check every medicine against the paper: a computer reading can contain mistakes."]
+        sources = []
+        if sheet_photo:
+            sources.append(("Read the schedule", sheet_photo.name, sheet_photo.getvalue()))
+        if LATEST_PHOTO.exists():
+            sources.append(("Read the latest room photo as the schedule", "room_schedule.jpg", LATEST_PHOTO.read_bytes() if consent else b""))
+        for label, file_name, content in sources:
+            if st.button(label, disabled=not consent, width="stretch", key=f"read_{file_name}"):
+                with tempfile.TemporaryDirectory() as tmp:
+                    path = Path(tmp) / file_name
+                    path.write_bytes(content)
+                    try:
+                        with st.spinner("Reading the schedule..."):
+                            read = sheet_reader.read_sheet(path)
+                    except Exception as exc:  # network, budget cap, server not running: tell the caregiver, keep manual entry available
+                        st.error(f"The schedule could not be read ({exc}). You can choose the doses by hand below.")
+                    else:
+                        packs_now = [Pack(m, "verified") for m in medicines]
+                        changed, merge_notes = merge_read_rows(rows, read.rows, packs_now)      # bumps `rev`, so the buttons show what was read
+                        st.session_state.sheet_notes = read.problems + merge_notes + ["Check every medicine against the paper: a computer reading can contain mistakes."]
         for note in st.session_state.get("sheet_notes", []):
             st.warning(note)
 
     def set_dose(row: Row, slot: str) -> None:
-        picked = st.session_state[f"dose_{row.id}_{slot}"]
+        picked = st.session_state[row.key("dose", slot)]
         if picked is None:      # clicking the selected button again would clear it: keep the choice
-            st.session_state[f"dose_{row.id}_{slot}"] = choice_for(row.doses[slot])
+            st.session_state[row.key("dose", slot)] = choice_for(row.doses[slot])
         elif picked != OTHER:
             row.doses[slot] = picked
         elif choice_for(row.doses[slot]) != OTHER:
             row.doses[slot] = ""        # "Other" with nothing typed yet: the plan reports it instead of guessing
 
     def set_other(row: Row, slot: str) -> None:
-        row.doses[slot] = st.session_state[f"other_{row.id}_{slot}"].strip()
+        row.doses[slot] = st.session_state[row.key("other", slot)].strip()
+
+    def set_quick(row: Row) -> None:
+        row.quick = list(st.session_state[row.key("quick")] or [])
 
     def set_field(row: Row, field: str, key: str) -> None:
         setattr(row, field, st.session_state[key].strip() if field == "remarks" else st.session_state[key])
@@ -464,11 +527,14 @@ elif step == 2:
             card(official_photo(pack) if pack else None, body, plain=True)
             for slot in SLOTS:
                 st.segmented_control(f"{SLOT_LABELS[slot]} ({SLOT_HINT[slot]}): how many?", CHOICE_VALUES + [OTHER], format_func=CHOICE_LABELS.get,
-                                     default=choice_for(row.doses[slot]), key=f"dose_{row.id}_{slot}", on_change=set_dose, args=(row, slot))
+                                     default=choice_for(row.doses[slot]), key=row.key("dose", slot), on_change=set_dose, args=(row, slot))
                 if choice_for(row.doses[slot]) == OTHER:
-                    st.text_input("Type the amount (for example 4 or 2,5)", value=row.doses[slot], key=f"other_{row.id}_{slot}", on_change=set_other, args=(row, slot))
-            st.text_input("Note (optional), for example: with food", value=row.remarks, key=f"remarks_{row.id}", on_change=set_field, args=(row, "remarks", f"remarks_{row.id}"))
-            st.checkbox("Yes, this matches the doctor's schedule", value=row.confirmed, key=f"ok_{row.id}", on_change=set_field, args=(row, "confirmed", f"ok_{row.id}"))
+                    st.text_input("Type the amount (for example 4 or 2,5)", value=row.doses[slot], key=row.key("other", slot), on_change=set_other, args=(row, slot))
+            with st.expander("Add a note to print next to this medicine (optional)", expanded=bool(row.note)):
+                st.pills("Tick what the doctor's paper says", QUICK_NOTES, selection_mode="multi", default=row.quick, key=row.key("quick"), on_change=set_quick, args=(row,))
+                st.text_input("Anything else (for example: white tablet, keep in the fridge)", value=row.remarks, key=row.key("remarks"), on_change=set_field,
+                              args=(row, "remarks", row.key("remarks")))
+            st.checkbox("Yes, this matches the doctor's schedule", value=row.confirmed, key=row.key("ok"), on_change=set_field, args=(row, "confirmed", row.key("ok")))
             if row.confirmed and row.has_dose:
                 st.markdown(chip("Will be in the plan", "ok"), unsafe_allow_html=True)
             elif row.confirmed:
@@ -478,11 +544,14 @@ elif step == 2:
 
     with st.expander("A medicine on the schedule that has no box on the table"):
         st.write("Type its name as written on the schedule. The plan will list it as \"on the schedule but not on the table\".")
+        def add_line() -> None:      # a callback: a widget's value can only be changed before the widget is created in a run
+            name = st.session_state.extra_name.strip()
+            if name:
+                st.session_state.rows.append(Row(f"hand{len(st.session_state.rows) + 1}", name))
+                st.session_state.extra_name = ""
+
         extra = st.text_input("Name on the schedule", key="extra_name")
-        if st.button("Add this line", disabled=not extra.strip(), width="stretch"):
-            rows.append(Row(f"hand{len(rows) + 1}", extra.strip()))
-            st.session_state.extra_name = ""
-            st.rerun()
+        st.button("Add this line", on_click=add_line, disabled=not extra.strip(), width="stretch")
     st.write("")
     ready = sum(1 for r in rows if r.confirmed and r.has_dose)
     nav(1, 3, "Next: see the plan", enabled=bool(rows), why_not="There are no medicines yet. Go back and add one.")
@@ -508,6 +577,8 @@ else:
             box("warn", "Nothing in the plan yet",
                 "Go back to <b>Doses</b>, choose the amounts and tick <b>Yes, this matches the doctor's schedule</b> for at least one medicine."
                 + (f" Waiting for you: {len(pending)} medicine(s)." if pending else ""))
+        if st.session_state.patient:
+            st.markdown(f'<p class="mt-lead">Plan for <b>{esc(st.session_state.patient)}</b></p>', unsafe_allow_html=True)
         rows_html = []
         for slot in SLOTS:
             time_text = st.session_state.get(f"t_{slot}", DEFAULT_TIMES[slot])
@@ -525,7 +596,7 @@ else:
             if why == "could not be verified":      # here `what` is the reason the box was not recognised
                 box("bad", "Left out: a box I could not recognise", esc(what[0].upper() + what[1:]) + ". It is not in the plan.")
             else:
-                box("bad", f"Left out: {what}", esc(why[0].upper() + why[1:]) + ".")
+                box("bad", f"Left out: {what}", esc(why[0].upper() + why[1:]) + "." + (f" <b>What to do:</b> {esc(todo)}" if (todo := what_to_do(why)) else ""))
         if review:
             st.markdown(f'<p class="mt-title" style="font-size:1.3rem;margin-top:1rem">To ask your pharmacist ({len(review)})</p>', unsafe_allow_html=True)
             for f in review:
@@ -553,12 +624,21 @@ else:
         header(4, "Print, listen, remind", "Take the plan with you: a page for the fridge, a voice that reads it out, or reminders on a phone.")
         if not doses:
             box("warn", "Nothing to print yet", "Go back and confirm at least one medicine.")
-        patient = st.text_input("Name of the person (optional, printed at the top of the calendar)")
-        with st.expander("Change the reminder times"):
-            times = {s: st.time_input(SLOT_LABELS[s], value=pd.to_datetime(DEFAULT_TIMES[s]).time(), key=f"t_{s}").strftime("%H:%M") for s in SLOTS}
+        with st.container(border=True):
+            st.markdown('<p class="mt-name">Before you print</p><p class="mt-hint">Both are optional. Anything left empty is printed as lines to write on by hand.</p>', unsafe_allow_html=True)
+            patient_field("patient_step4")
+            st.text_area("Notes for the whole plan (for example: doctor's phone number, allergies)", value=st.session_state.plan_notes, key="plan_notes_box", height=110,
+                         on_change=lambda: st.session_state.update(plan_notes=st.session_state.plan_notes_box.strip()))
+            with st.expander("Change the reminder times"):
+                times = {s: st.time_input(SLOT_LABELS[s], value=pd.to_datetime(DEFAULT_TIMES[s]).time(), key=f"t_{s}").strftime("%H:%M") for s in SLOTS}
         if doses:
             with tempfile.TemporaryDirectory() as tmp:
-                pdf_bytes = render_pdf(plan, Path(tmp) / "plan.pdf", patient).read_bytes()
+                pdf_path = render_pdf(plan, Path(tmp) / "plan.pdf", st.session_state.patient, notes=st.session_state.plan_notes, times=times)
+                pdf_bytes = pdf_path.read_bytes()
+                preview = page_preview(pdf_path)
+            if preview is not None:
+                st.markdown('<p class="mt-title" style="font-size:1.25rem;margin-top:1rem">This is the page you will print</p>', unsafe_allow_html=True)
+                st.image(preview, width="stretch")
             st.markdown('<p class="mt-title" style="font-size:1.25rem;margin-top:1rem">A page to print</p><p class="mt-hint">Large print, with the official picture of each medicine.</p>', unsafe_allow_html=True)
             st.download_button("Download the calendar to print (PDF)", pdf_bytes, "medication_plan.pdf", "application/pdf", type="primary", width="stretch")
             st.markdown('<p class="mt-title" style="font-size:1.25rem;margin-top:1rem">Listen to it</p><p class="mt-hint">A voice reads each time of day.</p>', unsafe_allow_html=True)

@@ -110,7 +110,7 @@ def propose(crop: Path, resolver: Resolver, backend: str | None = None, limit: i
             proposal.cn_checked = found
             lead = score_candidate(medicine, read)
             lead.score += 1.5
-            lead.why.insert(0, "a model read this national code (valid check digit, exists in CIMA, but a model read it: check it on the box)")
+            lead.why.insert(0, "a model read this code on the box: check it yourself")
             proposal.candidates.append(lead)
     seen = {c.medicine.nregistro for c in proposal.candidates}
     for param, value in _search_terms(read):

@@ -58,3 +58,21 @@ def test_rows_feed_the_plan_and_only_confirmed_rows_count():
     rows[0].confirmed = True
     result = make_plan([], [pack(METFORMINA_850, date(2030, 1, 1)), pack(LORAZEPAM, date(2030, 1, 1))], [r.as_record() for r in rows], None, TODAY)
     assert [e.name for e in result.plan.entries] == [METFORMINA_850.name] * 2
+
+
+def test_ticked_phrases_and_free_text_make_one_note_and_count_as_work_on_the_row():
+    row = row_for_pack(METFORMINA_850)
+    row.quick = ["With food"]
+    assert not row.untouched and row.note == "With food"
+    row.remarks = "white tablet"
+    assert row.note == "With food; white tablet" and row.as_record()["remarks"] == "With food; white tablet"
+    assert row_for_pack(LORAZEPAM).note == ""
+
+
+def test_a_row_changed_by_a_sheet_read_gets_a_new_widget_key_so_the_buttons_show_the_new_values():
+    rows = [row_for_pack(METFORMINA_850), row_for_pack(LORAZEPAM)]
+    before = {r.id: r.key("dose", "breakfast") for r in rows}
+    merge_read_rows(rows, [READ], [pack(METFORMINA_850), pack(LORAZEPAM)])
+    assert rows[0].key("dose", "breakfast") != before[rows[0].id]          # filled from the sheet: new identity
+    assert rows[1].key("dose", "breakfast") == before[rows[1].id]          # untouched: same identity
+

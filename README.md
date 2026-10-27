@@ -13,9 +13,9 @@ Working prototype, tested on synthetic data only. No real pack photos have been 
 | CIMA resolver with local cache; a pack is `verified` only if the code decodes, the CN check digit is valid and CIMA knows the CN; expiry from the code | done |
 | Rules: same active ingredient, same ATC class, expiry, strength vs sheet; verbatim quotes of SmPC sections 4.5 (mentions of another pack on the table) and 4.2 (meals) | done, checked on real CIMA texts |
 | Medication sheet: reconciliation with the packs; a line enters the plan only if confirmed, verified, not expired, unambiguous and with a recognised dose | done |
-| Sheet reader (Muse Spark or local Qwen; every row comes back unconfirmed) | done; 28/28 cells on one fictional sheet |
+| Sheet reader (Muse Spark or local Qwen; every row comes back unconfirmed) | done; 40/40 cells on one fictional 10-row sheet (28/28 on an earlier 7-row one) |
 | Packs without a readable code: SAM 3 boxes, model-proposed CIMA candidates, caregiver confirms against the official photo | done; the true medicine was among the candidates in 3 of 12 small crops (weak by design: the model only proposes) |
-| Output: printable PDF calendar, offline English voice (Windows speech engine), `.ics` reminders | done |
+| Output: printable two-page PDF (page 1 for the fridge: pictograms, reminder times, large print, the patient's name and notes typed by the caregiver or ruled lines to write on; page 2 for the pharmacist: what was left out, quotes, sources), offline English voice (Windows speech engine), `.ics` reminders | done; the PDF is previewed in the app before download |
 | Streamlit app tying it together: a four-screen assistant (medicines, doses, check, print and listen) with one task per screen, large type and buttons, plain words, a "Larger text" setting; written for anyone, including people over 80 | done; screens checked in a browser, no test with real elderly users yet |
 | 3D room (three.js): walk around three tables of CIMA medicine cut-outs with generated Data Matrix stickers, take photos with a virtual phone, feed them to the app; photos come with their ground truth | done; synthetic, see below |
 | Evaluation on real photos, real-sheet reading, adherence check with a reference image | not done |

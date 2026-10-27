@@ -62,6 +62,10 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
 
+    def end_headers(self) -> None:
+        self.send_header("Cache-Control", "no-store")      # a demo server: always serve the current files, never a stale main.js
+        super().end_headers()
+
     def log_message(self, fmt: str, *args) -> None:   # keep the console quiet except for photos and errors
         if "POST" in (fmt % args) or " 404 " in (fmt % args) or " 500 " in (fmt % args):
             super().log_message(fmt, *args)

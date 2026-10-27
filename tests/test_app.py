@@ -32,13 +32,24 @@ def texts(at):
     return " ".join(m.value for m in at.markdown)
 
 
+def widget(items, kind, row_id, slot=""):
+    """The widget of a row, found by kind, row id and slot whatever the row's revision is (the key is kind_rowid_rev[_slot])."""
+    found = [w for w in items if w.key.startswith(f"{kind}_{row_id}_") and (w.key.endswith(f"_{slot}") if slot else w.key.count("_") == 2)]
+    assert len(found) == 1, (kind, row_id, slot, [w.key for w in items][:6])
+    return found[0]
+
+
 def pick(at, row_id, slot, value):
-    [g for g in at.button_group if g.key == f"dose_{row_id}_{slot}"][0].set_value(value)
+    widget(at.button_group, "dose", row_id, slot).set_value(value)
     return at.run()
 
 
+def doses_of(at):
+    return [g for g in at.button_group if g.key.startswith("dose_")]
+
+
 def confirm(at, row_id):
-    [c for c in at.checkbox if c.key == f"ok_{row_id}"][0].check()
+    widget(at.checkbox, "ok", row_id).check()
     return at.run()
 
 
@@ -68,14 +79,14 @@ def test_demo_photo_gives_recognised_boxes_and_one_that_is_not_in_the_plan(app):
 def test_the_screens_follow_one_after_another_and_back(app):
     to_doses(app)
     assert app.session_state.step == 2 and "Choose the doses" in texts(app)
-    assert len(app.button_group) == 5 * 4                                  # four times of day per medicine
+    assert len(doses_of(app)) == 5 * 4                                     # four times of day per medicine
     click(app, "Back")
     assert app.session_state.step == 1 and "Show me the medicines" in texts(app)
 
 
 def test_every_dose_starts_at_none_and_nothing_reaches_the_plan_until_confirmed(app):
     to_doses(app)
-    assert {g.value for g in app.button_group} == {"0"}                      # the app never proposes an amount
+    assert {g.value for g in doses_of(app)} == {"0"}                         # the app never proposes an amount
     pick(app, "pack654177", "breakfast", "1")
     click(app, "Next: see the plan")
     assert "Nothing in the plan yet" in texts(app)                           # chosen but not confirmed
@@ -90,8 +101,7 @@ def test_every_dose_starts_at_none_and_nothing_reaches_the_plan_until_confirmed(
 def test_other_amount_shows_a_text_box_and_a_bad_amount_is_reported_not_guessed(app):
     to_doses(app)
     pick(app, "pack654177", "dinner", "other")
-    assert [t for t in app.text_input if t.key == "other_pack654177_dinner"]
-    [t for t in app.text_input if t.key == "other_pack654177_dinner"][0].set_value("media").run()
+    widget(app.text_input, "other", "pack654177", "dinner").set_value("media").run()
     pick(app, "pack654177", "breakfast", "1")
     confirm(app, "pack654177")
     click(app, "Next: see the plan")
@@ -104,7 +114,7 @@ def test_a_pack_on_two_lines_is_blocked_on_the_check_screen(app):
     pick(app, "pack654177", "breakfast", "1")
     confirm(app, "pack654177")
     app.session_state.rows.append(type(app.session_state.rows[0])("hand9", app.session_state.rows[0].medicine, app.session_state.rows[0].cn,
-                                  {"breakfast": "0", "lunch": "1", "dinner": "0", "bedtime": "0"}, "", True))
+                                  {"breakfast": "0", "lunch": "1", "dinner": "0", "bedtime": "0"}, confirmed=True))
     app.run()
     click(app, "Next: see the plan")
     assert "Pack on several lines" in texts(app) or "several lines" in texts(app)
@@ -115,6 +125,37 @@ def test_the_meta_backend_asks_for_consent_before_the_schedule_photo_leaves(app)
     to_doses(app)
     assert any("LEAVES this computer" in w.value for w in app.warning)
     assert [c.label for c in app.checkbox if c.key == "sheet_consent"] == ["I understand where the picture is sent and want the computer to read it"]
+
+
+def test_the_room_photo_can_be_the_schedule_but_only_after_consent(app, tmp_path):
+    (tmp_path / "data" / "world_photos").mkdir(parents=True)
+    (tmp_path / "data" / "world_photos" / "latest.jpg").write_bytes(b"x")
+    at = AppTest.from_file(APP, default_timeout=120).run()
+    to_doses(at)
+    assert [b.disabled for b in at.button if b.label.startswith("Read the latest room photo")] == [True]
+    [c for c in at.checkbox if c.key == "sheet_consent"][0].check()
+    at.run()
+    assert [b.disabled for b in at.button if b.label.startswith("Read the latest room photo")] == [False]
+
+
+def test_a_schedule_read_from_a_photo_fills_the_dose_buttons_of_the_boxes_and_confirms_nothing(app, tmp_path, monkeypatch):
+    from medtable import sheet_reader
+    (tmp_path / "data" / "world_photos").mkdir(parents=True)
+    (tmp_path / "data" / "world_photos" / "latest.jpg").write_bytes(b"x")
+    rows = [{"medicine": "Enalapril 10 mg comprimidos", "breakfast": "1", "lunch": "0", "dinner": "1/2", "bedtime": "0", "remarks": "con comida", "confirmed": False},
+            {"medicine": "Atorvastatina 20 mg", "breakfast": "0", "lunch": "0", "dinner": "0", "bedtime": "1", "remarks": "", "confirmed": False}]
+    monkeypatch.setattr(sheet_reader, "read_sheet", lambda path, backend=None: sheet_reader.SheetReading(rows, [], "meta", 0.0))
+    named = {**MEDS, "654177": med("654177", "ENALAPRIL TESTLAB 10 mg COMPRIMIDOS", ["ENALAPRIL"], "C09AA02")}      # a name the sheet line can match unambiguously
+    monkeypatch.setattr(Resolver, "by_cn", lambda self, cn: named.get("".join(c for c in cn if c.isdigit())[:6]))
+    at = AppTest.from_file(APP, default_timeout=120).run()
+    to_doses(at)
+    [c for c in at.checkbox if c.key == "sheet_consent"][0].check()
+    at.run()
+    click(at, "Read the latest room photo")
+    assert not at.exception
+    assert [g.value for g in doses_of(at) if g.key.startswith("dose_pack654177_")] == ["1", "0", "1/2", "0"]     # the buttons SHOW what was read
+    assert at.session_state.rows[0].remarks == "con comida" and not any(r.confirmed for r in at.session_state.rows)
+    assert [g.value for g in doses_of(at) if g.key.startswith("dose_sheet")] == ["0", "0", "0", "1"]           # a line with no box becomes its own row
 
 
 def test_the_last_screen_offers_the_downloads_only_when_there_is_a_plan(app):
@@ -128,6 +169,53 @@ def test_the_last_screen_offers_the_downloads_only_when_there_is_a_plan(app):
     click(app, "Next: print or listen")
     assert app.session_state.step == 4 and not app.exception
     assert {el.proto.label for el in app.get("download_button")} == {"Download the calendar to print (PDF)", "Download the phone reminders (.ics)"}
+
+
+def test_the_name_and_notes_can_be_given_on_the_doses_screen_and_again_before_printing(app):
+    to_doses(app)
+    [t for t in app.text_input if t.key == "patient_step2"][0].set_value("Maria Lopez").run()
+    assert app.session_state.patient == "Maria Lopez"
+    widget(app.button_group, "quick", "pack654177").set_value(["With food", "Only if needed"]).run()
+    widget(app.text_input, "remarks", "pack654177").set_value("white tablet").run()
+    assert app.session_state.rows[0].note == "With food; Only if needed; white tablet"
+    pick(app, "pack654177", "breakfast", "1")
+    confirm(app, "pack654177")
+    click(app, "Next: see the plan")
+    assert "Plan for <b>Maria Lopez</b>" in texts(app) and "With food; Only if needed; white tablet" in texts(app)
+    click(app, "Next: print or listen")
+    assert [t.value for t in app.text_input if t.key == "patient_step4"] == ["Maria Lopez"]       # the same value, editable again
+    [t for t in app.text_input if t.key == "patient_step4"][0].set_value("Maria L.").run()
+    [a for a in app.text_area if a.key == "plan_notes_box"][0].set_value("Dr Vega 981 000 000").run()
+    assert app.session_state.patient == "Maria L." and app.session_state.plan_notes == "Dr Vega 981 000 000" and not app.exception
+    assert "This is the page you will print" in texts(app)
+
+
+def test_photos_survive_going_forward_and_back_and_can_be_removed_on_purpose(app):
+    click(app, "Load a demo photo")
+    readings = app.session_state.readings.pop("demo")          # pretend they came from an uploaded file: the uploader itself is empty in this test
+    photo = app.session_state.photos.pop("demo")
+    app.session_state.readings["table1.jpg"], app.session_state.photos["table1.jpg"] = readings, photo
+    app.run()
+    assert "table1.jpg" in app.session_state.readings          # an empty uploader is not a removal
+    click(app, "Next: choose the doses")
+    click(app, "Back")
+    app.run()
+    assert "table1.jpg" in app.session_state.readings and "Medicines found: 5" in texts(app)
+    click(app, "Remove")
+    assert not app.session_state.readings and "Medicines found: 0" in texts(app)
+
+
+def test_a_schedule_line_without_a_box_can_be_added_by_hand(app):
+    to_doses(app)
+    [t for t in app.text_input if t.key == "extra_name"][0].set_value("Bisoprolol 2,5 mg").run()
+    click(app, "Add this line")
+    assert not app.exception
+    assert [r.medicine for r in app.session_state.rows][-1] == "Bisoprolol 2,5 mg" and app.session_state.rows[-1].cn is None
+    assert [t.value for t in app.text_input if t.key == "extra_name"] == [""]               # the box is cleared for the next one
+    pick(app, "hand6", "breakfast", "1")
+    confirm(app, "hand6")
+    click(app, "Next: see the plan")
+    assert "Left out: Bisoprolol 2,5 mg" in texts(app) and "add a photo that shows this box" in texts(app)     # and the card says what to do
 
 
 def test_start_over_clears_everything(app):

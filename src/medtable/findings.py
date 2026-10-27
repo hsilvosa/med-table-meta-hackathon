@@ -19,12 +19,12 @@ TEMPLATES = {
     "same_atc_class": "{a} and {b} belong to the same pharmacological group ({detail}). To review with a pharmacist.",
     "expired": "{a} expired on {detail}. Do not include it in the calendar without asking a pharmacist.",
     "expires_soon": "{a} expires on {detail}.",
-    "smpc_mention": "The SmPC of {a} (section 4.5) mentions {detail}: \"{quote}\" To review with a pharmacist. " + NOT_A_FULL_CHECK,
-    "meal_note": "The SmPC of {a} (section 4.2) says about meals: \"{quote}\" This is a quotation; the schedule is decided by the caregiver with a doctor or pharmacist.",
+    "smpc_mention": "The official leaflet of {a} (SmPC section 4.5) mentions {detail}: \"{quote}\" To review with a pharmacist. " + NOT_A_FULL_CHECK,
+    "meal_note": "The official leaflet of {a} (SmPC section 4.2) says about meals: \"{quote}\" This is a quotation; the schedule is decided by the caregiver with a doctor or pharmacist.",
     "pack_on_several_lines": "The pack {a} appears on several sheet lines ({detail}). Use one line per pack: merge or correct them before continuing.",
     "all_zero_line": "The line \"{detail}\" has no dose at all (all 0), so it is not in the calendar. If this is a mistake, correct it.",
     "expiry_unknown": "The expiry of {a} was not checked: {detail}. Look at the pack.",
-    "smpc_unavailable": "Section {detail} of the SmPC of {a} could not be checked: that check was not done for this medicine.",
+    "smpc_unavailable": "Section {detail} of the official leaflet (SmPC) of {a} could not be checked: that check was not done for this medicine.",
     "prescribed_not_found": "Listed on the medication sheet but not found on the table: {detail}.",
     "not_prescribed": "On the table but not on the medication sheet: {a}.",
     "strength_mismatch": "The sheet says \"{detail}\" but the pack is {a}. The strength does not match: check before continuing.",
@@ -77,3 +77,7 @@ class Finding:
     def text(self) -> str:
         names = self.names + ["", ""]
         return TEMPLATES[self.kind].format(a=names[0], b=names[1], detail=self.detail, quote=self.quote)
+
+    def lead(self) -> str:
+        """The sentence without the quoted passage, for screens that show the quote on its own line."""
+        return self.text() if not self.quote else self.text().split(": " + chr(34))[0] + "."

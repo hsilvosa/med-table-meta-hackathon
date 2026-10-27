@@ -1,5 +1,4 @@
 # Development only
 -r requirements.txt
 pytest==9.1.1
-pypdfium2==5.14.0   # renders the demo PDF to PNG in experiments/demo_plan.py
 treepoem==3.29.0    # experiments only (Data Matrix rendering, needs Ghostscript)

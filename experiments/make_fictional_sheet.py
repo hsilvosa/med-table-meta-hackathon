@@ -3,7 +3,7 @@
   python experiments/make_fictional_sheet.py        # writes experiments/out/sheet.jpg and sheet_truth.json
 
 The table has the kinds of cells that are easy to misread: "1/2", "0,5", free-text remarks, empty remarks.
-Nothing here is a real prescription.
+Nothing here is a real prescription. Amlodipine is on a table but not on the sheet, bisoprolol is on the sheet but not on a table, on purpose.
 """
 
 import json
@@ -19,14 +19,17 @@ FONTS = Path("C:/Windows/Fonts")
 font = lambda name, size: ImageFont.truetype(str(FONTS / name), size)  # noqa: E731
 
 COLUMNS = [("Medicamento", 40), ("Desay.", 560), ("Comida", 670), ("Cena", 780), ("Acost.", 890), ("Observaciones", 1000)]
-ROWS = [  # medicine text, breakfast, lunch, dinner, bedtime, remarks
-    ("Repaglinida 0,5 mg comprimidos", "1", "1", "1", "0", "15 min antes de comer"),
-    ("Valsartan/Hidroclorotiazida 160/12,5 mg", "1", "0", "0", "0", "por la manana"),
+ROWS = [  # medicine text, breakfast, lunch, dinner, bedtime, remarks. The first eight are boxes of the 3D room (scripts/build_world.py, FEATURED)
+    ("Enalapril 10 mg comprimidos", "1", "0", "0", "0", "por la manana"),
     ("Metformina 850 mg comprimidos", "1", "0", "1", "0", "con las comidas"),
-    ("Lorazepam 1 mg comprimidos", "0", "0", "0", "1/2", "solo si insomnio"),
     ("Omeprazol 20 mg capsulas", "1", "0", "0", "0", "en ayunas"),
-    ("Paracetamol 1 g comprimidos", "1", "0", "1", "0", "cada 8 horas si dolor"),
     ("Atorvastatina 20 mg comprimidos", "0", "0", "0", "1", ""),
+    ("Lorazepam 1 mg comprimidos", "0", "0", "0", "1/2", "solo si insomnio"),
+    ("Furosemida 40 mg comprimidos", "1", "0", "0", "0", "por la manana"),
+    ("Adiro 100 mg comprimidos", "0", "0", "1", "0", "con la cena"),
+    ("Eutirox 100 microgramos", "1", "0", "0", "0", "30 min antes del desayuno"),
+    ("Donepezilo 10 mg comprimidos", "0", "0", "1", "0", ""),
+    ("Bisoprolol 2,5 mg comprimidos", "1", "0", "0", "0", ""),   # on the sheet but not on any table: the plan reports it
 ]
 W, H = 1260, 1000
 

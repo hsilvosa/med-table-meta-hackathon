@@ -14,6 +14,7 @@ from .schedule import SLOTS, Line, dose_number, lines_from_rows, reconcile
 
 # (value stored on the sheet, label on the button). Anything else is typed in by the caregiver under "Other".
 DOSE_CHOICES = (("0", "None"), ("1/4", "\u00bc"), ("1/2", "\u00bd"), ("1", "1"), ("1,5", "1\u00bd"), ("2", "2"), ("3", "3"))
+QUICK_NOTES = ("With food", "Before meals", "On an empty stomach", "Only if needed", "Swallow whole")   # what the caregiver may copy from the doctor's paper
 OTHER = "other"
 CHOICE_VALUES = [value for value, _ in DOSE_CHOICES]
 CHOICE_LABELS = {**dict(DOSE_CHOICES), OTHER: "Other"}
@@ -30,20 +31,32 @@ class Row:
     medicine: str  # as on the sheet, or the pack's name for rows created from a pack
     cn: str | None = None  # the pack this row is tied to (rows created from a verified pack)
     doses: dict[str, str] = field(default_factory=lambda: dict.fromkeys(SLOTS, "0"))
-    remarks: str = ""
+    remarks: str = ""  # free text written by the caregiver
+    quick: list[str] = field(default_factory=list)  # ticked phrases from QUICK_NOTES
     confirmed: bool = False
     sheet_name: str = ""  # how the reader saw the medicine, when it differs from the pack name
+    rev: int = 0  # bumped when the row's values are replaced from outside the buttons (a sheet read from a photo)
+
+    def key(self, kind: str, slot: str = "") -> str:
+        """Widget key. It changes with `rev` on purpose: Streamlit keeps a widget's old value in the browser under an unchanged key,
+        so a new identity is the only reliable way to make the buttons show values that were set by the program."""
+        return f"{kind}_{self.id}_{self.rev}" + (f"_{slot}" if slot else "")
 
     @property
     def untouched(self) -> bool:
-        return not self.confirmed and not self.remarks and all(d == "0" for d in self.doses.values())
+        return not self.confirmed and not self.remarks and not self.quick and all(d == "0" for d in self.doses.values())
 
     @property
     def has_dose(self) -> bool:
         return any(dose_number(d) != 0 for d in self.doses.values())
 
+    @property
+    def note(self) -> str:
+        """What is printed in the notes column: the ticked phrases, then the free text."""
+        return "; ".join([*self.quick, *([self.remarks] if self.remarks else [])])
+
     def as_record(self) -> dict:
-        return {"medicine": self.medicine, **self.doses, "remarks": self.remarks, "confirmed": self.confirmed, "cn": self.cn}
+        return {"medicine": self.medicine, **self.doses, "remarks": self.note, "confirmed": self.confirmed, "cn": self.cn}
 
 
 def row_for_pack(medicine) -> Row:
@@ -77,6 +90,7 @@ def merge_read_rows(rows: list[Row], read: list[dict], packs: list[Pack]) -> tup
         doses = {s: str(item.get(s, "") or "0").strip() for s in SLOTS}
         if target:
             target.doses, target.remarks, target.sheet_name = doses, str(item.get("remarks", "") or "").strip(), line.text
+            target.rev += 1
             changed.append(target)
             continue
         if any(r.medicine == line.text for r in rows):

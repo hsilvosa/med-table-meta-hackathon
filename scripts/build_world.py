@@ -2,7 +2,7 @@
 
   .venv-app/Scripts/python.exe scripts/build_world.py [--seed 3] [--out web/world]
 
-Needs data/cutouts (make_cutouts.py) and the network the first time (CIMA lookups are cached in data/cache/cima).
+Needs data/cutouts (make_cutouts.py) and, for the featured medicines, data/cutouts_featured (see FEATURED below); the network the first time (CIMA lookups are cached in data/cache/cima).
 Writes web/world/world.json and web/world/assets/*.png (cut-out boxes and pills from the official CIMA photos, generated
 Data Matrix labels). Everything under web/world is generated and not committed: the photos belong to AEMPS.
 
@@ -26,7 +26,9 @@ import cv2
 from PIL import Image
 
 sys.path.insert(0, "src")
+import numpy as np  # noqa: E402
 from medtable import cima, cn as cn_module  # noqa: E402
+from medtable.decode import find_datamatrix  # noqa: E402
 from medtable.resolve import Resolver  # noqa: E402
 from medtable.synthetic import ntin_element_string, render_datamatrix  # noqa: E402
 
@@ -45,12 +47,38 @@ BOX_WIDTH_M = 0.16      # width of the cut-out image on the table (a pack seen a
 LABEL_M = 0.015         # 12 mm code plus quiet zone
 TABLES = [("mesa1", "Table 1", -2.6, -1.4, 6), ("mesa2", "Table 2", 0.0, -1.4, 6), ("mesa3", "Table 3", 2.6, -1.4, 5)]
 TABLE_W, TABLE_D, TABLE_H = 1.2, 0.7, 0.75
+# The first boxes are the medicines of an older patient on many drugs (enalapril, metformin, omeprazole, atorvastatin, lorazepam, furosemide,
+# aspirin, amlodipine, levothyroxine, donepezil); the rest of the room is filled with random CIMA medicines. The fictional sheet on table 1
+# (experiments/make_fictional_sheet.py) lists most of them, so the whole flow tells one story. Cut them out first with:
+#   .venv-sam3/Scripts/python.exe scripts/make_cutouts.py --only <these nregistro> --out data/cutouts_featured
+FEATURED = ["73300", "68167", "63983", "69536", "68477", "64140", "62825", "65460", "64014", "73152"]
 CASES = {0: "expired", 7: "expires_soon", 12: "unknown_cn", 3: "no_code", 15: "no_code"}  # by box number over all tables
 
 
 def trim(path: Path) -> Image.Image:
     img = Image.open(path).convert("RGBA")
     return img.crop(img.getchannel("A").getbbox())
+
+
+def erase_printed_codes(img: Image.Image) -> tuple[Image.Image, int]:
+    """Some official CIMA studio photos show a real printed Data Matrix on the box. A second code (our sticker) on the same box would be read
+    as a second medicine, so those printed codes are painted over with their surroundings. Returns the image and how many were erased."""
+    rgba = np.array(img)
+    white = np.full(rgba.shape[:2] + (3,), 255, np.uint8)
+    alpha = rgba[..., 3:4].astype(np.float32) / 255
+    bgr = (rgba[..., 2::-1] * alpha + white * (1 - alpha)).astype(np.uint8)
+    found = find_datamatrix(bgr, tiles=True, libdmtx=True)
+    if not found:
+        return img, 0
+    mask = np.zeros(bgr.shape[:2], np.uint8)
+    for d in found:
+        x0, y0, x1, y1 = d.bbox
+        pad = int(0.35 * max(x1 - x0, y1 - y0))
+        mask[max(y0 - pad, 0):y1 + pad, max(x0 - pad, 0):x1 + pad] = 255
+    painted = cv2.inpaint(np.ascontiguousarray(rgba[..., 2::-1]), mask, 7, cv2.INPAINT_TELEA)
+    out = rgba.copy()
+    out[..., :3] = painted[..., ::-1]
+    return Image.fromarray(out), len(found)
 
 
 def sticker_spot(img: Image.Image) -> tuple[float, float]:
@@ -89,9 +117,18 @@ def presentation_cn(nregistro: str) -> str | None:
     return None
 
 
-index = [json.loads(line) for line in Path("data/cutouts/index.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
-candidates = [r for r in index if r["boxes"]]
+def load_index(folder: str) -> list[dict]:
+    path = Path(folder) / "index.jsonl"
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()] if path.exists() else []
+    return [{**r, "dir": folder} for r in rows]
+
+
+index = load_index("data/cutouts")
+featured = {r["nregistro"]: r for r in load_index("data/cutouts_featured") if r["boxes"]}
+candidates = [r for r in index if r["boxes"] and r["nregistro"] not in featured]
 rng.shuffle(candidates)
+candidates = [featured[n] for n in FEATURED if n in featured] + candidates          # featured medicines first, in order
+index += list(featured.values())
 need = sum(t[4] for t in TABLES)
 picked = []
 for row in candidates:
@@ -120,7 +157,11 @@ for table_id, table_name, tx, tz, count in TABLES:
         row, medicine = picked[slot]
         case = CASES.get(slot)
         slot += 1
-        box = trim(Path("data/cutouts/box") / row["boxes"][0])
+        box, erased = erase_printed_codes(trim(Path(row["dir"]) / "box" / row["boxes"][0]))
+        if erased:
+            print(f"  painted over {erased} printed code(s) on the official photo of {medicine.name[:40]}")
+            leftover = find_datamatrix(cv2.cvtColor(np.array(box.convert("RGB")), cv2.COLOR_RGB2BGR))
+            assert not leftover, "a printed code survived the inpainting"
         tex = f"box_{row['nregistro']}.png"
         box.save(assets / tex)
         x, z = place(taken, BOX_WIDTH_M * 0.55)
@@ -138,7 +179,7 @@ for table_id, table_name, tx, tz, count in TABLES:
             item["cn7"] = f"{shown}{cn_module.check_digit(shown)}"
         items.append(item)
     for pill_row in rng.sample([r for r in index if r["pills"]], 3):  # loose pills: distractors, never identified
-        pill = trim(Path("data/cutouts/pill") / pill_row["pills"][0])
+        pill = trim(Path(pill_row["dir"]) / "pill" / pill_row["pills"][0])
         size = rng.uniform(0.010, 0.016)
         x, z = place(taken, size)
         taken.append((x, z, size))
