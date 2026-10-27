@@ -24,7 +24,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
-from medtable import decode, identify  # noqa: E402
+from medtable import boxes, decode, identify  # noqa: E402
 from medtable.resolve import Resolver  # noqa: E402
 
 mimetypes.add_type("text/javascript", ".js")   # Windows registries often say text/plain, which blocks ES modules
@@ -65,16 +65,19 @@ def scan(jpeg: bytes, effects: bool):
     started = time.time()
     if effects:
         jpeg = phone_effects(jpeg, int(started * 1000) % 2**32)
-    gray = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_GRAYSCALE)
-    if gray is None:
+    frame = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR)
+    if frame is None:
         raise ValueError("not an image")
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     last = len(decode.LIVE_PASSES)          # stage 0 is the plain read, then one stage per zoom pass
     with _scan_lock:
         for number, found in enumerate(decode.scan_stages(gray, decode.LIVE_PASSES)):
             readings = [identify.read_code(d, resolver()) for d in found]
             codes = [{"bbox": list(r.bbox), "status": r.status, "name": r.medicine.name if r.medicine else None, "expired": r.expired,
                       "problem": r.problems[0] if r.problems else None} for r in readings]
-            yield {"size": [gray.shape[1], gray.shape[0]], "codes": codes, "ms": int((time.time() - started) * 1000), "done": number == last}
+            done = number == last
+            nocode = boxes.without_code(boxes.find_boxes(frame), [tuple(d.bbox) for d in found]) if done else []     # packs seen where no code was read, said at the end only
+            yield {"size": [gray.shape[1], gray.shape[0]], "codes": codes, "nocode": [list(b) for b in nocode], "ms": int((time.time() - started) * 1000), "done": done}
 
 
 class Handler(SimpleHTTPRequestHandler):

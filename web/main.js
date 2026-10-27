@@ -92,6 +92,7 @@ const blobTex = blobTexture();
 const pickables = [];                       // meshes a ray can hit (to decide whether a label is visible from the phone)
 const labelMeshes = [];                     // { mesh, item, table, modules }
 const boxEntries = [];                      // boxes without a label
+const allBoxes = [];                        // every box, with or without a sticker: { mesh, sticker | null, item }
 let stack = 0;
 
 for (const t of world.tables) {
@@ -124,8 +125,10 @@ for (const t of world.tables) {
       sticker.position.set((item.label.u - 0.5) * item.w, 0.0012, (item.label.v - 0.5) * item.h);
       group.add(sticker); pickables.push(sticker);
       labelMeshes.push({ mesh: sticker, item, table: t });
+      allBoxes.push({ mesh, sticker, item });
     } else if (item.kind === 'box') {
       boxEntries.push({ mesh, item, table: t });
+      allBoxes.push({ mesh, sticker: null, item });
     }
     scene.add(group);
   }
@@ -294,7 +297,8 @@ function visibleShare(mesh, w, h, origin) {
   return n / 4;
 }
 function truthForPhoto() {
-  const out = { labels: [], boxes_without_code: [] };
+  const out = { labels: [], boxes_without_code: [], boxes: [] };
+  const visibleStickers = new Set();
   const inFrame = p => !p.behind && p.x > 0 && p.x < shot.w && p.y > 0 && p.y < shot.h;
   const origin = phoneCam.position.clone();
   for (const e of labelMeshes) {
@@ -307,6 +311,7 @@ function truthForPhoto() {
     if (visibleShare(e.mesh, e.item.label.size, e.item.label.size, origin) < 0.75) continue;   // something else is on top of it
     const widthPx = Math.hypot(corners[0].x - corners[1].x, corners[0].y - corners[1].y);
     const modules = (e.mesh.material.map.image?.width ?? 448) / 16;      // symbol plus its 2-module quiet zone on each side
+    visibleStickers.add(e.mesh);
     out.labels.push({ cn7: e.item.cn7, text: e.item.label.text, name: e.item.name, case: e.item.case, nregistro: e.item.nregistro,
       px: [Math.round(centre.x), Math.round(centre.y)], px_per_module: +(widthPx / modules).toFixed(2) });
   }
@@ -315,6 +320,20 @@ function truthForPhoto() {
     const p = project(c);
     if (!inFrame(p)) continue;
     if (visibleShare(e.mesh, e.item.w * 0.5, e.item.h * 0.5, origin) >= 0.5) out.boxes_without_code.push({ cn: e.item.cn, name: e.item.name, nregistro: e.item.nregistro, px: [Math.round(p.x), Math.round(p.y)] });
+  }
+  for (const b of allBoxes) {          // where every box is in the photo (for measuring the box finder of the live preview)
+    const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sy]) => project(b.mesh.localToWorld(new THREE.Vector3(sx * b.item.w / 2, sy * b.item.h / 2, 0))));
+    if (corners.some(c => c.behind)) continue;
+    const xs = corners.map(c => c.x), ys = corners.map(c => c.y);
+    const inside = Math.min(...xs) > 0 && Math.max(...xs) < shot.w && Math.min(...ys) > 0 && Math.max(...ys) < shot.h;
+    if (Math.max(...xs) < 0 || Math.min(...xs) > shot.w || Math.max(...ys) < 0 || Math.min(...ys) > shot.h) continue;
+    let seen = 0;
+    for (const [fx, fy] of [[-0.3, -0.3], [0.3, -0.3], [-0.3, 0.3], [0.3, 0.3]]) {
+      const hit = firstOpaqueHit(origin, b.mesh.localToWorld(new THREE.Vector3(fx * b.item.w, fy * b.item.h, 0)));
+      if (hit && (hit.object === b.mesh || hit.object === b.sticker)) seen++;
+    }
+    out.boxes.push({ name: b.item.name, cn: b.item.cn, case: b.item.case ?? null, bbox: [Math.round(Math.min(...xs)), Math.round(Math.min(...ys)), Math.round(Math.max(...xs)), Math.round(Math.max(...ys))],
+      inside, visible: seen / 4, code_visible: !!b.sticker && visibleStickers.has(b.sticker) });
   }
   return out;
 }
@@ -363,7 +382,7 @@ async function shoot(options = {}) {
 // While the phone is held still, a 12 MP frame is sent to /scan, which runs the same decoder and the same three checks as the planner
 // (readable code, valid national code, known to CIMA). Green box = verified, amber = a code was read but it is not verified.
 // It is only a preview to help aim: what the planner uses is the photo. Nothing is identified by this drawing.
-const live = { born: new Map(), busy: false, boxes: [], scannedKey: null, shownKey: null, status: '', pause: 700, finished: 0, since: 0, lastKey: null };
+const live = { born: new Map(), busy: false, nocode: [], nocodeIndex: -1, boxes: [], scannedKey: null, shownKey: null, status: '', pause: 700, finished: 0, since: 0, lastKey: null };
 const liveCanvas = document.createElement('canvas'); liveCanvas.width = PHONE.w; liveCanvas.height = PHONE.h;
 const poseKey = () => [player.x, player.z, player.eye, player.yaw, player.pitch].map(v => v.toFixed(3)).join(',');
 function grabFrame() {      // one 12 MP frame of the phone camera, copied to a 2D canvas in the same task so the screen never shows the large canvas
@@ -399,6 +418,13 @@ function drawBoxes() {
     g.fillStyle = color; g.fillRect(cx - half, cy - half - 19, w, 19);
     g.fillStyle = '#10151a'; g.fillText(label, cx - half + 5, cy - half - 3);
   }
+  for (const [x0, y0, x1, y1] of live.nocode) {      // a pack was seen here and no code was read from it
+    const left = x0 * k, top = y0 * k, wide = (x1 - x0) * k, high = (y1 - y0) * k;
+    g.lineWidth = 3; g.strokeStyle = '#f59e0b'; g.setLineDash([9, 6]); g.strokeRect(left, top, wide, high); g.setLineDash([]);
+    const label = nearestTable().dist <= 0.5 ? 'No code read: add it by hand' : 'No code read: move closer or add it by hand', w = g.measureText(label).width + 10;
+    const lx = Math.min(Math.max(left, 0), c.width - w), ly = top > 22 ? top - 19 : top + high;
+    g.fillStyle = '#f59e0b'; g.fillRect(lx, ly, w, 19); g.fillStyle = '#10151a'; g.fillText(label, lx + 5, ly + 16);
+  }
   if (animating) requestAnimationFrame(drawBoxes);
 }
 function setScanChip(text) {
@@ -413,13 +439,15 @@ function liveStatus() {
   if (live.busy) return setScanChip(live.boxes.length ? `Scanning... ${live.boxes.length} found so far` : 'Scanning...');
   if (live.error) return setScanChip('Live scan unavailable (photos still work)');
   if (live.scannedKey !== key) return setScanChip('Hold still to scan');
-  const ok = live.boxes.filter(b => b.status === 'verified').length, bad = live.boxes.length - ok;
-  setScanChip(live.boxes.length ? `Preview: ${ok} recognised` + (bad ? `, ${bad} not verified` : '') : 'Preview: no codes read here');
+  const ok = live.boxes.filter(b => b.status === 'verified').length, bad = live.boxes.length - ok, none = live.nocode.length;
+  const parts = [`${ok} recognised`]; if (bad) parts.push(`${bad} not verified`); if (none) parts.push(`${none} without a code read`);
+  setScanChip(live.boxes.length || none ? 'Preview: ' + parts.join(', ') : 'Preview: no codes read here');
 }
 function liveTick() {
   const key = poseKey(), now = performance.now();
   if (key !== live.lastKey) { live.lastKey = key; live.since = now; }
-  if (live.shownKey !== null && live.shownKey !== key && live.boxes.length) { live.boxes = []; drawBoxes(); }        // boxes of an old view would point at the wrong place
+  if (live.shownKey !== null && live.shownKey !== key && (live.boxes.length || live.nocode.length)) { live.boxes = []; live.nocode = []; drawBoxes(); }
+  $('btnCloseup').style.display = live.nocode.length && live.scannedKey === key && phoneMode && nearestTable().dist > 0.5 ? 'block' : 'none';        // boxes of an old view would point at the wrong place
   liveStatus();
   const idle = phoneMode && $('live').checked && !live.busy && !shooting && !document.hidden;
   if (!idle || live.scannedKey === key || now - live.since < 300 || now - live.finished < live.pause) return;
@@ -433,7 +461,7 @@ async function scanOnce(key) {
     const blob = await new Promise(resolve => liveCanvas.toBlob(resolve, 'image/jpeg', 0.9));
     const reply = await fetch('/scan', { method: 'POST', body: blob, headers: { 'Content-Type': 'image/jpeg', 'X-Effects': $('effects').checked ? '1' : '0' } });
     if (!reply.ok) throw new Error(`HTTP ${reply.status}`);
-    live.error = false; live.scannedKey = key; live.shownKey = key; live.born.clear(); live.boxes = [];
+    live.error = false; live.scannedKey = key; live.shownKey = key; live.born.clear(); live.boxes = []; live.nocode = []; live.nocodeIndex = -1;
     const reader = reply.body.getReader(), decoder = new TextDecoder();
     let pending = '';
     for (;;) {      // the server sends one line per stage (plain read, then each zoom pass): draw the boxes as they arrive
@@ -442,8 +470,8 @@ async function scanOnce(key) {
       pending += decoder.decode(value, { stream: true });
       const lines = pending.split(String.fromCharCode(10)); pending = lines.pop();
       for (const line of lines.filter(Boolean)) {
-        if (poseKey() !== key) { reader.cancel(); live.boxes = []; break; }          // the phone moved: these boxes would be in the wrong place
-        live.boxes = JSON.parse(line).codes; drawBoxes();
+        if (poseKey() !== key) { reader.cancel(); live.boxes = []; live.nocode = []; break; }          // the phone moved: these boxes would be in the wrong place
+        const stage = JSON.parse(line); live.boxes = stage.codes; live.nocode = stage.nocode ?? []; drawBoxes();
       }
     }
   } catch (error) {
@@ -454,8 +482,29 @@ async function scanOnce(key) {
   }
 }
 setInterval(liveTick, 250);
-$('live').addEventListener('change', () => { live.boxes = []; live.scannedKey = null; live.error = false; drawBoxes(); });
+$('live').addEventListener('change', () => { live.boxes = []; live.nocode = []; live.scannedKey = null; live.error = false; drawBoxes(); });
 addEventListener('resize', drawBoxes);
+
+// ---- close-up of a box with no code read --------------------------------------------------------------------------------
+// The photo of a whole table has about 2 to 3 pixels per module; a close-up (35 cm above the pack) has about 7, and the code reads.
+const CLOSEUP_HEIGHT = 0.35;
+function goToCloseup(bbox) {
+  applyCamera();
+  phoneCam.position.copy(camera.position); phoneCam.quaternion.copy(camera.quaternion); phoneCam.updateMatrixWorld(true); phoneCam.updateProjectionMatrix();
+  const [x0, y0, x1, y1] = bbox, ndc = new THREE.Vector2(((x0 + x1) / 2 / PHONE.w) * 2 - 1, 1 - ((y0 + y1) / 2 / PHONE.h) * 2);
+  const ray = new THREE.Raycaster(); ray.setFromCamera(ndc, phoneCam);
+  const { table } = nearestTable(), t = (table.h - ray.ray.origin.y) / ray.ray.direction.y;
+  if (!(t > 0)) return false;
+  const point = ray.ray.origin.clone().add(ray.ray.direction.clone().multiplyScalar(t));
+  Object.assign(player, { x: point.x, z: point.z, eye: table.h + CLOSEUP_HEIGHT });
+  toast(`Close-up: phone ${Math.round(CLOSEUP_HEIGHT * 100)} cm above the box. Hold still for the preview, then take the photo.`, 5000);
+  return true;
+}
+$('btnCloseup').addEventListener('click', () => {      // each press goes to the next box without a code
+  if (!live.nocode.length) return;
+  live.nocodeIndex = (live.nocodeIndex + 1) % live.nocode.length;
+  goToCloseup(live.nocode[live.nocodeIndex]);
+});
 
 // ---- loop -----------------------------------------------------------------------------------------------------------
 let last = performance.now();
@@ -469,7 +518,7 @@ resize(); setPhoneUi(); applyCamera();
 requestAnimationFrame(frame);
 
 window.__world = {
-  live, scanOnce, poseKey,
+  live, scanOnce, poseKey, goToCloseup,
   world, shoot, setMegapixels(mp) { shot = mp === 48 ? { w: PHONE.w * 2, h: PHONE.h * 2 } : { w: PHONE.w, h: PHONE.h }; }, THREE, camera, phoneCam, pickables, labelMeshes, raycaster,
   // A batch of photos from random viewpoints above the tables (seeded): heights [min, max] metres above the table top, tilt up to maxTilt degrees.
   async batch(n, seed = 1, opts = {}) {

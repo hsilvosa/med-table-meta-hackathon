@@ -26,7 +26,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from medtable import candidates, decode, identify, sheet_reader, synthetic, vlm, voice  # noqa: E402
+from medtable import boxes, candidates, decode, identify, sheet_reader, synthetic, vlm, voice  # noqa: E402
 from medtable.calendar_pdf import render_pdf  # noqa: E402
 from medtable.findings import NOT_A_FULL_CHECK, explain_problem  # noqa: E402
 from medtable.form import CHOICE_LABELS, CHOICE_VALUES, OTHER, QUICK_NOTES, Row, choice_for, merge_read_rows, sync_pack_rows  # noqa: E402
@@ -145,6 +145,8 @@ def state_defaults() -> None:
     st.session_state.setdefault("manual", [])
     st.session_state.setdefault("removed_cns", set())  # medicines the caregiver took out of the list (6-digit national codes)
     st.session_state.setdefault("removed_raw", set())  # codes that could not be recognised and were dismissed
+    st.session_state.setdefault("nocode", {})  # photo name -> regions that look like a box but where no code was read (box in original pixels)
+    st.session_state.setdefault("nocode_done", set())  # keys of those the caregiver has dealt with
     st.session_state.setdefault("rows", [])  # list[Row]
     st.session_state.setdefault("patient", "")  # printed on the calendar
     st.session_state.setdefault("plan_notes", "")  # printed in the notes box of the calendar
@@ -168,7 +170,16 @@ def dismiss_code(raw: str) -> None:
     st.session_state.removed_raw.add(raw)
 
 
+def nocode_key(name: str, box: tuple) -> str:
+    return f"{name}|{box[0] // 64}|{box[1] // 64}"
+
+
+def nocode_dealt_with(key: str) -> None:
+    st.session_state.nocode_done.add(key)
+
+
 def remove_photo(name: str) -> None:
+    st.session_state.nocode.pop(name, None)
     st.session_state.readings.pop(name, None)
     st.session_state.photos.pop(name, None)
     st.session_state.photo_scale.pop(name, None)
@@ -204,6 +215,7 @@ def add_photo(name: str, image: np.ndarray) -> None:
     for reading in st.session_state.readings[name]:        # a new photo that shows a removed box again brings it back
         st.session_state.removed_cns.discard(reading.medicine.cn if reading.medicine else "")
         st.session_state.removed_raw.discard(reading.raw)
+    st.session_state.nocode[name] = boxes.without_code(boxes.find_boxes(image), [r.bbox for r in st.session_state.readings[name]])      # light finder: see src/medtable/boxes.py
     scale = min(1.0, MAX_KEPT_WIDTH / image.shape[1])        # what is kept for crops and for SAM: a 48 MP photo would take 150 MB of memory
     st.session_state.photos[name] = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1.0 else image
     st.session_state.photo_scale[name] = scale
@@ -430,6 +442,22 @@ if step == 1:
             card(crop, f'<div class="mt-name">A box I could not recognise</div>{chip("Not in the plan", "bad")}'
                  f'<div class="mt-meta">{esc("; ".join(explain_problem(p) for p in r.problems) or "reason unknown")}</div>', plain=True)
             st.button("Dismiss", key=f"dismiss_{r.raw}", on_click=dismiss_code, args=(r.raw,), type="tertiary", width="stretch")
+    for name, regions in st.session_state.nocode.items():
+        for region in regions:
+            key = nocode_key(name, region)
+            if key in st.session_state.nocode_done:
+                continue
+            image, crop = st.session_state.photos.get(name), None
+            if image is not None:
+                x0, y0, x1, y1 = (int(v * st.session_state.photo_scale.get(name, 1.0)) for v in region)
+                crop = image[max(y0 - 10, 0):y1 + 10, max(x0 - 10, 0):x1 + 10]
+                crop = crop if crop.size else None
+            with st.container(border=True):
+                card(crop, f'<div class="mt-name">A box where I could not read a code</div>{chip("Not in the plan yet", "warn")}'
+                     '<div class="mt-meta">Take a close-up photo of this box (about 30 cm above it, the printed code facing up), or type the code printed on it. '
+                     + ('In the room, press <b>Close-up of the box with no code</b> on the left, then <b>Take photo</b>. ' if EMBEDDED else "")
+                     + 'I may be wrong: it can also be something that is not a medicine.</div>', plain=True)
+                st.button("Done: I added it or it is not a medicine", key=f"nocode_{key}", on_click=nocode_dealt_with, args=(key,), type="tertiary", width="stretch")
     if entries or st.session_state.manual:
         st.caption("Is a box missing? Take another photo that shows it close up with its code facing up, or type its code. Wrong box? Remove it.")
 

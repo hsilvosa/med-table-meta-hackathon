@@ -165,3 +165,17 @@ def test_live_scan_sends_each_stage_before_the_next_one_is_computed(server, cima
         reply.read()
     assert json.loads(first_line)["done"] is False
     assert seen_when_first_line_arrived < 1 + len(module.decode.LIVE_PASSES)      # the later passes had not run yet
+
+
+def test_live_scan_reports_packs_with_no_code_read_only_in_the_last_stage(server, cima):
+    from test_boxes import scene
+    module, url, _ = server
+    img, with_code, no_code = scene()
+    ok, buffer = cv2.imencode(".jpg", img)
+    stages = scan_stages(url, buffer.tobytes())
+    assert all(s["nocode"] == [] for s in stages[:-1])                      # while it is still looking, nothing is said about missing codes
+    last = stages[-1]
+    assert last["done"] and [c["status"] for c in last["codes"]] == ["verified"]
+    assert len(last["nocode"]) == 1
+    x0, y0, x1, y1 = last["nocode"][0]
+    assert abs(x0 - no_code[0]) < 40 and abs(y0 - no_code[1]) < 40 and abs(x1 - no_code[2]) < 40 and abs(y1 - no_code[3]) < 40

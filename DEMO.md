@@ -23,6 +23,9 @@ Hold the virtual phone 90 cm above the table: one photo shows the whole table. T
 ## Live scan (preview)
 With the phone held still, the room sends a frame to the local server every couple of seconds. It runs the same decoder and the same three checks as the planner (readable code, valid national code, known to CIMA). While it scans, a green bar sweeps the view and each box appears the moment its code is found (the server answers after the plain read and after each zoom pass), with a short pop. Green box: verified. Amber: read but not verified. No box: not read. The boxes disappear when you move and come back when you hold still. They are a preview to help aim: only the photo goes to the planner, and a box that is missing in the preview can still be read in the 48 MP photo (the preview uses a 12 MP frame and the two faster scan passes). The tick box "Live scan" turns it off.
 
+## Boxes with no code read
+If the preview sees a pack but reads no code from it, it draws an amber dashed box on it: "No code read: move closer or add it by hand". The button "Close-up of the box with no code" in the left panel puts the phone 35 cm above that pack; hold still and the code usually reads (green box), then take the photo. A pack with no printed code at all (atorvastatin in the room) stays amber and has to be added by hand in the planner. The planner also shows a card for each such pack ("A box where I could not read a code") with a crop and the same advice; "Done" removes the card. The finder only works on a table of a middle tone: do not demo it on a white table. An amber box is a hint, not a diagnosis, and a missing one proves nothing.
+
 ## What not to claim
 - No "safe plan", "no interactions" or "verified plan in seconds".
 - No accuracy figure for real packs (none has been measured). The Blender numbers (98-100 % read at 50 cm or closer) are for perfect labels.

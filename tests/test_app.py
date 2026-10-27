@@ -272,6 +272,25 @@ def test_a_typed_medicine_can_be_removed_and_an_unrecognised_box_dismissed(app):
     assert "A box I could not recognise" not in texts(app) and not app.exception
 
 
+def test_a_box_where_no_code_was_read_gets_a_card_asking_for_a_close_up(app, tmp_path):
+    import cv2
+    from test_boxes import scene
+    img, _, _ = scene()                                                       # two packs on a table: one has a readable code, one has none; and a sheet of paper
+    (tmp_path / "data" / "world_photos").mkdir(parents=True)
+    cv2.imwrite(str(tmp_path / "data" / "world_photos" / "latest.jpg"), img)
+    at = AppTest.from_file(APP, default_timeout=180).run()
+    click(at, "Load the latest room photo")
+    assert not at.exception and "Medicines found: 1" in texts(at)
+    assert texts(at).count("A box where I could not read a code") == 1 and "close-up photo of this box" in texts(at)
+    click(at, "Done: I added it or it is not a medicine")
+    assert "A box where I could not read a code" not in texts(at) and len(at.session_state.nocode_done) == 1
+
+
+def test_demo_photos_have_no_boxes_without_a_code(app):
+    click(app, "Load a demo photo")
+    assert not any(app.session_state.nocode.values()) and "A box where I could not read a code" not in texts(app)
+
+
 def test_start_over_clears_everything(app):
     to_doses(app)
     click(app, "Start over")
