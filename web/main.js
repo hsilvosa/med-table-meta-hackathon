@@ -4,7 +4,9 @@
 import * as THREE from 'three';
 
 const PHONE = { w: 4000, h: 3000, hfov: 71 };                      // a 12 MP phone main camera, 4:3
+let shot = { w: PHONE.w, h: PHONE.h };                              // size of the photo that is taken: 12 MP, or 48 MP (the same lens and field of view, four times the pixels)
 const PHONE_VFOV = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(PHONE.hfov) / 2) * PHONE.h / PHONE.w) * 180 / Math.PI;
+const PHONE_HEIGHT = 0.9;                                           // how high "Phone over the table" holds the phone, in metres
 const FRAME_FRACTION = 0.86;                                         // the viewfinder takes this share of the window height
 const EYE_MIN = 0.9, EYE_MAX = 1.9;
 
@@ -161,7 +163,6 @@ function setPhoneUi() {
   $('modeChip').textContent = phoneMode ? 'Phone camera' : 'Walking';
   $('gauge').style.display = phoneMode ? 'block' : 'none';
   $('btnPhone').classList.toggle('on', phoneMode);
-  $('btnPhone').textContent = phoneMode && lean ? 'Move to the other half of the table' : 'Phone over the table';
   resize();
 }
 // ---- planner panel (the Streamlit app, embedded) ------------------------------------------------------------------------
@@ -175,6 +176,7 @@ function planner(open) {
 }
 $('btnPlanner').addEventListener('click', () => planner());
 $('btnClose').addEventListener('click', () => planner(false));
+$('hires').addEventListener('change', () => { window.__world.setMegapixels($('hires').checked ? 48 : 12); toast($('hires').checked ? 'High-resolution mode: 48 MP photos, slower to take and to read' : 'Standard mode: 12 MP photos'); });
 
 function blocked(x, z) {
   if (Math.abs(x) > R.w / 2 - 0.3 || Math.abs(z) > R.d / 2 - 0.3) return true;
@@ -210,7 +212,7 @@ $('start').addEventListener('click', () => { closeWelcome(); canvas.requestPoint
 $('btnHelp').addEventListener('click', openHelp);
 $('shutter').addEventListener('click', () => shoot());
 document.querySelectorAll('[data-table]').forEach(b => b.addEventListener('click', () => { goTo(world.tables[+b.dataset.table], false); }));
-$('btnPhone').addEventListener('click', () => { goTo(nearestTable().table, true); });      // first click: over the left half; again: the other half
+$('btnPhone').addEventListener('click', () => { goTo(nearestTable().table, true); });
 canvas.addEventListener('click', () => { if (!locked) canvas.requestPointerLock?.(); });
 document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === canvas; });
 canvas.addEventListener('mousedown', () => { dragging = true; });
@@ -222,10 +224,9 @@ addEventListener('mousemove', e => {
 });
 
 function goTo(table, above) {
-  if (above) {
-    table.spot = ((table.spot ?? -1) + 1) % 2;           // a 50 cm photo covers about 0.7 x 0.5 m: left half, then right half
-    lean = true; Object.assign(player, { x: table.x + (table.spot ? 0.26 : -0.26), z: table.z + 0.02, eye: table.h + 0.5, yaw: 0, pitch: -Math.PI / 2 + 0.02 }); phoneMode = true;
-    toast(`${table.name}: phone held 50 cm above the ${table.spot ? 'right' : 'left'} half. Use the button again for the other half; a Table button takes you back to walking.`);
+  if (above) {      // 90 cm above the middle of the table: at this height a 12 MP phone sees the whole table (about 1.3 x 1.0 m) in one photo
+    lean = true; Object.assign(player, { x: table.x, z: table.z, eye: table.h + PHONE_HEIGHT, yaw: 0, pitch: -Math.PI / 2 + 0.02 }); phoneMode = true;
+    toast(`${table.name}: phone held ${Math.round(PHONE_HEIGHT * 100)} cm above the table, the whole table is in view. R and F raise and lower it.`);
   } else { lean = false; Object.assign(player, { x: table.x, z: table.z + table.d / 2 + 0.9, eye: 1.5, yaw: 0, pitch: -0.55 }); phoneMode = false; toast(`${table.name}`); }
   setPhoneUi();
 }
@@ -250,8 +251,8 @@ function hud() {
   $('where').textContent = phoneMode ? `${table.name}, ${cm} cm above it` : `Near ${table.name}`;
   if (phoneMode) {
     const g = $('gauge');
-    g.className = 'hud ' + (dist <= 0.55 ? 'good' : dist <= 0.75 ? 'mid' : 'bad');
-    g.textContent = dist <= 0.55 ? `${cm} cm: good distance, take the photo` : dist <= 0.75 ? `${cm} cm: move closer (50 cm or less reads reliably)` : `${cm} cm: too far, the codes will not read`;
+    g.className = 'hud ' + (dist <= 0.95 ? 'good' : dist <= 1.05 ? 'mid' : 'bad');
+    g.textContent = dist <= 0.95 ? `${cm} cm: good distance, take the photo` : dist <= 1.05 ? `${cm} cm: a little far, some codes may be missed. Closer is better` : `${cm} cm: too far, the codes will not read`;
   }
   $('lookhint').textContent = locked ? 'Esc frees the mouse' : 'Click the room to look around with the mouse';
   $('lookhint').style.display = $('welcome').style.display === 'none' && !phoneMode ? 'block' : 'none';
@@ -280,7 +281,7 @@ function project(v) {
   const p = v.clone().applyMatrix4(phoneCam.matrixWorldInverse);
   const behind = p.z >= 0;
   const n = v.clone().project(phoneCam);
-  return { x: (n.x * 0.5 + 0.5) * PHONE.w, y: (1 - (n.y * 0.5 + 0.5)) * PHONE.h, behind };
+  return { x: (n.x * 0.5 + 0.5) * shot.w, y: (1 - (n.y * 0.5 + 0.5)) * shot.h, behind };
 }
 // Share of four sample points inside a plane that the camera sees (aiming at the exact centre can slip between the two triangles of the quad).
 function visibleShare(mesh, w, h, origin) {
@@ -293,7 +294,7 @@ function visibleShare(mesh, w, h, origin) {
 }
 function truthForPhoto() {
   const out = { labels: [], boxes_without_code: [] };
-  const inFrame = p => !p.behind && p.x > 0 && p.x < PHONE.w && p.y > 0 && p.y < PHONE.h;
+  const inFrame = p => !p.behind && p.x > 0 && p.x < shot.w && p.y > 0 && p.y < shot.h;
   const origin = phoneCam.position.clone();
   for (const e of labelMeshes) {
     const c = e.mesh.getWorldPosition(new THREE.Vector3());
@@ -327,12 +328,24 @@ async function shoot(options = {}) {
     phoneCam.position.copy(camera.position); phoneCam.quaternion.copy(camera.quaternion);
     phoneCam.updateMatrixWorld(true); phoneCam.updateProjectionMatrix();
     renderer.setPixelRatio(1); renderer.setSize(PHONE.w, PHONE.h, false);
-    renderer.render(scene, phoneCam);
-    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.93));
+    let blob;
+    if (shot.w === PHONE.w) {
+      renderer.render(scene, phoneCam);
+      blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.93));
+    } else {      // a larger photo is drawn in tiles of the base size (a canvas that big would not fit the GPU), then put together
+      const full = document.createElement('canvas'); full.width = shot.w; full.height = shot.h;
+      const g = full.getContext('2d');
+      for (let j = 0; j < shot.h / PHONE.h; j++) for (let i = 0; i < shot.w / PHONE.w; i++) {
+        phoneCam.setViewOffset(shot.w, shot.h, i * PHONE.w, j * PHONE.h, PHONE.w, PHONE.h); phoneCam.updateProjectionMatrix();
+        renderer.render(scene, phoneCam); g.drawImage(canvas, i * PHONE.w, j * PHONE.h);
+      }
+      phoneCam.clearViewOffset(); phoneCam.updateProjectionMatrix();
+      blob = await new Promise(resolve => full.toBlob(resolve, 'image/jpeg', 0.93));
+    }
     renderer.setPixelRatio(ratio); renderer.setSize(size.x, size.y, false);
     const { table, dist } = nearestTable();
     const truth = { ...truthForPhoto(), table: table.id, distance_m: +dist.toFixed(3), effects, today: world.today,
-      pose: { x: player.x, y: player.eye, z: player.z, yaw: player.yaw, pitch: player.pitch }, size: [PHONE.w, PHONE.h] };
+      pose: { x: player.x, y: player.eye, z: player.z, yaw: player.yaw, pitch: player.pitch }, size: [shot.w, shot.h] };
     const reply = await fetch('/photo', { method: 'POST', body: blob, headers: { 'Content-Type': 'image/jpeg', 'X-Truth': encodeURIComponent(JSON.stringify(truth)), 'X-Effects': effects ? '1' : '0' } });
     const saved = await reply.json();
     if (!options.quiet) { toast(`Photo saved (${truth.labels.length} codes in view). The planner is reading it.`, 5000); planner(true); }
@@ -358,7 +371,7 @@ requestAnimationFrame(frame);
 // (the welcome card explains the controls)
 
 window.__world = {
-  world, shoot, THREE, camera, phoneCam, pickables, labelMeshes, raycaster,
+  world, shoot, setMegapixels(mp) { shot = mp === 48 ? { w: PHONE.w * 2, h: PHONE.h * 2 } : { w: PHONE.w, h: PHONE.h }; }, THREE, camera, phoneCam, pickables, labelMeshes, raycaster,
   // A batch of photos from random viewpoints above the tables (seeded): heights [min, max] metres above the table top, tilt up to maxTilt degrees.
   async batch(n, seed = 1, opts = {}) {
     let s = seed;
@@ -390,3 +403,4 @@ window.__world = {
   project(x, y, z) { this.syncPhone(); const p = project(new THREE.Vector3(x, y, z)); return [p.x, p.y, p.behind]; },
   setPose(x, y, z, yaw, pitch, phone = true) { Object.assign(player, { x, z, eye: y, yaw, pitch }); lean = true; phoneMode = phone; $('welcome').style.display = 'none'; setPhoneUi(); applyCamera(); },
 };
+if ($('hires').checked) window.__world.setMegapixels(48);       // the virtual phone starts with a 48 MP main camera, like current flagship phones (untick it for a 12 MP one)

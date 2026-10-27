@@ -195,6 +195,7 @@ def test_photos_survive_going_forward_and_back_and_can_be_removed_on_purpose(app
     readings = app.session_state.readings.pop("demo")          # pretend they came from an uploaded file: the uploader itself is empty in this test
     photo = app.session_state.photos.pop("demo")
     app.session_state.readings["table1.jpg"], app.session_state.photos["table1.jpg"] = readings, photo
+    app.session_state.photo_scale["table1.jpg"] = 1.0
     app.run()
     assert "table1.jpg" in app.session_state.readings          # an empty uploader is not a removal
     click(app, "Next: choose the doses")
@@ -216,6 +217,24 @@ def test_a_schedule_line_without_a_box_can_be_added_by_hand(app):
     confirm(app, "hand6")
     click(app, "Next: see the plan")
     assert "Left out: Bisoprolol 2,5 mg" in texts(app) and "add a photo that shows this box" in texts(app)     # and the card says what to do
+
+
+def test_a_48_megapixel_photo_is_read_in_full_but_only_a_smaller_copy_is_kept(app, tmp_path):
+    import cv2
+    import numpy as np
+    from medtable import synthetic
+    small = synthetic.demo_photo([("654177", "281231"), ("662025", "270430")])
+    big = cv2.resize(small, None, fx=5, fy=5, interpolation=cv2.INTER_CUBIC)        # 8000 x 5000: every code is five times wider in pixels
+    assert big.shape[1] == 8000
+    (tmp_path / "data" / "world_photos").mkdir(parents=True)
+    cv2.imwrite(str(tmp_path / "data" / "world_photos" / "latest.jpg"), big)
+    at = AppTest.from_file(APP, default_timeout=180).run()
+    click(at, "Load the latest room photo")
+    assert not at.exception
+    name = next(iter(at.session_state.readings))
+    assert sorted(r.status for r in at.session_state.readings[name]) == ["verified", "verified"]
+    kept = at.session_state.photos[name]
+    assert kept.shape[1] == 4000 and at.session_state.photo_scale[name] == 0.5                 # 8000 px wide in, 4000 kept
 
 
 def test_start_over_clears_everything(app):

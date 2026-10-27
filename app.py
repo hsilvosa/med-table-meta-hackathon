@@ -138,6 +138,7 @@ def state_defaults() -> None:
     st.session_state.setdefault("step", 1)
     st.session_state.setdefault("readings", {})  # photo name -> list[Reading]
     st.session_state.setdefault("photos", {})
+    st.session_state.setdefault("photo_scale", {})  # kept width / original width, to bring a code's position (in original pixels) into the kept image
     st.session_state.setdefault("manual", [])
     st.session_state.setdefault("rows", [])  # list[Row]
     st.session_state.setdefault("patient", "")  # printed on the calendar
@@ -154,6 +155,7 @@ def go(step: int) -> None:
 def remove_photo(name: str) -> None:
     st.session_state.readings.pop(name, None)
     st.session_state.photos.pop(name, None)
+    st.session_state.photo_scale.pop(name, None)
 
 
 def patient_field(key: str) -> None:
@@ -177,10 +179,15 @@ def page_preview(pdf_path: Path):
         document.close()
 
 
+MAX_KEPT_WIDTH = 4000
+
+
 def add_photo(name: str, image: np.ndarray) -> None:
-    with st.spinner(f"Reading the codes in {name}..."):
-        st.session_state.readings[name] = identify.identify(image, resolver())
-    st.session_state.photos[name] = image
+    with st.spinner(f"Reading the codes in {name} (a few seconds)..."):
+        st.session_state.readings[name] = identify.identify(image, resolver())     # always the full-resolution photo
+    scale = min(1.0, MAX_KEPT_WIDTH / image.shape[1])        # what is kept for crops and for SAM: a 48 MP photo would take 150 MB of memory
+    st.session_state.photos[name] = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1.0 else image
+    st.session_state.photo_scale[name] = scale
 
 
 def official_photo(medicine) -> str | None:
@@ -321,8 +328,8 @@ if step == 1:
     header(1, "Show me the medicines",
            "Take one photo of the medicine boxes on the table. I read the code printed on each box and look it up in the official Spanish medicine database.")
     st.info("This is a helper for planning. It gives no medical advice and does not replace the doctor or the pharmacist.")
-    box("tip", "For a good photo", "Put the boxes on a table with the printed code facing up. Hold the phone about 50 cm (20 inches) above them, "
-        "so the little square code on each box is sharp.")
+    box("tip", "For a good photo", "Put the boxes on a table with the printed code facing up. Hold the phone about 90 cm (3 feet) above them or closer, "
+        "so the little square code on each box is sharp. If a box is missing afterwards, take a second photo, a little closer or from another side: the photos add up.")
     tab_room, tab_upload, tab_code = st.tabs(["Photo from the 3D room", "Upload a photo", "Type a code"]) if EMBEDDED else \
         st.tabs(["Upload a photo", "Type a code", "Demo photos"])
     if not EMBEDDED:
@@ -400,7 +407,7 @@ if step == 1:
     for name, r in unverified:
         image, crop = st.session_state.photos.get(name), None
         if image is not None and r.bbox:
-            x0, y0, x1, y1 = r.bbox
+            x0, y0, x1, y1 = (int(v * st.session_state.photo_scale.get(name, 1.0)) for v in r.bbox)
             pad = max(x1 - x0, y1 - y0)
             crop = image[max(y0 - pad, 0):y1 + pad, max(x0 - pad, 0):x1 + pad]
             crop = crop if crop.size else None
@@ -424,7 +431,8 @@ if step == 1:
                 except Exception as exc:  # no GPU, SAM environment missing: typing the national code still works
                     st.error(f"This step could not run ({exc}). You can type the code on the box instead.")
                     continue
-                codes = [decode.Detection(r.raw, r.bbox, r.method) for r in st.session_state.readings.get(name, [])]
+                factor = st.session_state.photo_scale.get(name, 1.0)
+                codes = [decode.Detection(r.raw, tuple(int(v * factor) for v in r.bbox), r.method) for r in st.session_state.readings.get(name, [])]
                 found += [(name, b) for b in candidates.boxes_without_code(boxes, codes)]
             st.session_state.unmatched = found
         for number, (name, found_box) in enumerate(st.session_state.get("unmatched", [])[:12]):

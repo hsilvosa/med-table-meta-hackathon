@@ -5,7 +5,7 @@ Run `.venv-app/Scripts/python.exe scripts/start_demo.py`: it opens the 3D room (
 | Time | Do | Say (the point to land) |
 |---|---|---|
 | 0:00 | Open the room, press Start, open the Planner panel (Tab) and point at the blue notice | It supports the caregiver and does not replace the doctor or the pharmacist. It schedules; it does not advise. |
-| 0:20 | In the room: "Table 1", "Phone over the table" (the bar turns green at 50 cm), "Take photo"; then "Move to the other half of the table" and take a second photo | The packs are identified by the code printed on them, nothing else. Each photo reaches the planner by itself. |
+| 0:20 | In the room: "Table 1", "Phone over the table" (90 cm above it, the whole table in view; the bar turns green), "Take photo" (the 48 MP camera takes about 6 s) | The packs are identified by the code printed on them, nothing else. The photo reaches the planner by itself and is read in a few seconds. |
 | 0:50 | Step 1 lists the medicines found: expiry read from the code, one expired pack (enalapril). Open "A box has no code I can read?" and run it for the atorvastatin box | A model only suggests; the caregiver confirms against the official picture. Nothing enters the plan on its own. |
 | 1:10 | Step 2: type a name; open "Have a photo of the doctor's schedule?", upload `experiments/out/sheet.jpg`, tick the consent, "Read the schedule"; check a few lines against the paper and tick "Yes, this matches the doctor's schedule" | The doses are the caregiver's. The computer copied the paper, the caregiver confirms line by line; nothing is ticked for them. Unticked lines stay out. |
 | 1:40 | Step 3: the plan, the "Left out" cards (each says what to do) and "To ask your pharmacist" | Anything unverified, expired, unconfirmed, ambiguous or with a strength that does not match is listed with the reason. Quotes from the AEMPS leaflet (4.5 and 4.2) are verbatim, with the source. |
@@ -16,6 +16,9 @@ Run `.venv-app/Scripts/python.exe scripts/start_demo.py`: it opens the 3D room (
 
 ## What the 3D room is
 A stage set: flat cut-outs of the official CIMA photos with a Data Matrix sticker that this repository generates from each medicine's real Codigo Nacional. Say so. It shows the flow and measures the optics (read rate by distance), not how real printed codes behave. Built-in cases to point at: an expired pack, one expiring within a month, a code CIMA does not know (stays unverified), packs with no visible code (SAM + candidates, the caregiver decides), loose pills (never identified), and the fictional medication sheet on table 1, which lists most of the boxes of tables 1 and 2 plus one medicine that has no box (bisoprolol); amlodipine has a box and no line on the sheet.
+
+## Reading distance
+Hold the virtual phone 90 cm above the table: one photo shows the whole table. The code on a box is 1 cm wide, so at that distance it is only 1.5 to 3.5 pixels per module; the reader enlarges and sharpens small windows to recover it. Say the numbers as measured: about 95 % of the readable codes with a 12 MP camera and 98 % with a 48 MP camera, on synthetic stickers, 0 wrong. Beyond about 1 m it does not work (the lens blur smears the modules), so do not raise the phone higher during the demo. The few that are missed are listed as "not recognised" and the caregiver takes a closer photo or types the code.
 
 ## What not to claim
 - No "safe plan", "no interactions" or "verified plan in seconds".

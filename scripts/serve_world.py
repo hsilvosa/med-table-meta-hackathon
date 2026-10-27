@@ -29,9 +29,12 @@ def phone_effects(jpeg: bytes, seed: int) -> bytes:
     """A little of what a real phone does: slight defocus, sensor noise, a second JPEG pass. Mild on purpose."""
     rng = np.random.default_rng(seed)
     img = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_COLOR)
-    img = cv2.GaussianBlur(img, (0, 0), 0.9)
-    noisy = img.astype(np.float32) + rng.normal(0, 3.0, img.shape)
-    ok, buffer = cv2.imencode(".jpg", np.clip(noisy, 0, 255).astype(np.uint8), [cv2.IMWRITE_JPEG_QUALITY, 88])
+    scale = img.shape[1] / 4000          # a 48 MP sensor has smaller pixels behind the same lens: the same blur spans more of them and each is noisier
+    img = cv2.GaussianBlur(img, (0, 0), 0.9 * scale)
+    for y in range(0, img.shape[0], 500):          # in bands: float noise for a whole 48 MP photo would need more than a gigabyte
+        band = img[y:y + 500].astype(np.float32) + rng.standard_normal(img[y:y + 500].shape, dtype=np.float32) * (3.0 * scale ** 0.5)
+        img[y:y + 500] = np.clip(band, 0, 255).astype(np.uint8)
+    ok, buffer = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 88])
     return buffer.tobytes() if ok else jpeg
 
 

@@ -32,7 +32,7 @@
   .row { display: flex; gap: 6px; }
   #shutter { pointer-events: auto; width: 74px; height: 74px; border-radius: 50%; border: 5px solid #fff; background: #e5484d; color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; box-shadow: 0 3px 12px rgba(0,0,0,.45); }
   #shutter:hover { background: #f0585d; } #shutter:active { transform: scale(.95); }
-  #opts { display: block; font-size: 12px; margin: 8px 2px 0; opacity: .85; cursor: pointer; }
+  #opts, .opt { display: block; font-size: 12px; margin: 8px 2px 0; opacity: .85; cursor: pointer; }
   #lookhint { left: 50%; bottom: 132px; transform: translateX(-50%); font-size: 13px; color: #fff; background: rgba(20,24,29,.6); padding: 4px 12px; border-radius: 999px; white-space: nowrap; }
 
   /* viewfinder */
@@ -80,7 +80,8 @@
       <div class="row"><button class="btn" data-table="0">Table 1</button><button class="btn" data-table="1">Table 2</button><button class="btn" data-table="2">Table 3</button></div></div>
     <div class="group"><small>2. Hold the phone over it</small>
       <div class="row"><button class="btn" id="btnPhone" title="Shift+1/2/3">Phone over the table</button></div>
-      <label id="opts"><input type="checkbox" id="effects" checked> Phone effects (blur, noise)</label></div>
+      <label id="opts"><input type="checkbox" id="effects" checked> Phone effects (blur, noise)</label>
+      <label id="opts2" class="opt"><input type="checkbox" id="hires" checked> 48 MP camera (slower)</label></div>
     <div><button id="shutter" title="Take the photo (Space)">Take photo</button></div>
   </div>
   <div id="welcome">
@@ -89,7 +90,7 @@
       <p>A practice room: photograph a table of medicines as a caregiver would, and see how the planner reads it.</p>
       <ol class="steps">
         <li><b class="n">1</b><div><b>Walk to a table.</b> Use the Table buttons, or W A S D and the mouse.</div></li>
-        <li><b class="n">2</b><div><b>Hold the phone over it.</b> Packs are read from a code about 1 cm wide, so keep the phone <b>50 cm or closer</b>. The bar at the top turns green when the distance is good.</div></li>
+        <li><b class="n">2</b><div><b>Hold the phone over it.</b> The code on each box is only 1 cm wide, so hold the phone about <b>90 cm above the table or closer</b>: the whole table fits in one photo. The bar at the top turns green when the distance is good.</div></li>
         <li><b class="n">3</b><div><b>Take the photo.</b> The planner opens on the right and reads it. It then guides you in four steps: the medicines it found, the doses you choose, a check of the plan, and a printable calendar.</div></li>
       </ol>
       <div class="keys">

@@ -20,7 +20,7 @@ Working prototype, tested on synthetic data only. No real pack photos have been 
 | 3D room (three.js): walk around three tables of CIMA medicine cut-outs with generated Data Matrix stickers, take photos with a virtual phone, feed them to the app; photos come with their ground truth | done; synthetic, see below |
 | Evaluation on real photos, real-sheet reading, adherence check with a reference image | not done |
 
-Blender-rendered table scenes (`scripts/blender_scene.py`) decode in 98-100 % of cases from 50 cm or closer and about 90 % at 70 cm; perfect labels on flat boxes, so an upper bound. Details and caveats: `experiments/README.md`.
+Reading at 90 cm (one photo of a whole table, 12 MP phone): about 95 % of the readable codes, 98 % with a 48 MP camera, 0 wrong in 243 verified (room photos; stage-set stickers, so an upper bound). Blender-rendered table scenes (`scripts/blender_scene.py`) decode in 98-100 % of cases from 50 cm or closer and about 90 % at 70 cm; perfect labels on flat boxes, so an upper bound. Details and caveats: `experiments/README.md`.
 
 Demo script: `DEMO.md`. Run the app: `.venv-app/Scripts/python.exe -m streamlit run app.py --server.address 127.0.0.1` (photo or typed C.N. -> medicines found -> doses chosen with big buttons and confirmed medicine by medicine -> plan check -> PDF, voice, .ics). Dependencies: `requirements.txt` (`requirements-dev.txt` for tests). `experiments/demo_plan.py` builds a demo plan from invented medicines.
 
