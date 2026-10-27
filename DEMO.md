@@ -6,10 +6,10 @@ Run `.venv-app/Scripts/python.exe scripts/start_demo.py`: it opens the 3D room (
 |---|---|---|
 | 0:00 | Open the room, press Start, open the Planner panel (Tab) and point at the blue notice | It supports the caregiver and does not replace the doctor or the pharmacist. It schedules; it does not advise. |
 | 0:20 | In the room: click "Table 1", click "Phone over the table" (the bar turns green at 50 cm), click "Take photo" | The packs are identified by the code printed on them, nothing else. The photo reaches the planner by itself. |
-| 0:50 | Show the table: expiry read from the code, one expired pack | Expiry comes from the code, not from a model. |
-| 1:10 | In the sheet, type doses for three medicines, tick "Confirmed" | The doses are the caregiver's. The tool never proposes or changes a dose. Unticked lines stay out. |
-| 1:40 | Show the plan, the "Left out" list and the review notes | Anything unverified, expired, unconfirmed, ambiguous or with a strength that does not match is listed with the reason. Quotes from the AEMPS leaflet (section 4.5 and 4.2) are verbatim, with source and date, and are for the pharmacist: never a verdict. The page says plainly that no warning does not mean safe. |
-| 2:10 | Download the PDF; open it | Large print, official pack photo, one row per medicine, the "not included" block and the sources. |
+| 0:50 | Step 1 shows the medicines found: expiry read from the code, one expired pack, one box not recognised and left out | Expiry comes from the code, not from a model. |
+| 1:10 | Step 2: for three medicines pick the amounts with the big buttons and tick "Yes, this matches the doctor's schedule" | The doses are the caregiver's. The tool never proposes or changes a dose. Unticked lines stay out. |
+| 1:40 | Step 3: show the plan, the "Left out" list and the review notes | Anything unverified, expired, unconfirmed, ambiguous or with a strength that does not match is listed with the reason. Quotes from the AEMPS leaflet (section 4.5 and 4.2) are verbatim, with source and date, and are for the pharmacist: never a verdict. The page says plainly that no warning does not mean safe. |
+| 2:10 | Step 4: download the PDF; open it | Large print, official pack photo, one row per medicine, the "Left out" block and the sources. |
 | 2:30 | Click "Read the plan aloud"; play one slot | Offline English voice; the text never leaves the machine. |
 | 2:45 | Show the `.ics` file import (optional) | Daily reminders on the phone. |
 | 2:55 | Close | Measured on synthetic data only, so no accuracy claim for real use yet; real photos are the next step. |

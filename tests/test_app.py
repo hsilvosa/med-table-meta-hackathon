@@ -2,7 +2,6 @@
 
 import os
 
-import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
 
@@ -29,55 +28,112 @@ def click(at, label):
     return at.run()
 
 
-def test_starts_without_errors_and_shows_the_disclaimer(app):
-    assert not app.exception
+def texts(at):
+    return " ".join(m.value for m in at.markdown)
+
+
+def pick(at, row_id, slot, value):
+    [g for g in at.button_group if g.key == f"dose_{row_id}_{slot}"][0].set_value(value)
+    return at.run()
+
+
+def confirm(at, row_id):
+    [c for c in at.checkbox if c.key == f"ok_{row_id}"][0].check()
+    return at.run()
+
+
+def to_doses(at):
+    click(at, "Load a demo photo")
+    return click(at, "Next: choose the doses")
+
+
+def test_starts_on_the_first_screen_with_the_disclaimer_and_a_disabled_next(app):
+    assert not app.exception and app.session_state.step == 1
     assert any("does not replace the doctor or the pharmacist" in i.value for i in app.info)
+    assert [b.disabled for b in app.button if b.label.startswith("Next:")] == [True]       # nothing to plan yet
+    assert "Add at least one medicine to continue" in texts(app)
 
 
-def test_demo_photo_gives_verified_packs_and_one_unverified_that_is_not_planned(app):
+def test_demo_photo_gives_recognised_boxes_and_one_that_is_not_in_the_plan(app):
     click(app, "Load a demo photo")
     assert not app.exception
     readings = [r for rs in app.session_state.readings.values() for r in rs]
     assert sorted(r.status for r in readings) == ["unverified"] + ["verified"] * 5
-    assert len(app.session_state.sheet) == 5  # one empty row per verified pack, nothing pre-filled
-    assert set(app.session_state.sheet["confirmed"]) == {False}
-    assert not any(app.session_state.sheet[s].ne("0").any() for s in ("breakfast", "lunch", "dinner", "bedtime"))  # the app never proposes a dose
-    assert any("Code that could not be verified" in m.value and "Left out of the plan" in m.value for m in app.markdown)
+    assert len(app.session_state.rows) == 5 and all(r.untouched for r in app.session_state.rows)      # nothing pre-filled
+    shown = texts(app)
+    assert "Medicines found: 5" in shown and "could not be recognised" in shown and "Not in the plan" in shown
+    assert [b.disabled for b in app.button if b.label.startswith("Next:")] == [False]
 
 
-def test_nothing_reaches_the_plan_until_the_caregiver_confirms(app):
-    click(app, "Load a demo photo")
-    assert any("Nothing in the plan yet" in i.value for i in app.info)
-    sheet = app.session_state.sheet.copy()
-    sheet.loc[0, ["breakfast", "confirmed"]] = ["1", True]
-    app.session_state.sheet = sheet
-    app.run()
+def test_the_screens_follow_one_after_another_and_back(app):
+    to_doses(app)
+    assert app.session_state.step == 2 and "Choose the doses" in texts(app)
+    assert len(app.button_group) == 5 * 4                                  # four times of day per medicine
+    click(app, "Back")
+    assert app.session_state.step == 1 and "Show me the medicines" in texts(app)
+
+
+def test_every_dose_starts_at_none_and_nothing_reaches_the_plan_until_confirmed(app):
+    to_doses(app)
+    assert {g.value for g in app.button_group} == {"0"}                      # the app never proposes an amount
+    pick(app, "pack654177", "breakfast", "1")
+    click(app, "Next: see the plan")
+    assert "Nothing in the plan yet" in texts(app)                           # chosen but not confirmed
+    click(app, "Back")
+    confirm(app, "pack654177")
+    click(app, "Next: see the plan")
     agenda = [m.value for m in app.markdown if "mt-agenda" in m.value][-1]
-    breakfast, lunch = agenda.split("Lunch")[0], agenda.split("Lunch")[1]
-    assert "MEDICAMENTO 654177" in breakfast and "1 tablet" in breakfast
-    assert "MEDICAMENTO 654177" not in lunch
+    breakfast, rest = agenda.split("Lunch")[0], agenda.split("Lunch")[1]
+    assert "1 tablet" in breakfast and "MEDICAMENTO 654177" in breakfast and "MEDICAMENTO 654177" not in rest
 
 
-def test_a_pack_on_two_lines_is_blocked_in_the_ui(app):
-    click(app, "Load a demo photo")
-    sheet = app.session_state.sheet.copy()
-    sheet.loc[0, ["breakfast", "confirmed"]] = ["1", True]
-    sheet.loc[len(sheet)] = [sheet.loc[0, "medicine"], "0", "1", "0", "0", "", True, sheet.loc[0, "cn"]]
-    app.session_state.sheet = sheet
+def test_other_amount_shows_a_text_box_and_a_bad_amount_is_reported_not_guessed(app):
+    to_doses(app)
+    pick(app, "pack654177", "dinner", "other")
+    assert [t for t in app.text_input if t.key == "other_pack654177_dinner"]
+    [t for t in app.text_input if t.key == "other_pack654177_dinner"][0].set_value("media").run()
+    pick(app, "pack654177", "breakfast", "1")
+    confirm(app, "pack654177")
+    click(app, "Next: see the plan")
+    shown = texts(app)
+    assert "Left out: MEDICAMENTO 654177" in shown and "unrecognised dose" in shown.lower()
+
+
+def test_a_pack_on_two_lines_is_blocked_on_the_check_screen(app):
+    to_doses(app)
+    pick(app, "pack654177", "breakfast", "1")
+    confirm(app, "pack654177")
+    app.session_state.rows.append(type(app.session_state.rows[0])("hand9", app.session_state.rows[0].medicine, app.session_state.rows[0].cn,
+                                  {"breakfast": "0", "lunch": "1", "dinner": "0", "bedtime": "0"}, "", True))
     app.run()
-    assert any("Pack on several lines" in m.value for m in app.markdown)
+    click(app, "Next: see the plan")
+    assert "Pack on several lines" in texts(app) or "several lines" in texts(app)
     assert any("could not be checked" in m.value for m in app.markdown) or any("could not be checked" in c.value for c in app.caption)
 
 
-def test_meta_backend_warns_and_the_sheet_reader_needs_consent(app):
+def test_the_meta_backend_asks_for_consent_before_the_schedule_photo_leaves(app):
+    to_doses(app)
     assert any("LEAVES this computer" in w.value for w in app.warning)
-    assert [b.disabled for b in app.button if b.label == "Read the sheet"] == [True]
+    assert [c.label for c in app.checkbox if c.key == "sheet_consent"] == ["I understand where the picture is sent and want the computer to read it"]
 
 
-def test_reset_clears_everything(app):
-    click(app, "Load a demo photo")
+def test_the_last_screen_offers_the_downloads_only_when_there_is_a_plan(app):
+    to_doses(app)
+    click(app, "Next: see the plan")
+    assert "Nothing in the plan yet" in texts(app)
+    click(app, "Back")
+    pick(app, "pack654177", "lunch", "2")
+    confirm(app, "pack654177")
+    click(app, "Next: see the plan")
+    click(app, "Next: print or listen")
+    assert app.session_state.step == 4 and not app.exception
+    assert {el.proto.label for el in app.get("download_button")} == {"Download the calendar to print (PDF)", "Download the phone reminders (.ics)"}
+
+
+def test_start_over_clears_everything(app):
+    to_doses(app)
     click(app, "Start over")
-    assert len(app.session_state.sheet) == 0 and not app.session_state.readings and not app.exception
+    assert app.session_state.step == 1 and not app.session_state.rows and not app.session_state.readings and not app.exception
 
 
 def test_the_latest_photo_of_the_3d_room_can_be_loaded(app, tmp_path):

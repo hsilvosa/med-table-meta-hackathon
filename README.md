@@ -16,13 +16,13 @@ Working prototype, tested on synthetic data only. No real pack photos have been 
 | Sheet reader (Muse Spark or local Qwen; every row comes back unconfirmed) | done; 28/28 cells on one fictional sheet |
 | Packs without a readable code: SAM 3 boxes, model-proposed CIMA candidates, caregiver confirms against the official photo | done; the true medicine was among the candidates in 3 of 12 small crops (weak by design: the model only proposes) |
 | Output: printable PDF calendar, offline English voice (Windows speech engine), `.ics` reminders | done |
-| Streamlit app tying it together | done |
+| Streamlit app tying it together: a four-screen assistant (medicines, doses, check, print and listen) with one task per screen, large type and buttons, plain words, a "Larger text" setting; written for anyone, including people over 80 | done; screens checked in a browser, no test with real elderly users yet |
 | 3D room (three.js): walk around three tables of CIMA medicine cut-outs with generated Data Matrix stickers, take photos with a virtual phone, feed them to the app; photos come with their ground truth | done; synthetic, see below |
 | Evaluation on real photos, real-sheet reading, adherence check with a reference image | not done |
 
 Blender-rendered table scenes (`scripts/blender_scene.py`) decode in 98-100 % of cases from 50 cm or closer and about 90 % at 70 cm; perfect labels on flat boxes, so an upper bound. Details and caveats: `experiments/README.md`.
 
-Demo script: `DEMO.md`. Run the app: `.venv-app/Scripts/python.exe -m streamlit run app.py --server.address 127.0.0.1` (photo or typed C.N. -> verified packs -> sheet with confirmation -> findings, PDF, voice, `.ics`). Dependencies: `requirements.txt` (`requirements-dev.txt` for tests). `experiments/demo_plan.py` builds a demo plan from invented medicines.
+Demo script: `DEMO.md`. Run the app: `.venv-app/Scripts/python.exe -m streamlit run app.py --server.address 127.0.0.1` (photo or typed C.N. -> medicines found -> doses chosen with big buttons and confirmed medicine by medicine -> plan check -> PDF, voice, .ics). Dependencies: `requirements.txt` (`requirements-dev.txt` for tests). `experiments/demo_plan.py` builds a demo plan from invented medicines.
 
 Tests: `.venv-app/Scripts/python.exe -m pytest` (98 tests; they render Data Matrix codes, use invented SmPC texts and a stored CIMA response, no network).
 
