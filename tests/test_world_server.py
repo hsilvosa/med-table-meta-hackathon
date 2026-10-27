@@ -77,10 +77,15 @@ def test_only_the_photo_endpoint_accepts_posts_and_modules_are_served_as_javascr
     assert mimetypes.guess_type("main.js")[0] == "text/javascript"
 
 
-def scan(url, jpeg, effects=False):
+def scan_stages(url, jpeg, effects=False):
+    """Every line the server sends for one frame: what was found so far after each stage."""
     request = urllib.request.Request(url + "/scan", data=jpeg, method="POST", headers={"Content-Type": "image/jpeg", "X-Effects": "1" if effects else "0"})
     with urllib.request.urlopen(request, timeout=60) as reply:
-        return json.load(reply)
+        return [json.loads(line) for line in reply.read().decode().splitlines() if line]
+
+
+def scan(url, jpeg, effects=False):
+    return scan_stages(url, jpeg, effects)[-1]
 
 
 def jpeg_of(items):
@@ -122,3 +127,41 @@ def test_live_scan_works_on_a_frame_with_the_phone_effects(server, cima):
     module, url, _ = server
     reply = scan(url, jpeg_of([("654177", "281231")]), effects=True)
     assert [c["status"] for c in reply["codes"]] == ["verified"]
+
+
+def test_live_scan_sends_what_it_found_after_each_stage_so_boxes_can_appear_one_by_one(server, cima):
+    module, url, _ = server
+    stages = scan_stages(url, jpeg_of([("654177", "281231"), ("662025", "270430")]))
+    assert len(stages) == 1 + len(module.decode.LIVE_PASSES)
+    assert [s["done"] for s in stages] == [False] * (len(stages) - 1) + [True]
+    texts = [{tuple(c["bbox"]) for c in s["codes"]} for s in stages]
+    assert all(earlier <= later for earlier, later in zip(texts, texts[1:]))       # a code once shown stays
+    assert len(stages[0]["codes"]) == 2                                           # clear codes are already there after the plain read
+
+
+def test_decode_scan_stages_end_with_the_same_codes_as_a_full_scan_with_those_passes():
+    from medtable import decode
+    img = synthetic.demo_photo([("654177", "281231"), ("662025", "270430")])
+    stages = list(decode.scan_stages(img, decode.LIVE_PASSES))
+    assert len(stages) == 1 + len(decode.LIVE_PASSES)
+    assert {d.text for d in stages[-1]} == {d.text for d in decode.find_datamatrix(img, libdmtx=False, passes=decode.LIVE_PASSES)}
+
+
+def test_live_scan_sends_each_stage_before_the_next_one_is_computed(server, cima, monkeypatch):
+    module, url, _ = server
+    computed = []
+    real = module.decode.scan_stages
+
+    def slow_stages(gray, passes=None):
+        for stage in real(gray, passes):
+            computed.append(len(computed))
+            yield stage
+
+    monkeypatch.setattr(module.decode, "scan_stages", slow_stages)
+    request = urllib.request.Request(url + "/scan", data=jpeg_of([("654177", "281231")]), method="POST", headers={"Content-Type": "image/jpeg", "X-Effects": "0"})
+    with urllib.request.urlopen(request, timeout=60) as reply:
+        first_line = reply.readline()
+        seen_when_first_line_arrived = len(computed)
+        reply.read()
+    assert json.loads(first_line)["done"] is False
+    assert seen_when_first_line_arrived < 1 + len(module.decode.LIVE_PASSES)      # the later passes had not run yet

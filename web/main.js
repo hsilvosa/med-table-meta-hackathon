@@ -363,7 +363,7 @@ async function shoot(options = {}) {
 // While the phone is held still, a 12 MP frame is sent to /scan, which runs the same decoder and the same three checks as the planner
 // (readable code, valid national code, known to CIMA). Green box = verified, amber = a code was read but it is not verified.
 // It is only a preview to help aim: what the planner uses is the photo. Nothing is identified by this drawing.
-const live = { busy: false, boxes: [], scannedKey: null, shownKey: null, status: '', pause: 700, finished: 0, since: 0, lastKey: null };
+const live = { born: new Map(), busy: false, boxes: [], scannedKey: null, shownKey: null, status: '', pause: 700, finished: 0, since: 0, lastKey: null };
 const liveCanvas = document.createElement('canvas'); liveCanvas.width = PHONE.w; liveCanvas.height = PHONE.h;
 const poseKey = () => [player.x, player.z, player.eye, player.yaw, player.pitch].map(v => v.toFixed(3)).join(',');
 function grabFrame() {      // one 12 MP frame of the phone camera, copied to a 2D canvas in the same task so the screen never shows the large canvas
@@ -383,16 +383,23 @@ function drawBoxes() {
   const g = c.getContext('2d'), k = c.width / PHONE.w;
   g.clearRect(0, 0, c.width, c.height);
   g.font = '600 13px system-ui, sans-serif'; g.textBaseline = 'bottom';
+  const now = performance.now();
+  let animating = false;
   for (const code of live.boxes) {
     const [x0, y0, x1, y1] = code.bbox;
-    const cx = (x0 + x1) / 2 * k, cy = (y0 + y1) / 2 * k, half = Math.max((x1 - x0) * k, (y1 - y0) * k, 18) / 2 + 4;      // never smaller than a fingertip
+    const id = `${Math.round((x0 + x1) / 160)},${Math.round((y0 + y1) / 160)}`;      // the same code keeps its id between stages (cells of 80 px)
+    if (!live.born.has(id)) live.born.set(id, now);
+    const age = now - live.born.get(id), pop = Math.max(0, 1 - age / 350);         // a box that has just been found starts big and settles in 0.35 s
+    if (pop > 0) animating = true;
+    const cx = (x0 + x1) / 2 * k, cy = (y0 + y1) / 2 * k, half = (Math.max((x1 - x0) * k, (y1 - y0) * k, 18) / 2 + 4) * (1 + 0.8 * pop);      // never smaller than a fingertip
     const ok = code.status === 'verified', color = ok ? '#22c55e' : '#f59e0b';
-    g.lineWidth = 3; g.strokeStyle = color; g.strokeRect(cx - half, cy - half, half * 2, half * 2);
+    g.lineWidth = 3 + 3 * pop; g.strokeStyle = color; g.strokeRect(cx - half, cy - half, half * 2, half * 2);
     const label = ok ? (code.name || '').split(' ')[0].toLowerCase().replace(/^./, s => s.toUpperCase()) + (code.expired ? ' (expired)' : '') : 'Not verified';
     const w = g.measureText(label).width + 10;
     g.fillStyle = color; g.fillRect(cx - half, cy - half - 19, w, 19);
     g.fillStyle = '#10151a'; g.fillText(label, cx - half + 5, cy - half - 3);
   }
+  if (animating) requestAnimationFrame(drawBoxes);
 }
 function setScanChip(text) {
   const chip = $('scanChip');
@@ -400,9 +407,10 @@ function setScanChip(text) {
   chip.textContent = text;
 }
 function liveStatus() {
+  $('sweep').style.display = live.busy && phoneMode ? 'block' : 'none';
   if (!phoneMode || !$('live').checked) return setScanChip('');
   const key = poseKey();
-  if (live.busy) return setScanChip('Scanning...');
+  if (live.busy) return setScanChip(live.boxes.length ? `Scanning... ${live.boxes.length} found so far` : 'Scanning...');
   if (live.error) return setScanChip('Live scan unavailable (photos still work)');
   if (live.scannedKey !== key) return setScanChip('Hold still to scan');
   const ok = live.boxes.filter(b => b.status === 'verified').length, bad = live.boxes.length - ok;
@@ -425,10 +433,19 @@ async function scanOnce(key) {
     const blob = await new Promise(resolve => liveCanvas.toBlob(resolve, 'image/jpeg', 0.9));
     const reply = await fetch('/scan', { method: 'POST', body: blob, headers: { 'Content-Type': 'image/jpeg', 'X-Effects': $('effects').checked ? '1' : '0' } });
     if (!reply.ok) throw new Error(`HTTP ${reply.status}`);
-    const result = await reply.json();
-    live.error = false; live.scannedKey = key; live.shownKey = key;
-    live.boxes = poseKey() === key ? result.codes : [];
-    drawBoxes();
+    live.error = false; live.scannedKey = key; live.shownKey = key; live.born.clear(); live.boxes = [];
+    const reader = reply.body.getReader(), decoder = new TextDecoder();
+    let pending = '';
+    for (;;) {      // the server sends one line per stage (plain read, then each zoom pass): draw the boxes as they arrive
+      const { value, done } = await reader.read();
+      if (done) break;
+      pending += decoder.decode(value, { stream: true });
+      const lines = pending.split(String.fromCharCode(10)); pending = lines.pop();
+      for (const line of lines.filter(Boolean)) {
+        if (poseKey() !== key) { reader.cancel(); live.boxes = []; break; }          // the phone moved: these boxes would be in the wrong place
+        live.boxes = JSON.parse(line).codes; drawBoxes();
+      }
+    }
   } catch (error) {
     live.error = true; live.scannedKey = key;
   } finally {

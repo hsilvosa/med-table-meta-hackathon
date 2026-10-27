@@ -112,6 +112,15 @@ def _merge(found: list[Detection]) -> list[Detection]:
     return list(seen.values())
 
 
+def scan_stages(gray: np.ndarray, passes: tuple | None = None):
+    """Like find_datamatrix without libdmtx, but yields the codes found so far after the plain read and after each zoom pass (for a live preview)."""
+    found = _merge(_zxing(gray, 1.0, (0, 0), "zxing"))
+    yield found
+    for one_pass in passes or ZOOM_PASSES:
+        found = _merge(found + find_zoomed(gray, (one_pass,)))
+        yield found
+
+
 def find_datamatrix(img_bgr: np.ndarray, *, tiles: bool = True, libdmtx: bool = True, passes: tuple | None = None) -> list[Detection]:
     """Return every readable Data Matrix in the image (BGR or grayscale array). `passes` replaces ZOOM_PASSES (a faster, less thorough scan)."""
     h, w = img_bgr.shape[:2]

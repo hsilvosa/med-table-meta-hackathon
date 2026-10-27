@@ -8,6 +8,7 @@ Streamlit app can load. Binds to 127.0.0.1 only; nothing leaves the machine.
 """
 
 import argparse
+import itertools
 import json
 import mimetypes
 import shutil
@@ -55,9 +56,10 @@ def resolver() -> Resolver:
     return _resolver
 
 
-def scan(jpeg: bytes, effects: bool) -> dict:
+def scan(jpeg: bytes, effects: bool):
     """The live preview: find the codes in one frame and say, for each, whether it is verified (the same three checks as the planner).
 
+    A generator: it yields everything found so far after the plain read and after each zoom pass, so the room can draw a box the moment a code is found.
     Only a position and a verdict go back to the room. Nothing is saved, and nothing here decides what the planner uses: that is the photo.
     """
     started = time.time()
@@ -66,11 +68,13 @@ def scan(jpeg: bytes, effects: bool) -> dict:
     gray = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_GRAYSCALE)
     if gray is None:
         raise ValueError("not an image")
+    last = len(decode.LIVE_PASSES)          # stage 0 is the plain read, then one stage per zoom pass
     with _scan_lock:
-        readings = [identify.read_code(d, resolver()) for d in decode.find_datamatrix(gray, libdmtx=False, passes=decode.LIVE_PASSES)]
-    codes = [{"bbox": list(r.bbox), "status": r.status, "name": r.medicine.name if r.medicine else None, "expired": r.expired,
-              "problem": r.problems[0] if r.problems else None} for r in readings]
-    return {"size": [gray.shape[1], gray.shape[0]], "codes": codes, "ms": int((time.time() - started) * 1000)}
+        for number, found in enumerate(decode.scan_stages(gray, decode.LIVE_PASSES)):
+            readings = [identify.read_code(d, resolver()) for d in found]
+            codes = [{"bbox": list(r.bbox), "status": r.status, "name": r.medicine.name if r.medicine else None, "expired": r.expired,
+                      "problem": r.problems[0] if r.problems else None} for r in readings]
+            yield {"size": [gray.shape[1], gray.shape[0]], "codes": codes, "ms": int((time.time() - started) * 1000), "done": number == last}
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -84,16 +88,21 @@ class Handler(SimpleHTTPRequestHandler):
             return
         body = self.rfile.read(length)
         if self.path == "/scan":
+            stages = scan(body, self.headers.get("X-Effects") == "1")
             try:
-                payload = json.dumps(scan(body, self.headers.get("X-Effects") == "1")).encode()
+                first = next(stages)            # the image is checked before anything is sent
             except ValueError:
                 self.send_error(400, "not an image")
                 return
             self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(payload)))
+            self.send_header("Content-Type", "application/x-ndjson")      # one JSON object per line, sent as soon as it is ready; the connection closes at the end
             self.end_headers()
-            self.wfile.write(payload)
+            try:
+                for stage in itertools.chain([first], stages):          # lazily: unpacking the generator would compute every stage before sending the first
+                    self.wfile.write(json.dumps(stage).encode() + bytes([10]))      # one line per stage
+                    self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):       # the room moved on and dropped the request
+                pass
             return
         if self.headers.get("X-Effects") == "1":
             body = phone_effects(body, int(time.time() * 1000) % 2**32)
