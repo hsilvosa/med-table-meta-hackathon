@@ -3,6 +3,8 @@
 // (scripts/serve_world.py), which saves it with the ground truth, ready for the app (app.py) or for experiments/eval_photos.py.
 import * as THREE from 'three';
 import { drawScan, readStages } from './livescan.js';
+import { initPrefs, showAdvice, forgetSpoken } from './uikit.js';
+initPrefs();
 
 const PHONE = { w: 4000, h: 3000, hfov: 71 };                      // a 12 MP phone main camera, 4:3
 let shot = { w: PHONE.w, h: PHONE.h };                              // size of the photo that is taken: 12 MP, or 48 MP (the same lens and field of view, four times the pixels)
@@ -18,6 +20,10 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xcfd8dc);
+let dirty = true;                           // the room is drawn only when something changed: a still room costs the computer nothing
+const markDirty = () => { dirty = true; };
+THREE.DefaultLoadingManager.onLoad = markDirty;      // pictures arriving
+THREE.DefaultLoadingManager.onProgress = markDirty;
 const camera = new THREE.PerspectiveCamera(70, 1, 0.02, 40);
 camera.rotation.order = 'YXZ';
 const phoneCam = new THREE.PerspectiveCamera(PHONE_VFOV, PHONE.w / PHONE.h, 0.02, 40);
@@ -147,7 +153,8 @@ function applyCamera() {
 const stage = document.getElementById('stage');
 function resize() {
   const w = stage.clientWidth || innerWidth, h = stage.clientHeight || innerHeight;
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(w, h, false);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, matchMedia('(pointer: coarse)').matches ? 1.5 : 2)); renderer.setSize(w, h, false);
+  markDirty();
   camera.aspect = w / h;
   const frameH = h * FRAME_FRACTION;
   const frameW = Math.min(frameH * PHONE.w / PHONE.h, w * 0.96);
@@ -170,6 +177,7 @@ function setPhoneUi() {
   $('step2').classList.toggle('current', phoneMode);
   $('step3').classList.toggle('current', phoneMode);
   $('btnPhone').classList.toggle('on', phoneMode);
+  forgetSpoken(); roomAdvice();
   resize();
 }
 // ---- planner panel (the Streamlit app, embedded) ------------------------------------------------------------------------
@@ -179,7 +187,7 @@ $('openApp').href = appUrl;
 function planner(open) {
   document.body.classList.toggle('planner', open ?? !document.body.classList.contains('planner'));
   $('btnPlanner').classList.toggle('on', document.body.classList.contains('planner'));
-  $('btnPlanner').textContent = document.body.classList.contains('planner') ? 'Hide the planner' : 'Show the planner';
+  $('btnPlanner').textContent = document.body.classList.contains('planner') ? 'Hide the medicine planner' : 'Show the medicine planner';
   if (document.body.classList.contains('planner')) document.exitPointerLock?.();
 }
 $('btnPlanner').addEventListener('click', () => planner());
@@ -223,6 +231,22 @@ addEventListener('mousemove', e => {
   if (!locked && !dragging) return;
   const k = phoneMode ? 0.0012 : 0.0022;
   player.yaw -= e.movementX * k; player.pitch = THREE.MathUtils.clamp(player.pitch - e.movementY * k, -1.55, 1.55);
+});
+
+// touch: drag on the room to look around, and a small pad to walk (only shown on touch screens)
+let touchLook = null;
+canvas.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') return; touchLook = { x: e.clientX, y: e.clientY, id: e.pointerId }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove', e => {
+  if (!touchLook || e.pointerId !== touchLook.id) return;
+  const k = phoneMode ? 0.004 : 0.006;
+  player.yaw -= (e.clientX - touchLook.x) * k; player.pitch = THREE.MathUtils.clamp(player.pitch - (e.clientY - touchLook.y) * k, -1.55, 1.55);
+  touchLook.x = e.clientX; touchLook.y = e.clientY;
+});
+for (const type of ['pointerup', 'pointercancel']) canvas.addEventListener(type, () => { touchLook = null; });
+document.querySelectorAll('#pad [data-key]').forEach(b => {
+  const code = b.dataset.key, up = () => keys.delete(code);
+  b.addEventListener('pointerdown', e => { e.preventDefault(); keys.add(code); });
+  for (const type of ['pointerup', 'pointercancel', 'pointerleave']) b.addEventListener(type, up);
 });
 
 function goTo(table, above) {
@@ -400,7 +424,8 @@ function grabFrame() {      // one 12 MP frame of the phone camera, copied to a 
 function drawBoxes() {
   const frameEl = $('frame'), c = $('overlay');
   c.width = frameEl.clientWidth || 1; c.height = frameEl.clientHeight || 1;
-  if (drawScan(c, PHONE.w, live, nearestTable().dist <= 0.5 ? 'No code read: add it by hand' : 'No code read: move closer or add it by hand')) requestAnimationFrame(drawBoxes);
+  const font = Math.round(Math.min(24, Math.max(14, c.width / 38)) * (document.documentElement.classList.contains('big') ? 1.2 : 1));
+  if (drawScan(c, PHONE.w, live, nearestTable().dist <= 0.5 ? 'No code read: add it by hand' : 'No code read: move closer or add it by hand', font)) requestAnimationFrame(drawBoxes);
 }
 function setScanChip(text) {
   const chip = $('scanChip');
@@ -411,19 +436,26 @@ function liveStatus() {
   $('sweep').style.display = live.busy && phoneMode ? 'block' : 'none';
   if (!phoneMode || !$('live').checked) return setScanChip('');
   const key = poseKey();
-  if (live.busy) return setScanChip(live.boxes.length ? `Scanning... ${live.boxes.length} found so far` : 'Scanning...');
-  if (live.error) return setScanChip('Live scan unavailable (photos still work)');
-  if (live.scannedKey !== key) return setScanChip('Hold still to scan');
+  if (live.busy) return setScanChip(live.boxes.length ? `Looking... ${live.boxes.length} found so far` : 'Looking...');
+  if (live.error) return setScanChip('Frames are not available (photos still work)');
+  if (live.scannedKey !== key) return setScanChip('Hold still');
   const ok = live.boxes.filter(b => b.status === 'verified').length, bad = live.boxes.length - ok, none = live.nocode.length;
   const parts = [`${ok} recognised`]; if (bad) parts.push(`${bad} not verified`); if (none) parts.push(`${none} without a code read`);
-  setScanChip(live.boxes.length || none ? 'Preview: ' + parts.join(', ') : 'Preview: no codes read here');
+  setScanChip(live.boxes.length || none ? parts.join(', ') : 'No codes read here');
+}
+function roomAdvice() {      // the one sentence on what to do next
+  if (!phoneMode) return showAdvice('Press "Phone over the table", then hold still.', '', false);
+  if (!$('live').checked) return showAdvice('Frames on the boxes are switched off. You can still take the photo.', '', false);
+  if (live.error) return showAdvice('I cannot look at the boxes right now, but you can still take the photo.', 'mid', false);
+  if (live.advice && live.scannedKey === poseKey()) return showAdvice(live.advice.text, live.advice.level);
+  return showAdvice(live.busy ? 'Looking at the boxes...' : 'Hold the phone still.', '', false);
 }
 function liveTick() {
   const key = poseKey(), now = performance.now();
   if (key !== live.lastKey) { live.lastKey = key; live.since = now; }
-  if (live.shownKey !== null && live.shownKey !== key && (live.boxes.length || live.nocode.length)) { live.boxes = []; live.nocode = []; drawBoxes(); }
+  if (live.shownKey !== null && live.shownKey !== key && (live.boxes.length || live.nocode.length)) { live.boxes = []; live.nocode = []; live.advice = null; drawBoxes(); }
   $('btnCloseup').style.display = live.nocode.length && live.scannedKey === key && phoneMode && nearestTable().dist > 0.5 ? 'block' : 'none';        // boxes of an old view would point at the wrong place
-  liveStatus();
+  liveStatus(); roomAdvice();
   const idle = phoneMode && $('live').checked && !live.busy && !shooting && !document.hidden;
   if (!idle || live.scannedKey === key || now - live.since < 300 || now - live.finished < live.pause) return;
   scanOnce(key);
@@ -436,10 +468,10 @@ async function scanOnce(key) {
     const blob = await new Promise(resolve => liveCanvas.toBlob(resolve, 'image/jpeg', 0.9));
     const reply = await fetch('/scan', { method: 'POST', body: blob, headers: { 'Content-Type': 'image/jpeg', 'X-Effects': $('effects').checked ? '1' : '0' } });
     if (!reply.ok) throw new Error(`HTTP ${reply.status}`);
-    live.error = false; live.scannedKey = key; live.shownKey = key; live.born.clear(); live.boxes = []; live.nocode = []; live.nocodeIndex = -1;
+    live.error = false; live.scannedKey = key; live.shownKey = key; live.born.clear(); live.boxes = []; live.nocode = []; live.nocodeIndex = -1; live.advice = null;
     // the server sends one line per stage (plain read, then each zoom pass): draw the boxes as they arrive
-    const finished = await readStages(reply, stage => { live.boxes = stage.codes; live.nocode = stage.nocode ?? []; drawBoxes(); }, () => poseKey() !== key);
-    if (!finished) { live.boxes = []; live.nocode = []; }          // the phone moved: these boxes would be in the wrong place
+    const finished = await readStages(reply, stage => { live.boxes = stage.codes; live.nocode = stage.nocode ?? []; if (stage.advice) live.advice = stage.advice; drawBoxes(); }, () => poseKey() !== key);
+    if (!finished) { live.boxes = []; live.nocode = []; live.advice = null; }          // the phone moved: these boxes would be in the wrong place
   } catch (error) {
     live.error = true; live.scannedKey = key;
   } finally {
@@ -473,11 +505,14 @@ $('btnCloseup').addEventListener('click', () => {      // each press goes to the
 });
 
 // ---- loop -----------------------------------------------------------------------------------------------------------
-let last = performance.now();
+let last = performance.now(), lastPose = '', lastHud = 0;
 function frame(now) {
   const dt = Math.min((now - last) / 1000, 0.1); last = now;
-  move(dt); applyCamera(); hud();
-  renderer.render(scene, camera);
+  move(dt); applyCamera();
+  const pose = `${poseKey()}|${phoneMode}|${lean}`;
+  if (pose !== lastPose) { lastPose = pose; dirty = true; }
+  if (dirty || now - lastHud > 300) { hud(); lastHud = now; }
+  if (dirty) { renderer.render(scene, camera); dirty = false; }
   requestAnimationFrame(frame);
 }
 resize(); setPhoneUi(); applyCamera();

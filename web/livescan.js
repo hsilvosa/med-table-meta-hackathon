@@ -20,7 +20,7 @@ export function drawScan(canvas, srcWidth, state, noCodeText, fontPx = 13) {
     const cx = (x0 + x1) / 2 * k, cy = (y0 + y1) / 2 * k, half = (Math.max((x1 - x0) * k, (y1 - y0) * k, 18) / 2 + 4) * (1 + 0.8 * pop);      // never smaller than a fingertip
     const ok = code.status === 'verified', color = ok ? GREEN : AMBER;
     g.lineWidth = 3 + 3 * pop; g.strokeStyle = color; g.strokeRect(cx - half, cy - half, half * 2, half * 2);
-    const label = ok ? (code.name || '').split(' ')[0].toLowerCase().replace(/^./, s => s.toUpperCase()) + (code.expired ? ' (expired)' : '') : 'Not verified';
+    const label = ok ? 'Recognised: ' + (code.name || '').split(' ')[0].toLowerCase().replace(/^./, s => s.toUpperCase()) + (code.expired ? ' (EXPIRED)' : '') : 'Not verified';
     const w = g.measureText(label).width + 10;
     g.fillStyle = color; g.fillRect(cx - half, cy - half - bar, w, bar);
     g.fillStyle = INK; g.fillText(label, cx - half + 5, cy - half - 3);
