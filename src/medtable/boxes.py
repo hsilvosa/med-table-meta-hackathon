@@ -64,13 +64,19 @@ def regions(img: np.ndarray) -> list[dict]:
         if min(rw, rh) < 1 or max(rw, rh) / min(rw, rh) > MAX_ASPECT or area / (rw * rh) < MIN_FILL:
             continue
         out.append({"bbox": (int(x / scale), int(y / scale), int((x + bw) / scale), int((y + bh) / scale)),
+                    "side": float(np.sqrt(rw * rh) / scale),          # side of the square with the same area, in pixels of `img`
                     "colour": float((chroma[inside] > 25).mean()), "text": float(thin_strokes[inside].mean())})
     return out
 
 
+def find_packs(img: np.ndarray) -> list[dict]:
+    """The regions that are packs (see the module text): {"bbox": (x0, y0, x1, y1), "side": pixels} in the coordinates of `img`."""
+    return [{"bbox": r["bbox"], "side": r["side"]} for r in regions(img) if r["text"] >= MIN_TEXT]
+
+
 def find_boxes(img: np.ndarray) -> list[tuple[int, int, int, int]]:
     """Pack-sized regions that differ from the table, as (x0, y0, x1, y1) in the coordinates of `img`. Regions touching the border are left out."""
-    return [r["bbox"] for r in regions(img) if r["text"] >= MIN_TEXT]
+    return [p["bbox"] for p in find_packs(img)]
 
 
 def without_code(boxes: list[tuple[int, int, int, int]], codes: list[tuple[int, int, int, int]]) -> list[tuple[int, int, int, int]]:

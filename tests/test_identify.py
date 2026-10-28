@@ -79,16 +79,3 @@ def test_cima_empty_body_for_an_unknown_cn_means_not_found(tmp_path, monkeypatch
     """Observed on the real API: an unknown CN returns HTTP 200 with an empty body."""
     monkeypatch.setattr(cima, "fetch", lambda url, **kw: b"")
     assert Resolver(tmp_path).by_cn("123450") is None
-
-
-def test_libdmtx_fallback_is_actually_available_and_reads_a_square_symbol():
-    """The fallback silently disabled itself once (pylibdmtx needs distutils on Python 3.12); keep it honest."""
-    import numpy as np
-    from pylibdmtx import pylibdmtx
-    text = ntin_element_string("848226")
-    code = render_datamatrix(text, module_px=8)
-    assert decode.pylibdmtx is not None
-    assert code.shape[0] == code.shape[1]  # square symbol
-    assert [d.data.decode() for d in pylibdmtx.decode(np.ascontiguousarray(code[..., 0]), timeout=3000)] == [text]
-    only_fallback = decode.find_datamatrix(code, tiles=False)  # zxing finds it first; the method name tells which one read it
-    assert [d.text for d in only_fallback] == [text]

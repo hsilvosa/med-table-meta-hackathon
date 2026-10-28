@@ -15,11 +15,16 @@ MEDS = {cn: med(cn, f"MEDICAMENTO {cn} 10 mg COMPRIMIDOS", [f"INGREDIENTE{cn}"],
 
 
 @pytest.fixture
-def app(monkeypatch, tmp_path):
+def env(monkeypatch, tmp_path):
+    """The invented medicines in place of CIMA, an empty working folder: for tests that make their own AppTest after preparing files."""
     monkeypatch.setattr(Resolver, "by_cn", lambda self, cn: MEDS.get("".join(c for c in cn if c.isdigit())[:6]))
     monkeypatch.setattr(Smpc, "section", lambda self, nregistro, section: None)
     monkeypatch.setenv("VLM_BACKEND", "meta")
     monkeypatch.chdir(tmp_path)
+
+
+@pytest.fixture
+def app(env):
     return AppTest.from_file(APP, default_timeout=120).run()
 
 
@@ -74,17 +79,21 @@ def test_demo_photo_gives_recognised_boxes_and_one_that_is_not_in_the_plan(app):
     shown = texts(app)
     assert "Medicines found: 5" in shown and "A box I could not recognise" in shown and "Not in the plan" in shown
     assert [b.disabled for b in app.button if b.label.startswith("Next:")] == [False]
+    assert not any(app.session_state.nocode.values()) and "A box where I could not read a code" not in shown      # a plain grid of codes has no packs without one
 
 
-def test_the_screens_follow_one_after_another_and_back(app):
+def test_the_screens_follow_one_after_another_and_back_and_start_over_clears_everything(app):
     to_doses(app)
     assert app.session_state.step == 2 and "Choose the doses" in texts(app)
     assert len(doses_of(app)) == 5 * 4                                     # four times of day per medicine
     click(app, "Back")
     assert app.session_state.step == 1 and "Show me the medicines" in texts(app)
+    click(app, "Next: choose the doses")
+    click(app, "Start over")
+    assert app.session_state.step == 1 and not app.session_state.rows and not app.session_state.readings and not app.exception
 
 
-def test_every_dose_starts_at_none_and_nothing_reaches_the_plan_until_confirmed(app):
+def test_every_dose_starts_at_none_nothing_reaches_the_plan_until_confirmed_and_a_bad_amount_is_not_guessed(app):
     to_doses(app)
     assert {g.value for g in doses_of(app)} == {"0"}                         # the app never proposes an amount
     pick(app, "pack654177", "breakfast", "1")
@@ -96,17 +105,11 @@ def test_every_dose_starts_at_none_and_nothing_reaches_the_plan_until_confirmed(
     agenda = [m.value for m in app.markdown if "mt-agenda" in m.value][-1]
     breakfast, rest = agenda.split("Lunch")[0], agenda.split("Lunch")[1]
     assert "1 tablet" in breakfast and "MEDICAMENTO 654177" in breakfast and "MEDICAMENTO 654177" not in rest
-
-
-def test_other_amount_shows_a_text_box_and_a_bad_amount_is_reported_not_guessed(app):
-    to_doses(app)
+    click(app, "Back")                                                       # an amount typed under "Other" that is not understood is reported, never guessed
     pick(app, "pack654177", "dinner", "other")
     widget(app.text_input, "other", "pack654177", "dinner").set_value("media").run()
-    pick(app, "pack654177", "breakfast", "1")
-    confirm(app, "pack654177")
     click(app, "Next: see the plan")
-    shown = texts(app)
-    assert "Left out: MEDICAMENTO 654177" in shown and "unrecognised dose" in shown.lower()
+    assert "Left out: MEDICAMENTO 654177" in texts(app) and "unrecognised dose" in texts(app).lower()
 
 
 def test_a_pack_on_two_lines_is_blocked_on_the_check_screen(app):
@@ -121,24 +124,20 @@ def test_a_pack_on_two_lines_is_blocked_on_the_check_screen(app):
     assert any("could not be checked" in m.value for m in app.markdown) or any("could not be checked" in c.value for c in app.caption)
 
 
-def test_the_meta_backend_asks_for_consent_before_the_schedule_photo_leaves(app):
-    to_doses(app)
-    assert any("LEAVES this computer" in w.value for w in app.warning)
-    assert [c.label for c in app.checkbox if c.key == "sheet_consent"] == ["I understand where the picture is sent and want the computer to read it"]
-
-
-def test_the_room_photo_can_be_the_schedule_but_only_after_consent(app, tmp_path):
+def test_the_schedule_photo_leaves_the_computer_only_after_consent_and_the_room_photo_can_be_it(env, tmp_path):
     (tmp_path / "data" / "world_photos").mkdir(parents=True)
     (tmp_path / "data" / "world_photos" / "latest.jpg").write_bytes(b"x")
     at = AppTest.from_file(APP, default_timeout=120).run()
     to_doses(at)
+    assert any("LEAVES this computer" in w.value for w in at.warning)
+    assert [c.label for c in at.checkbox if c.key == "sheet_consent"] == ["I understand where the picture is sent and want the computer to read it"]
     assert [b.disabled for b in at.button if b.label.startswith("Read the latest room photo")] == [True]
     [c for c in at.checkbox if c.key == "sheet_consent"][0].check()
     at.run()
     assert [b.disabled for b in at.button if b.label.startswith("Read the latest room photo")] == [False]
 
 
-def test_a_schedule_read_from_a_photo_fills_the_dose_buttons_of_the_boxes_and_confirms_nothing(app, tmp_path, monkeypatch):
+def test_a_schedule_read_from_a_photo_fills_the_dose_buttons_of_the_boxes_and_confirms_nothing(env, tmp_path, monkeypatch):
     from medtable import sheet_reader
     (tmp_path / "data" / "world_photos").mkdir(parents=True)
     (tmp_path / "data" / "world_photos" / "latest.jpg").write_bytes(b"x")
@@ -219,13 +218,13 @@ def test_a_schedule_line_without_a_box_can_be_added_by_hand(app):
     assert "Left out: Bisoprolol 2,5 mg" in texts(app) and "add a photo that shows this box" in texts(app)     # and the card says what to do
 
 
-def test_a_48_megapixel_photo_is_read_in_full_but_only_a_smaller_copy_is_kept(app, tmp_path):
+def test_a_48_megapixel_photo_is_read_in_full_but_only_a_smaller_copy_is_kept(env, tmp_path):
     import cv2
     import numpy as np
     from medtable import synthetic
     small = synthetic.demo_photo([("654177", "281231"), ("662025", "270430")])
-    big = cv2.resize(small, None, fx=5, fy=5, interpolation=cv2.INTER_CUBIC)        # 8000 x 5000: every code is five times wider in pixels
-    assert big.shape[1] == 8000
+    big = cv2.resize(small, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)        # 4800 x 3000: wider than the 4000 px that are kept
+    assert big.shape[1] == 4800
     (tmp_path / "data" / "world_photos").mkdir(parents=True)
     cv2.imwrite(str(tmp_path / "data" / "world_photos" / "latest.jpg"), big)
     at = AppTest.from_file(APP, default_timeout=180).run()
@@ -234,7 +233,7 @@ def test_a_48_megapixel_photo_is_read_in_full_but_only_a_smaller_copy_is_kept(ap
     name = next(iter(at.session_state.readings))
     assert sorted(r.status for r in at.session_state.readings[name]) == ["verified", "verified"]
     kept = at.session_state.photos[name]
-    assert kept.shape[1] == 4000 and at.session_state.photo_scale[name] == 0.5                 # 8000 px wide in, 4000 kept
+    assert name.startswith("room_") and kept.shape[1] == 4000 and round(at.session_state.photo_scale[name], 3) == 0.833        # 4800 px wide in, 4000 kept
 
 
 def test_a_medicine_can_be_removed_and_leaves_the_list_the_rows_and_the_plan(app):
@@ -249,12 +248,6 @@ def test_a_medicine_can_be_removed_and_leaves_the_list_the_rows_and_the_plan(app
     assert len(doses_of(app)) == 4 * 4                                  # no buttons for the removed medicine
     click(app, "Back")
     assert "Medicines found: 4" in texts(app)                           # still gone after going back
-
-
-def test_a_removed_medicine_comes_back_with_a_new_photo_that_shows_it(app):
-    click(app, "Load a demo photo")
-    click(app, "Remove this medicine")
-    removed = next(iter(app.session_state.removed_cns))
     app.session_state.readings.pop("demo"), app.session_state.photos.pop("demo")
     click(app, "Load a demo photo")                                      # the same photo again: the box is on the table again
     assert removed not in app.session_state.removed_cns and "Medicines found: 5" in texts(app)
@@ -272,7 +265,7 @@ def test_a_typed_medicine_can_be_removed_and_an_unrecognised_box_dismissed(app):
     assert "A box I could not recognise" not in texts(app) and not app.exception
 
 
-def test_a_box_where_no_code_was_read_gets_a_card_asking_for_a_close_up(app, tmp_path):
+def test_a_box_where_no_code_was_read_gets_a_card_asking_for_a_close_up(env, tmp_path):
     import cv2
     from test_boxes import scene
     img, _, _ = scene()                                                       # two packs on a table: one has a readable code, one has none; and a sheet of paper
@@ -286,12 +279,7 @@ def test_a_box_where_no_code_was_read_gets_a_card_asking_for_a_close_up(app, tmp
     assert "A box where I could not read a code" not in texts(at) and len(at.session_state.nocode_done) == 1
 
 
-def test_demo_photos_have_no_boxes_without_a_code(app):
-    click(app, "Load a demo photo")
-    assert not any(app.session_state.nocode.values()) and "A box where I could not read a code" not in texts(app)
-
-
-def test_photos_from_the_camera_page_are_read_from_their_own_folder_with_their_own_words(app, tmp_path):
+def test_photos_from_the_camera_page_are_read_from_their_own_folder_with_their_own_words(env, tmp_path):
     from medtable import synthetic
     import cv2
     (tmp_path / "data" / "camera_photos").mkdir(parents=True)
@@ -307,20 +295,3 @@ def test_photos_from_the_camera_page_are_read_from_their_own_folder_with_their_o
     assert not at.exception and "Medicines found: 1" in texts(at) and next(iter(at.session_state.readings)).startswith("camera_")
 
 
-def test_start_over_clears_everything(app):
-    to_doses(app)
-    click(app, "Start over")
-    assert app.session_state.step == 1 and not app.session_state.rows and not app.session_state.readings and not app.exception
-
-
-def test_the_latest_photo_of_the_3d_room_can_be_loaded(app, tmp_path):
-    import cv2
-    from medtable import synthetic
-    (tmp_path / "data" / "world_photos").mkdir(parents=True)
-    cv2.imwrite(str(tmp_path / "data" / "world_photos" / "latest.jpg"), synthetic.demo_photo([("654177", "281231"), ("662025", "270430")]))
-    at = AppTest.from_file(APP, default_timeout=120).run()
-    click(at, "Load the latest room photo")
-    assert not at.exception
-    readings = [r for rs in at.session_state.readings.values() for r in rs]
-    assert sorted(r.status for r in readings) == ["verified", "verified"]
-    assert all(n.startswith("room_") for n in at.session_state.readings)

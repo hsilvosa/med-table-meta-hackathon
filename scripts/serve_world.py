@@ -54,7 +54,7 @@ class Handler(SimpleHTTPRequestHandler):
         body = self.rfile.read(length)
         if self.path == "/scan":
             effects = self.headers.get("X-Effects") == "1"
-            live_scan.write_stages(self, live_scan.scan(body, (lambda jpeg: phone_effects(jpeg, int(time.time() * 1000) % 2**32)) if effects else None))
+            live_scan.write_stages(self, live_scan.scan(body, (lambda jpeg: phone_effects(jpeg, int(time.time() * 1000) % 2**32)) if effects else None, thorough=True))      # the room has the time: the whole table is read as hard as a photo, box by box as it goes
             return
         if self.headers.get("X-Effects") == "1":
             body = phone_effects(body, int(time.time() * 1000) % 2**32)

@@ -132,19 +132,11 @@ def test_live_scan_works_on_a_frame_with_the_phone_effects(server, cima):
 def test_live_scan_sends_what_it_found_after_each_stage_so_boxes_can_appear_one_by_one(server, cima):
     module, url, _ = server
     stages = scan_stages(url, jpeg_of([("654177", "281231"), ("662025", "270430")]))
-    assert len(stages) == 1 + len(module.decode.LIVE_PASSES)
+    assert len(stages) == 1 + len(module.decode.ZOOM_PASSES)
     assert [s["done"] for s in stages] == [False] * (len(stages) - 1) + [True]
     texts = [{tuple(c["bbox"]) for c in s["codes"]} for s in stages]
     assert all(earlier <= later for earlier, later in zip(texts, texts[1:]))       # a code once shown stays
     assert len(stages[0]["codes"]) == 2                                           # clear codes are already there after the plain read
-
-
-def test_decode_scan_stages_end_with_the_same_codes_as_a_full_scan_with_those_passes():
-    from medtable import decode
-    img = synthetic.demo_photo([("654177", "281231"), ("662025", "270430")])
-    stages = list(decode.scan_stages(img, decode.LIVE_PASSES))
-    assert len(stages) == 1 + len(decode.LIVE_PASSES)
-    assert {d.text for d in stages[-1]} == {d.text for d in decode.find_datamatrix(img, libdmtx=False, passes=decode.LIVE_PASSES)}
 
 
 def test_live_scan_sends_each_stage_before_the_next_one_is_computed(server, cima, monkeypatch):
@@ -179,3 +171,5 @@ def test_live_scan_reports_packs_with_no_code_read_only_in_the_last_stage(server
     assert len(last["nocode"]) == 1
     x0, y0, x1, y1 = last["nocode"][0]
     assert abs(x0 - no_code[0]) < 40 and abs(y0 - no_code[1]) < 40 and abs(x1 - no_code[2]) < 40 and abs(y1 - no_code[3]) < 40
+    assert all("advice" not in s for s in stages[:-1])                       # one sentence of advice, at the end only, and it never speaks of a medicine
+    assert last["advice"]["level"] == "mid" and last["advice"]["text"] and last["advice"]["light"] in ("ok", "dark", "glare")    # the test scene is a white sheet: glare is a fair answer

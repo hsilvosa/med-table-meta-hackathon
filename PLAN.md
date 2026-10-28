@@ -15,7 +15,7 @@ Does not claim: a safe plan, absence of interactions ("no mention found in the s
 | Step | What | Type |
 |---|---|---|
 | 1 | Locate each pack in the photo (SAM 3 text prompt "box") | model |
-| 2 | Decode the GS1 Datamatrix (zxing-cpp, then pylibdmtx); read GTIN, expiry, lot | deterministic |
+| 2 | Decode the GS1 Datamatrix (zxing-cpp); read GTIN, expiry, lot | deterministic |
 | 3 | Printed "C.N." via OCR/VLM, accepted only if the check digit validates (`src/medtable/cn.py`) | deterministic + model |
 | 4 | Resolve the CN in CIMA: ingredients, ATC, form, SmPC sections, official photo | deterministic |
 | 5 | If nothing decodes: a vision-language model proposes candidates; the user confirms next to the official photo; otherwise the item is Unverified | model + human |

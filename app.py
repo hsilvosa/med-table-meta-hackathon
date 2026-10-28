@@ -16,12 +16,11 @@ import shutil
 import sys
 import tempfile
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import cv2
 import numpy as np
-import pandas as pd
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -691,7 +690,7 @@ else:
             st.text_area("Notes for the whole plan (for example: doctor's phone number, allergies)", value=st.session_state.plan_notes, key="plan_notes_box", height=110,
                          on_change=lambda: st.session_state.update(plan_notes=st.session_state.plan_notes_box.strip()))
             with st.expander("Change the reminder times"):
-                times = {s: st.time_input(SLOT_LABELS[s], value=pd.to_datetime(DEFAULT_TIMES[s]).time(), key=f"t_{s}").strftime("%H:%M") for s in SLOTS}
+                times = {s: st.time_input(SLOT_LABELS[s], value=datetime.strptime(DEFAULT_TIMES[s], "%H:%M").time(), key=f"t_{s}").strftime("%H:%M") for s in SLOTS}
         if doses:
             with tempfile.TemporaryDirectory() as tmp:
                 pdf_path = render_pdf(plan, Path(tmp) / "plan.pdf", st.session_state.patient, notes=st.session_state.plan_notes, times=times)

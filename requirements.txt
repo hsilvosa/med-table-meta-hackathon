@@ -1,11 +1,8 @@
 # Runtime dependencies of the app and the library (Python 3.12). SAM 3 / Qwen experiments use their own environment (see experiments/README.md).
+# Streamlit brings pandas, pyarrow, pillow and altair with it; reportlab brings pillow: they are not listed again here.
 numpy==2.5.4
 opencv-python-headless==5.0.0.93
-pandas==3.1.0
-pillow==13.0.0
-pylibdmtx==0.1.10
 pypdfium2==5.14.0   # the app shows page 1 of the PDF as a preview before the download (optional: without it the preview is skipped)
 reportlab==5.1.0
-setuptools<81  # pylibdmtx imports distutils, which Python 3.12 no longer ships
 streamlit==1.66.1
-zxing-cpp==3.1.1
+zxing-cpp==3.1.1    # reads and writes the Data Matrix codes

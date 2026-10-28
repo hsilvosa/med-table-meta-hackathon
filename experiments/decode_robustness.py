@@ -70,10 +70,10 @@ def main() -> None:
             for _ in range(args.trials):
                 photo, text = make_photo(canvas, m, b, rng)
                 t = time.time()
-                ok_full += any(d.text == text for d in decode.find_datamatrix(photo, tiles=False, libdmtx=False))
+                ok_full += any(d.text == text for d in decode.find_datamatrix(photo, tiles=False))
                 timing["full"] += time.time() - t
                 t = time.time()
-                ok_tiles += any(d.text == text for d in decode.find_datamatrix(photo, tiles=True, libdmtx=False))
+                ok_tiles += any(d.text == text for d in decode.find_datamatrix(photo, tiles=True))
                 timing["tiles"] += time.time() - t
                 count += 1
             row.append(f"{ok_full}/{args.trials} / {ok_tiles}/{args.trials}")

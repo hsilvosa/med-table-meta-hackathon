@@ -51,7 +51,7 @@ def test_packs_are_found_and_a_sheet_of_paper_is_not():
 
 def test_only_the_pack_without_a_read_code_is_reported_as_such():
     img, with_code, no_code = scene()
-    codes = [d.bbox for d in decode.find_datamatrix(img, libdmtx=False)]
+    codes = [d.bbox for d in decode.find_datamatrix(img)]
     assert len(codes) == 1
     left = boxes.without_code(boxes.find_boxes(img), codes)
     assert len(left) == 1 and inside(left, no_code)

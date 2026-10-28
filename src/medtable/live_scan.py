@@ -15,7 +15,7 @@ from collections.abc import Callable, Iterator
 import cv2
 import numpy as np
 
-from . import boxes, decode, identify
+from . import advice, boxes, decode, identify
 from .resolve import Resolver
 
 _resolver: Resolver | None = None
@@ -29,10 +29,11 @@ def resolver() -> Resolver:
     return _resolver
 
 
-def scan(jpeg: bytes, prepare: Callable[[bytes], bytes] | None = None) -> Iterator[dict]:
+def scan(jpeg: bytes, prepare: Callable[[bytes], bytes] | None = None, thorough: bool = False) -> Iterator[dict]:
     """Yield everything found so far after the plain read and after each zoom pass; the last dict has "done": true and the packs with no code read.
 
-    `prepare` may change the JPEG first (the room adds the effects of a phone camera). Raises ValueError, before yielding, if the bytes are not an image.
+    `prepare` may change the JPEG first (the room adds the effects of a phone camera). `thorough` reads the frame as hard as a photo (all the passes, more windows): the
+    camera page asks for it when a first look left boxes unread. Raises ValueError, before yielding, if the bytes are not an image.
     """
     started = time.time()
     if prepare is not None:
@@ -41,16 +42,20 @@ def scan(jpeg: bytes, prepare: Callable[[bytes], bytes] | None = None) -> Iterat
     if frame is None:
         raise ValueError("not an image")
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    last = len(decode.LIVE_PASSES)          # stage 0 is the plain read, then one stage per zoom pass
+    passes = decode.ZOOM_PASSES if thorough else decode.LIVE_PASSES
+    last = len(passes)                      # stage 0 is the plain read, then one stage per zoom pass
     with _scan_lock:
-        for number, found in enumerate(decode.scan_stages(gray, decode.LIVE_PASSES)):
+        for number, found in enumerate(decode.scan_stages(gray, passes)):
             readings = [identify.read_code(d, resolver()) for d in found]
             codes = [{"bbox": list(r.bbox), "status": r.status, "name": r.medicine.name if r.medicine else None, "expired": r.expired,
-                      "problem": r.problems[0] if r.problems else None} for r in readings]
+                      "problem": r.problems[0] if r.problems else None, "raw": r.raw} for r in readings]
             done = number == last
-            nocode = boxes.without_code(boxes.find_boxes(frame), [d.bbox for d in found]) if done else []     # said at the end only
-            yield {"size": [gray.shape[1], gray.shape[0]], "codes": codes, "nocode": [list(b) for b in nocode],
-                   "ms": int((time.time() - started) * 1000), "done": done}
+            extra = {}
+            if done:          # said at the end only: which packs have no code read, and what to do about it
+                packs = boxes.find_packs(frame)
+                nocode = boxes.without_code([p["bbox"] for p in packs], [d.bbox for d in found])
+                extra = {"nocode": [list(b) for b in nocode], "advice": advice.advise(gray, packs, [d.bbox for d in found], nocode)}
+            yield {"size": [gray.shape[1], gray.shape[0]], "codes": codes, "nocode": [], "ms": int((time.time() - started) * 1000), "done": done, **extra}
 
 
 def write_stages(handler, stages: Iterator[dict]) -> bool:

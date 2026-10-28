@@ -44,7 +44,7 @@ class Handler(SimpleHTTPRequestHandler):
             return
         body = self.rfile.read(length)
         if self.path == "/scan":
-            live_scan.write_stages(self, live_scan.scan(body))
+            live_scan.write_stages(self, live_scan.scan(body, thorough=self.headers.get("X-Thorough") == "1"))
             return
         if cv2.imdecode(np.frombuffer(body, np.uint8), cv2.IMREAD_COLOR) is None:
             self.send_error(400, "not an image")
@@ -77,7 +77,7 @@ def make_certificate() -> tuple[Path, Path]:
     if not (cert.exists() and key.exists()):
         CERT_DIR.mkdir(parents=True, exist_ok=True)
         try:
-            subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "30", "-subj", "/CN=med-table-local",
+            subprocess.run(["openssl", "req", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:prime256v1", "-nodes", "-days", "30", "-subj", "/CN=med-table-local",
                             "-keyout", str(key), "-out", str(cert)], check=True, capture_output=True)
         except (FileNotFoundError, subprocess.CalledProcessError) as error:
             raise SystemExit(f"--https needs openssl to make a certificate and it failed: {error}")

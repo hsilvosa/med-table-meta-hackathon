@@ -51,16 +51,6 @@ def post(url, path, body):
     return urllib.request.urlopen(request, timeout=60)
 
 
-def test_a_frame_is_scanned_in_stages_and_the_code_is_verified(camera):
-    start, tmp = camera
-    module, server = start()
-    with post(f"http://127.0.0.1:{server.server_address[1]}", "/scan", jpeg([("654177", "281231")])) as reply:
-        stages = [json.loads(line) for line in reply.read().decode().splitlines() if line]
-    assert stages[-1]["done"] and [c["status"] for c in stages[-1]["codes"]] == ["verified"]
-    assert stages[-1]["codes"][0]["name"] == "SINTROM 4 mg COMPRIMIDOS"
-    assert not (tmp / "data" / "camera_photos").exists()               # a preview frame is never saved
-
-
 def test_a_photo_is_saved_and_copied_as_latest_and_something_that_is_not_an_image_is_refused(camera):
     start, tmp = camera
     module, server = start()
@@ -80,21 +70,30 @@ def test_a_photo_is_saved_and_copied_as_latest_and_something_that_is_not_an_imag
     assert error.value.code == 404
 
 
-def test_the_page_and_its_modules_are_served(camera):
+def test_a_second_look_is_asked_for_with_a_header_and_reads_with_every_pass_while_the_first_look_is_quick(camera):
+    from medtable import decode
     start, _ = camera
-    module, server = start()
+    server = start()[1]
     url = f"http://127.0.0.1:{server.server_address[1]}"
-    page = urllib.request.urlopen(url + "/camera.html", timeout=10).read().decode()
-    assert "Take photo" in page and "camera.js" in page
-    for name in ("camera.js", "livescan.js"):
-        reply = urllib.request.urlopen(f"{url}/{name}", timeout=10)
-        assert reply.headers["Content-Type"].startswith("text/javascript")
+    body = jpeg([("654177", "281231")])
+
+    def stages(headers):
+        request = urllib.request.Request(url + "/scan", data=body, method="POST", headers={"Content-Type": "image/jpeg", **headers})
+        return [json.loads(line) for line in urllib.request.urlopen(request, timeout=60).read().splitlines() if line.strip()]
+
+    quick, thorough = stages({}), stages({"X-Thorough": "1"})
+    assert len(quick) == 1 + len(decode.LIVE_PASSES) and len(thorough) == 1 + len(decode.ZOOM_PASSES)
+    assert [c["status"] for c in quick[-1]["codes"]] == [c["status"] for c in thorough[-1]["codes"]] == ["verified"]
 
 
-def test_it_listens_on_this_computer_only_unless_the_local_network_is_asked_for(camera):
+def test_it_listens_on_this_computer_only_unless_the_local_network_is_asked_for_and_serves_the_page(camera):
     start, _ = camera
-    assert start()[1].server_address[0] == "127.0.0.1"
-    assert start(lan=True)[1].server_address[0] == "0.0.0.0"
+    server = start()[1]
+    assert server.server_address[0] == "127.0.0.1" and start(lan=True)[1].server_address[0] == "0.0.0.0"
+    url = f"http://127.0.0.1:{server.server_address[1]}"
+    assert "Take the photo" in urllib.request.urlopen(url + "/camera.html", timeout=10).read().decode()
+    for name in ("camera.js", "livescan.js", "uikit.js"):
+        assert urllib.request.urlopen(f"{url}/{name}", timeout=10).headers["Content-Type"].startswith("text/javascript")
 
 
 @pytest.mark.skipif(shutil.which("openssl") is None, reason="openssl makes the self-signed certificate")
@@ -104,7 +103,7 @@ def test_https_uses_a_self_signed_certificate_with_a_generic_name(camera):
     context = ssl.create_default_context()
     context.check_hostname, context.verify_mode = False, ssl.CERT_NONE
     reply = urllib.request.urlopen(f"https://127.0.0.1:{server.server_address[1]}/camera.html", timeout=20, context=context)
-    assert b"Take photo" in reply.read()
+    assert b"Take the photo" in reply.read()
     pem = (tmp / "data" / "cache" / "cert" / "cert.pem").read_bytes()
     decoded = ssl.PEM_cert_to_DER_cert(pem.decode())
     assert b"med-table-local" in decoded                                 # the only name in the certificate

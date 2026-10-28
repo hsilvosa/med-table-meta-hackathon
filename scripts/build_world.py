@@ -67,7 +67,7 @@ def erase_printed_codes(img: Image.Image) -> tuple[Image.Image, int]:
     white = np.full(rgba.shape[:2] + (3,), 255, np.uint8)
     alpha = rgba[..., 3:4].astype(np.float32) / 255
     bgr = (rgba[..., 2::-1] * alpha + white * (1 - alpha)).astype(np.uint8)
-    found = find_datamatrix(bgr, tiles=True, libdmtx=True)
+    found = find_datamatrix(bgr, tiles=True)
     if not found:
         return img, 0
     mask = np.zeros(bgr.shape[:2], np.uint8)

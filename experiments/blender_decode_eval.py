@@ -45,9 +45,9 @@ for height in args.heights.split(","):
     for scene, texts in truth.items():
         img = cv2.imread(str(out / scene))
         total += len(texts)
-        whole += len({d.text for d in decode.find_datamatrix(img, tiles=False, libdmtx=False)} & set(texts))
+        whole += len({d.text for d in decode.find_datamatrix(img, tiles=False)} & set(texts))
         start = time.time()
-        found = decode.find_datamatrix(img, tiles=True, libdmtx=True)
+        found = decode.find_datamatrix(img, tiles=True)
         seconds.append(time.time() - start)
         tiled += len({d.text for d in found} & set(texts))
         sizes += [max(d.bbox[2] - d.bbox[0], d.bbox[3] - d.bbox[1]) / 24 for d in found if d.text in texts]  # about 24 modules per side
