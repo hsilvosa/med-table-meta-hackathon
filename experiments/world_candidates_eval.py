@@ -45,7 +45,7 @@ for photo, truth in jobs:
             print(f"{photo.name}: SAM found no box at {want['px']} for {want['name'][:30]}")
             empty += 1
             continue
-        proposal = candidates.propose(box.crop, resolver, backend)
+        proposal = candidates.propose(box.crop, resolver, backend, consent=True)   # crops of the synthetic room only
         ids = [norm(c.medicine.nregistro) for c in proposal.candidates]
         hit1, hit4 = bool(ids) and ids[0] == norm(want["nregistro"]), norm(want["nregistro"]) in ids
         top1 += hit1

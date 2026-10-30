@@ -74,6 +74,15 @@ def mention_terms(medicine: Medicine) -> list[str]:
     return terms
 
 
+def _section(smpc, nregistro: str, section: str):
+    """A leaflet section, or None when it does not exist or cannot be fetched now: either way that check is reported as not done."""
+    from .cima import Unreachable
+    try:
+        return smpc.section(nregistro, section)
+    except Unreachable:
+        return None
+
+
 def check_packs(packs: list[Pack], smpc: SectionSource | None = None, today: date | None = None, soon_days: int = 30) -> list[Finding]:
     today = today or date.today()
     findings: list[Finding] = []
@@ -113,7 +122,7 @@ def check_packs(packs: list[Pack], smpc: SectionSource | None = None, today: dat
         for a, b in permutations(distinct, 2):
             if frozenset((a.cn, b.cn)) in duplicated:
                 continue  # already flagged: A's SmPC naming its own ingredient adds nothing
-            section = smpc.section(a.nregistro, "4.5")
+            section = _section(smpc, a.nregistro, "4.5")
             if not section:
                 if a.cn not in unavailable:
                     unavailable.add(a.cn)
@@ -142,7 +151,7 @@ def meal_notes(packs: list[Pack], smpc: SectionSource, limit: int = 2) -> list[F
         if medicine.cn in seen:
             continue
         seen.add(medicine.cn)
-        section = smpc.section(medicine.nregistro, "4.2")
+        section = _section(smpc, medicine.nregistro, "4.2")
         if not section:
             findings.append(Finding("smpc_unavailable", [medicine.name], [medicine.cn], "4.2", severity="info"))
         else:

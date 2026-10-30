@@ -80,3 +80,14 @@ def test_a_code_inside_a_region_covers_it_and_one_outside_does_not():
     box = (100, 100, 400, 300)
     assert boxes.without_code([box], [(150, 150, 200, 200)]) == []
     assert boxes.without_code([box], [(500, 150, 550, 200)]) == [box]
+
+
+def test_on_a_white_table_it_stays_silent_instead_of_guessing():
+    img = table()
+    img[:] = (232, 234, 236)                                                     # a white table: in the room photos the finder found 13 % there and 4 of its 6 boxes were wrong
+    cv2.rectangle(img, (150, 150), (450, 350), (200, 90, 40), -1)                # a pack the finder does see on white (blue all over, white lettering)
+    for i in range(4):
+        cv2.putText(img, "MEDICINE 10 MG", (160, 205 + i * 35), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2, cv2.LINE_AA)
+    assert boxes.regions(img)                                                    # it is seen...
+    assert boxes.light_table(img) and boxes.find_packs(img) == []               # ...but on a white table nothing is reported
+    assert not boxes.light_table(table()) and boxes.find_packs(scene()[0])

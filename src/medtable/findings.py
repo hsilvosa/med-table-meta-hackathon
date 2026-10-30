@@ -52,6 +52,7 @@ def explain_problem(problem: str) -> str:
         (r"\(01\) is a regular GTIN", lambda m: "the code does not contain a Spanish national code"),
         (r"\(712\) is not a valid", lambda m: "field 712 is not a valid national code"),
         (r"no \(01\) and no \(712\)", lambda m: "the code holds no medicine data"),
+        (r"could not be reached", lambda m: "the official database could not be reached (no internet?): press Try again"),
     )
     for pattern, wording in known:
         match = re.search(pattern, problem)

@@ -76,3 +76,19 @@ def test_a_missing_token_error_does_not_leak_anything(monkeypatch):
     with pytest.raises(meta_api.MetaAPIError) as error:
         meta_api._token()
     assert "META_TOKEN is empty" in str(error.value)
+
+
+def test_an_image_is_never_sent_to_meta_without_consent_whoever_calls(monkeypatch, tmp_path):
+    from medtable import candidates, sheet_reader, vlm
+    from medtable.resolve import Resolver
+    sent = []
+    monkeypatch.setattr(meta_api, "ask_image", lambda *a, **k: sent.append(a) or meta_api.Reply("{}", {}, 0.0, 0.0))
+    (tmp_path / "x.jpg").write_bytes(b"not sent")
+    for call in (lambda: sheet_reader.read_sheet(tmp_path / "x.jpg", backend="meta"),
+                 lambda: candidates.propose(tmp_path / "x.jpg", Resolver(tmp_path), backend="meta"),
+                 lambda: vlm.ask_image(tmp_path / "x.jpg", "read", backend="meta", consent="yes")):     # only True counts
+        with pytest.raises(vlm.ConsentRequired):
+            call()
+    assert sent == []
+    vlm.ask_image(tmp_path / "x.jpg", "read", backend="meta", consent=True)
+    assert len(sent) == 1

@@ -69,8 +69,9 @@ def rows_from_reply(text: str) -> SheetReading:
     return reading
 
 
-def read_sheet(image: Path | str, backend: str | None = None) -> SheetReading:
-    reply = vlm.ask_image(image, SHEET_PROMPT, backend=backend, max_tokens=2500, note="sheet reader")
+def read_sheet(image: Path | str, backend: str | None = None, consent: bool = False) -> SheetReading:
+    """`consent`: the person agreed to send this picture to the Meta API (ignored by the local backend)."""
+    reply = vlm.ask_image(image, SHEET_PROMPT, backend=backend, max_tokens=2500, note="sheet reader", consent=consent)
     reading = rows_from_reply(reply.text)
     reading.backend = vlm.backend_name(backend)
     reading.cost_usd = reply.cost_usd

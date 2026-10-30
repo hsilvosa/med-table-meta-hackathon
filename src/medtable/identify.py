@@ -13,8 +13,11 @@ from datetime import date
 
 import numpy as np
 
-from . import decode, gs1
+from . import cima, decode, gs1
 from .resolve import Medicine, Resolver
+
+
+UNREACHABLE = "the official database (AEMPS CIMA) could not be reached"
 
 
 @dataclass
@@ -46,7 +49,11 @@ def read_code(detection: decode.Detection, resolver: Resolver, today: date | Non
     reading.problems += code.national.problems
     if not code.national.cn:
         return reading
-    medicine = resolver.by_cn(code.national.cn)
+    try:
+        medicine = resolver.by_cn(code.national.cn)
+    except cima.Unreachable:            # never verified by guess: the caregiver tries again when the connection is back
+        reading.problems.append(UNREACHABLE)
+        return reading
     if medicine is None:
         reading.problems.append(f"CIMA has no medicine with CN {code.national.cn[:6]}")
         return reading

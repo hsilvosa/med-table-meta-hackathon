@@ -36,8 +36,8 @@ def test_garbage_and_nameless_rows():
 def test_read_sheet_uses_the_selected_backend(monkeypatch, tmp_path):
     seen = {}
 
-    def fake(image, prompt, *, backend=None, max_tokens=0, note=""):
-        seen.update(image=str(image), backend=backend, prompt=prompt)
+    def fake(image, prompt, *, backend=None, max_tokens=0, note="", consent=False):
+        seen.update(image=str(image), backend=backend, prompt=prompt, consent=consent)
         return Reply(GOOD, {}, 0.004, 1.0)
 
     monkeypatch.setattr(vlm, "ask_image", fake)

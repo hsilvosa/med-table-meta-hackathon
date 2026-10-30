@@ -27,7 +27,11 @@ def manual_pack(cn: str, resolver: Resolver) -> tuple[Pack | None, str]:
     found = cn_module.find_cn(cn)
     if not found or not cn_module.is_valid(found):
         return None, "The national code is not valid: check the 7 digits (the last one is a check digit)."
-    medicine = resolver.by_cn(found)
+    from .cima import Unreachable
+    try:
+        medicine = resolver.by_cn(found)
+    except Unreachable:
+        return None, "The official database (AEMPS CIMA) could not be reached. Check the internet connection and try again."
     if medicine is None:
         return None, f"AEMPS CIMA does not know the national code {found[:6]}."
     return Pack(medicine, "confirmed"), ""

@@ -96,9 +96,9 @@ def score_candidate(medicine: Medicine, read: dict) -> Candidate:
     return Candidate(medicine, score, why)
 
 
-def propose(crop: Path, resolver: Resolver, backend: str | None = None, limit: int = 4) -> Proposal:
+def propose(crop: Path, resolver: Resolver, backend: str | None = None, limit: int = 4, consent: bool = False) -> Proposal:
     """Ask the model what is printed on the crop, then search CIMA with that text and rank the answers."""
-    reply = vlm.ask_image(crop, CROP_PROMPT, backend=backend, max_tokens=500, note="crop reader")
+    reply = vlm.ask_image(crop, CROP_PROMPT, backend=backend, max_tokens=500, note="crop reader", consent=consent)
     read = vlm.parse_json(reply.text)
     if not isinstance(read, dict):
         return Proposal({}, [], note="The model could not read anything in the crop.")

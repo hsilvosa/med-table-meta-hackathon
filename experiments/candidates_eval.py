@@ -25,7 +25,7 @@ resolver = Resolver("data/cache/cima")
 top1 = top4 = empty = 0
 for r in sample:
     try:
-        proposal = candidates.propose(Path(r["crop"]), resolver, backend)
+        proposal = candidates.propose(Path(r["crop"]), resolver, backend, consent=True)   # public CIMA photo crops only
     except Exception as exc:  # noqa: BLE001
         print("ERR", Path(r["crop"]).name, str(exc)[:120])
         continue

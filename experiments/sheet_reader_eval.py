@@ -23,7 +23,7 @@ def norm(text) -> str:
 
 backend = sys.argv[1] if len(sys.argv) > 1 else None
 truth = json.loads((OUT / "sheet_truth.json").read_text(encoding="utf-8"))
-reading = sheet_reader.read_sheet(OUT / "sheet.jpg", backend)
+reading = sheet_reader.read_sheet(OUT / "sheet.jpg", backend, consent=True)   # the fictional sheet
 print(f"backend={reading.backend} cost=USD {reading.cost_usd:.4f} rows read {len(reading.rows)} of {len(truth)}; problems: {reading.problems}")
 wrong_cells = wrong_remarks = missing = 0
 for want in truth:

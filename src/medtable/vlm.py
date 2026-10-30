@@ -62,11 +62,21 @@ def _ask_local(image: Path | str, prompt: str, max_tokens: int) -> Reply:
     return Reply(data["choices"][0]["message"].get("content") or "", data.get("usage") or {}, 0.0, time.time() - start)
 
 
+class ConsentRequired(MetaAPIError):
+    """An image was about to leave the computer without the person's explicit consent."""
+
+
 def ask_image(image: Path | str, prompt: str, *, backend: str | None = None, max_tokens: int = 400,
-              note: str = "") -> Reply:
-    """Send one image and a prompt to the selected backend. Cost is 0 for the local backend."""
+              note: str = "", consent: bool = False) -> Reply:
+    """Send one image and a prompt to the selected backend. Cost is 0 for the local backend.
+
+    The Meta backend sends the image to a third party, so it refuses unless `consent` is True: the app passes the tick of the person
+    who was told where the picture goes. This check is here, not only in the page, so no other caller can skip it by mistake.
+    """
     if backend_name(backend) == "local":
         return _ask_local(image, prompt, max_tokens)
+    if consent is not True:
+        raise ConsentRequired("the image would be sent to the Meta API and nobody agreed to it")
     return meta_api.ask_image(image, prompt, max_tokens=max_tokens, note=note)
 
 

@@ -5,8 +5,8 @@ from the table, of a size a pack can have. It works on a plain, evenly coloured 
 is here". The live preview of the room and the planner use it for one thing, to say that a pack was seen and no code was read from it, so that the
 caregiver takes a close-up or types the code. It never puts anything in the plan.
 
-Known limits (measured in experiments/eval_boxes.py): it needs a table of a middle tone and packs that stand out from it (on a white table it finds
-13 % of the packs, on a dark one 71 %); two packs that touch are one region; a pack with almost no printed text is taken for paper and not reported;
+Known limits (measured in experiments/eval_boxes.py): it needs a table of a middle tone and packs that stand out from it (on a white table it found
+13 % of the packs with 4 of 6 boxes wrong, so on a white table it now reports nothing; on a dark one 71 %); two packs that touch are one region; a pack with almost no printed text is taken for paper and not reported;
 anything pack-sized with printed marks on it looks like a pack. A region with almost no dark marks (plain paper, a shadow, a seam between boards)
 is never reported: every pack has printed text.
 """
@@ -21,6 +21,7 @@ MIN_AREA, MAX_AREA = 0.005, 0.12    # share of the image a pack can cover (at 90
 MIN_FILL = 0.55                     # share of its rotated bounding rectangle a region fills (a pack is a rectangle)
 MAX_ASPECT = 4.0
 MIN_TEXT = 0.025                    # a pack has printed text and logos: a region with almost no dark marks is a sheet of paper, a shadow or a seam in the wood
+LIGHT_TABLE_L, LIGHT_TABLE_CHROMA = 190, 15     # a table this light and this grey (Lab, 0-255 scale) is "white": room white table L 220-227, chroma 6-7; wood L 115-159, chroma 24-34
 COLOUR_DISTANCE = 22.0              # distance in Lab from the table colour above which a pixel is "not table"
 
 
@@ -29,6 +30,18 @@ def _table_colour(lab: np.ndarray) -> np.ndarray:
     sample = lab.reshape(-1, 3)[:: max(1, lab.shape[0] * lab.shape[1] // 6000)].astype(np.float32)
     _, labels, centres = cv2.kmeans(sample, 3, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1.0), 2, cv2.KMEANS_PP_CENTERS)
     return centres[np.bincount(labels.ravel()).argmax()]
+
+
+def _small_lab(img: np.ndarray) -> np.ndarray:
+    scale = WORK_WIDTH / img.shape[1]
+    small = cv2.resize(img if img.ndim == 3 else cv2.cvtColor(img, cv2.COLOR_GRAY2BGR), None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    return cv2.cvtColor(cv2.GaussianBlur(small, (0, 0), 1.5), cv2.COLOR_BGR2LAB).astype(np.float32)
+
+
+def light_table(img: np.ndarray) -> bool:
+    """True on a white or very light grey table, where white packs and paper look like the table and the finder is wrong more often than right."""
+    L, a, b = _table_colour(_small_lab(img))
+    return bool(L >= LIGHT_TABLE_L and np.hypot(a - 128, b - 128) < LIGHT_TABLE_CHROMA)
 
 
 def regions(img: np.ndarray) -> list[dict]:
@@ -71,6 +84,8 @@ def regions(img: np.ndarray) -> list[dict]:
 
 def find_packs(img: np.ndarray) -> list[dict]:
     """The regions that are packs (see the module text): {"bbox": (x0, y0, x1, y1), "side": pixels} in the coordinates of `img`."""
+    if light_table(img):            # silent rather than wrong: a missing amber box never meant "every pack has a code"
+        return []
     return [{"bbox": r["bbox"], "side": r["side"]} for r in regions(img) if r["text"] >= MIN_TEXT]
 
 

@@ -17,20 +17,29 @@ API = "https://cima.aemps.es/cima/rest"
 _HEADERS = {"User-Agent": "med-table-hackathon/0.1 (research prototype)"}
 
 
-def fetch(url: str, *, retries: int = 4, timeout: float = 60.0) -> bytes:
-    """GET `url`, retrying transient network errors with 1, 2, 4... second pauses."""
+RETRIES, TIMEOUT = 4, 60.0      # defaults for batch scripts; the app lowers them so that a lost connection is reported in seconds, not minutes
+
+
+class Unreachable(urllib.error.URLError):
+    """CIMA could not be reached (no network, timeout, server error) after the retries. Not the same as "CIMA does not know this code"."""
+
+
+def fetch(url: str, *, retries: int | None = None, timeout: float | None = None) -> bytes:
+    """GET `url`, retrying transient network errors with 1, 2, 4... second pauses. A 404 is raised at once; giving up raises Unreachable."""
+    retries, timeout = retries or RETRIES, timeout or TIMEOUT
     for attempt in range(retries):
         try:
             with urllib.request.urlopen(urllib.request.Request(url, headers=_HEADERS), timeout=timeout) as resp:
                 return resp.read()
         except urllib.error.HTTPError as exc:
-            if exc.code == 404 or attempt == retries - 1:
+            if exc.code == 404 or (exc.code < 500 and exc.code != 429):
                 raise
-        except (urllib.error.URLError, TimeoutError, ConnectionError):
-            if attempt == retries - 1:
-                raise
-        time.sleep(2**attempt)
-    raise RuntimeError("unreachable")
+            last = exc
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+            last = exc
+        if attempt < retries - 1:
+            time.sleep(2**attempt)
+    raise Unreachable(f"CIMA could not be reached: {last}")
 
 
 def get_json(endpoint: str, **params: object) -> dict:
