@@ -18,7 +18,8 @@ from fixtures import (
 )
 
 from medtable import sheet_reader
-from medtable.form import merge_read_rows, sync_pack_rows
+from medtable.changes import compare
+from medtable.form import Row, merge_read_rows, sync_pack_rows
 from medtable.identify import Reading
 from medtable.pipeline import make_plan
 from medtable.plan import (
@@ -120,6 +121,18 @@ def test_the_tool_never_fills_or_confirms_a_dose_by_itself():
     rows[1].doses["bedtime"] = "2"
     merge_read_rows(rows, [{"medicine": "Lorazepam 1 mg", "bedtime": "1"}], [pack(LORAZEPAM)])
     assert rows[1].doses["bedtime"] == "2" and len(rows) == 3               # what the caregiver chose is never overwritten
+
+
+def test_a_reopened_plan_shows_every_change_since_it_was_saved():
+    saved = [Row("pack680001", "METFORMINA 850", "680001", {"breakfast": "1", "lunch": "0", "dinner": "1", "bedtime": "0"}, confirmed=True),
+             Row("pack700001", "LORAZEPAM 1 mg", "700001", {"breakfast": "0", "lunch": "0", "dinner": "0", "bedtime": "1"}, confirmed=True)]
+    now = [Row("pack680001", "METFORMINA 850", "680001", {"breakfast": "1", "lunch": "0", "dinner": "1/2", "bedtime": "0"}, days=[0, 3]),
+           Row("pack690001", "OMEPRAZOL 20 mg", "690001"), Row("pack700001", "LORAZEPAM 1 mg", "700001", {"breakfast": "0", "lunch": "0", "dinner": "0", "bedtime": "1"})]
+    assert compare(saved, saved, None).__bool__() is False
+    found = compare(saved, now, None)                                       # no new photo yet: nothing is called "not seen"
+    assert found.new == ["OMEPRAZOL 20 mg"] and found.not_seen == []
+    assert found.amounts == [("METFORMINA 850", ["Dinner: 1 -> \u00bd", "Days: every day -> Mon, Thu"])]
+    assert compare(saved, now, {"680001", "690001"}).not_seen == ["LORAZEPAM 1 mg"]
 
 
 def test_end_to_end_with_findings():

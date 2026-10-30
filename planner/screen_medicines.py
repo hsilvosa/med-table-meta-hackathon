@@ -36,7 +36,7 @@ from planner.common import (
     retry_lookups,
     undo_last,
 )
-from planner.table import Table, medicine_card
+from planner.table import Table, changes_box, medicine_card
 
 
 def render(t: Table) -> None:
@@ -121,6 +121,7 @@ def render(t: Table) -> None:
                 right.button("Remove", key=f"rm_{photo_name}", on_click=remove_photo, args=(photo_name,), width="stretch")
     if (notice := st.session_state.get("notice")):
         box(*notice)
+    changes_box(t, with_amounts=False)
     st.markdown(f'<p class="mt-title" style="font-size:1.35rem;margin-top:1.2rem">Medicines found: {len(medicines)}</p>', unsafe_allow_html=True)
     if (undo := st.session_state.get("undo")):
         box("ok", f"Removed: {undo['label']}", "Removed by mistake? Press the button to put it back.")

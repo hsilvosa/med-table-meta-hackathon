@@ -8,12 +8,13 @@ import streamlit as st
 
 from medtable import voice
 from medtable.calendar_pdf import render_pdf
+from medtable.pillbox_pdf import render_pillbox
 from medtable.findings import NOT_A_FULL_CHECK
 from medtable.pipeline import make_plan
 from medtable.plan import NOT_CONFIRMED, SLOT_LABELS, box_days, large_amount, to_ics, units_in_pack
 from medtable.schedule import SLOTS
 from planner.common import ask_reset, box, esc, header, nav, page_preview, patient_field, saved_file, smpc_source, source_html, what_to_do
-from planner.table import Table
+from planner.table import Table, changes, changes_box
 
 
 def render(t: Table, step: int, use_smpc: bool) -> None:
@@ -62,6 +63,7 @@ def render(t: Table, step: int, use_smpc: bool) -> None:
         if lasting:
             box("tip", "How long a box lasts", f'<ul style="margin:.3rem 0 0 1.1rem;padding:0">{"".join(lasting)}</ul>'
                 '<div class="mt-meta">Counted from the pack size listed by AEMPS CIMA, for a full box. Ask for the next box a week before.</div>')
+        changes_box(t, with_amounts=True)
         if pending and doses:
             box("tip", f"Waiting for you ({len(pending)})", f"Not in the plan until you tick the box on the Doses screen: {esc(', '.join(pending))}.")
         for what, why in left_out:
@@ -110,7 +112,8 @@ def render(t: Table, step: int, use_smpc: bool) -> None:
             times = dict(st.session_state.times)
         if doses:
             with tempfile.TemporaryDirectory() as tmp:
-                pdf_path = render_pdf(plan, Path(tmp) / "plan.pdf", st.session_state.patient, notes=st.session_state.plan_notes, times=times)
+                pdf_path = render_pdf(plan, Path(tmp) / "plan.pdf", st.session_state.patient, notes=st.session_state.plan_notes, times=times, changes=changes(t))
+                pillbox_bytes = render_pillbox(plan, Path(tmp) / "pillbox.pdf", st.session_state.patient, times=times).read_bytes()
                 pdf_bytes = pdf_path.read_bytes()
                 preview = page_preview(pdf_path)
             if preview is not None:
@@ -118,6 +121,9 @@ def render(t: Table, step: int, use_smpc: bool) -> None:
                 st.image(preview, width="stretch")
             st.markdown('<p class="mt-title" style="font-size:1.25rem;margin-top:1rem">A page to print</p><p class="mt-hint">Large print, with the official picture of each medicine.</p>', unsafe_allow_html=True)
             st.download_button("Download the calendar to print (PDF)", pdf_bytes, "medication_plan.pdf", "application/pdf", type="primary", width="stretch")
+            st.markdown('<p class="mt-title" style="font-size:1.25rem;margin-top:1rem">A guide to fill the weekly pill organiser</p>'
+                        '<p class="mt-hint">One page: the seven days and four times of day, with what goes into each compartment.</p>', unsafe_allow_html=True)
+            st.download_button("Download the pill organiser sheet (PDF)", pillbox_bytes, "pill_organiser.pdf", "application/pdf", width="stretch")
             st.markdown('<p class="mt-title" style="font-size:1.25rem;margin-top:1rem">Listen to it</p><p class="mt-hint">A voice reads each time of day.</p>', unsafe_allow_html=True)
             if voice.available():
                 if st.button("Read the plan aloud", width="stretch"):

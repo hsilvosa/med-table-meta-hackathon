@@ -18,6 +18,7 @@ from fixtures import (
 
 from medtable import saved, voice
 from medtable.calendar_pdf import render_pdf
+from medtable.pillbox_pdf import render_pillbox
 from medtable.form import Row
 from medtable.plan import Entry, build_plan
 from medtable.rules import check_packs, meal_notes
@@ -55,6 +56,16 @@ def test_two_doses_of_one_pack_at_the_same_time_are_both_printed(tmp_path):
     plan.entries = [Entry("breakfast", box, line("A", breakfast="1"), "1"), Entry("breakfast", box, line("B", breakfast="2"), "2")]
     front = pages(render_pdf(plan, tmp_path / "y.pdf"))[0]
     assert "1 tablet" in front and "2 tablets" in front
+
+
+def test_the_pill_organiser_page_fills_each_compartment_only_on_the_chosen_days(tmp_path):
+    weekly = line("Lorazepam 1 mg", bedtime="1/2")
+    weekly.days = (0, 3)
+    lines = [line("Metformina 850 mg", breakfast="1"), weekly, line("Omeprazol 20 mg", breakfast="1")]
+    plan = build_plan(lines, reconcile(lines, [pack(METFORMINA_850), pack(LORAZEPAM), pack(OMEPRAZOL, TODAY - timedelta(days=1))]), [], TODAY)
+    page, = pages(render_pillbox(plan, tmp_path / "box.pdf", "Maria Lopez"))
+    assert page.count("METFORMINA DELTA 850 mg") == 7 and page.count("1/2 tablet LORAZEPAM") == 2 and "OMEPRAZOL" not in page     # the expired box stays out
+    assert "1 item(s) are NOT on this page" in page and "does not replace the doctor" in page
 
 
 @pytest.mark.skipif(not voice.available(), reason="no English Windows speech voice installed")

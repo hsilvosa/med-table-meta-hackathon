@@ -5,8 +5,9 @@ from datetime import date
 
 import streamlit as st
 
+from medtable.changes import Changes, compare
 from medtable.form import Row, sync_pack_rows
-from planner.common import card, esc, official_photo
+from planner.common import box, card, esc, official_photo
 
 
 @dataclass
@@ -46,6 +47,28 @@ def current(today: date) -> Table:
     sync_pack_rows(st.session_state.rows, t.medicines)
     t.rows = st.session_state.rows
     return t
+
+
+def changes(t: Table) -> Changes | None:
+    """What changed since the saved plan that was opened; None when no saved plan was opened."""
+    baseline = st.session_state.get("baseline")
+    if not baseline:
+        return None
+    new_photos = [n for n in st.session_state.readings if n != "saved plan"]
+    seen = {r.medicine.cn for n in new_photos for r in st.session_state.readings[n] if r.medicine} if new_photos else None
+    return compare(baseline["rows"], t.rows, seen)
+
+
+def changes_box(t: Table, with_amounts: bool) -> None:
+    found = changes(t)
+    if not found or not (found.new or found.not_seen or (with_amounts and found.amounts)):
+        return
+    items = [f"<li><b>New:</b> {esc(name)}</li>" for name in found.new]
+    items += [f"<li><b>Not seen in the new photos:</b> {esc(name)}. Is it still taken? If not, remove it.</li>" for name in found.not_seen]
+    if with_amounts:
+        items += [f"<li><b>{esc(name)}:</b> {esc('; '.join(diff))}</li>" for name, diff in found.amounts]
+    box("warn", f"What changed since the plan saved on {st.session_state.baseline['saved']}",
+        f'<ul style="margin:.3rem 0 0 1.1rem;padding:0">{"".join(items)}</ul><div class="mt-meta">Check each change against the doctor\'s paper.</div>')
 
 
 def shared_ingredient(t: Table, medicine) -> list[str]:

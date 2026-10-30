@@ -1,6 +1,7 @@
 """Shared parts of the planner: page settings, session state and the actions that change it, and small rendering helpers."""
 
 import base64
+import copy
 import html
 import re
 import shutil
@@ -153,6 +154,7 @@ def open_saved(text: str) -> None:
         if pack:
             st.session_state.manual.append(pack)
     st.session_state.rows = data["rows"]
+    st.session_state.baseline = {"saved": data["saved"], "rows": copy.deepcopy(data["rows"])}      # to show what changed since then
     st.session_state.patient, st.session_state.plan_notes = data["patient"], data["notes"]
     st.session_state.times.update({s: v for s, v in data["times"].items() if s in SLOTS})
     st.session_state.removed_cns, st.session_state.removed_raw = data["removed_cns"], data["removed_raw"]

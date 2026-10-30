@@ -108,7 +108,8 @@ class SlotIcon(Flowable):
 
 
 def render_pdf(plan: Plan, out: Path, patient: str = "", photo_dir: Path = Path("data/cache/photos"), notes: str = "",
-               times: dict[str, str] | None = None) -> Path:
+               times: dict[str, str] | None = None, changes=None) -> Path:
+    """`changes`: a medtable.changes.Changes when the plan was reopened from a saved one; listed on page 2 for the pharmacist."""
     out.parent.mkdir(parents=True, exist_ok=True)
     times = {**DEFAULT_TIMES, **(times or {})}
     patient, notes = patient.strip(), notes.strip()
@@ -185,6 +186,12 @@ def render_pdf(plan: Plan, out: Path, patient: str = "", photo_dir: Path = Path(
     if plan.not_included:
         block = [Paragraph("<b>Not included in the calendar</b>", ParagraphStyle("hn", parent=red, fontName="Helvetica-Bold", fontSize=15, leading=18))]
         block += [Paragraph(f"&bull; {esc(what)}: {esc(why)}", red) for what, why in plan.not_included]
+        story += [KeepTogether(block), Spacer(1, 4 * mm)]
+    if changes:
+        block = [Paragraph("<b>Changes since the saved plan</b>", ParagraphStyle("hc", parent=base, fontName="Helvetica-Bold", fontSize=15, leading=18))]
+        block += [Paragraph(f"&bull; New: {esc(n)}", base) for n in changes.new]
+        block += [Paragraph(f"&bull; Not seen in the new photos: {esc(n)}", base) for n in changes.not_seen]
+        block += [Paragraph(f"&bull; {esc(n)}: {esc('; '.join(d))}", base) for n, d in changes.amounts]
         story += [KeepTogether(block), Spacer(1, 4 * mm)]
     review = sorted((f for f in plan.findings if f.kind != "unverified_item"), key=lambda f: f.severity != "review")
     if review:
