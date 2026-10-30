@@ -58,9 +58,13 @@ def _from_cima(cn6: str, d: dict, fetched: str) -> Medicine:
         docs={k: v for k, v in docs.items() if v}, source_url=DETAIL_URL.format(d["nregistro"]), fetched=fetched)
 
 
+BUNDLED = Path(__file__).resolve().parents[2] / "demo_cache"     # CIMA data of the demo medicines, shipped so the demo works offline
+
+
 class Resolver:
-    def __init__(self, cache_dir: Path | str = "data/cache/cima") -> None:
+    def __init__(self, cache_dir: Path | str = "data/cache/cima", bundled: Path | None = BUNDLED / "cima") -> None:
         self.cache_dir = Path(cache_dir)
+        self.bundled = bundled
 
     def by_cn(self, cn: str) -> Medicine | None:
         """`cn` may be 6 or 7 digits (the check digit is ignored). None when CIMA does not know the CN."""
@@ -70,6 +74,13 @@ class Resolver:
             stored = json.loads(cached.read_text(encoding="utf-8"))
             if "strengths" in stored:  # entries written by an older version lack it: fetch again
                 return Medicine(**stored)
+        if self.bundled is not None:        # read-only copy shipped with the repository (scripts/bundle_demo_cache.py), dated like any CIMA answer
+            shipped = self.bundled / f"{cn6}.json"
+            if shipped.exists():
+                return Medicine(**json.loads(shipped.read_text(encoding="utf-8")))
+            unknown = self.bundled / "unknown.json"
+            if unknown.exists() and cn6 in json.loads(unknown.read_text(encoding="utf-8")).get("cns", []):
+                return None
         try:
             data = cima.medicine_by_cn(cn6)
         except urllib.error.HTTPError as exc:

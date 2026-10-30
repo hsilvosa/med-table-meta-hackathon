@@ -31,7 +31,7 @@ from medtable.findings import NOT_A_FULL_CHECK, explain_problem  # noqa: E402
 from medtable.form import CHOICE_LABELS, CHOICE_VALUES, OTHER, QUICK_NOTES, Row, choice_for, merge_read_rows, sync_pack_rows  # noqa: E402
 from medtable.pipeline import make_plan, manual_pack  # noqa: E402
 from medtable.plan import DAY_SHORT, DEFAULT_TIMES, NOT_CONFIRMED, SLOT_LABELS, box_days, form_noun, large_amount, to_ics, units_in_pack  # noqa: E402
-from medtable.resolve import Resolver  # noqa: E402
+from medtable.resolve import BUNDLED, Resolver  # noqa: E402
 from medtable.rules import Pack  # noqa: E402
 from medtable.schedule import ALL_DAYS, SLOTS, dose_number, lines_from_rows  # noqa: E402
 from medtable.smpc import Smpc  # noqa: E402
@@ -342,9 +342,9 @@ def add_photo(name: str, image: np.ndarray) -> None:
 
 def official_photo(medicine) -> str | None:
     for kind in ("materialas", "formafarmac"):
-        local = LOCAL_PHOTOS / kind / f"{medicine.nregistro}.jpg"
-        if local.exists():
-            return str(local)
+        for local in (LOCAL_PHOTOS / kind / f"{medicine.nregistro}.jpg", BUNDLED / "photos" / kind / f"{medicine.nregistro}.jpg"):
+            if local.exists():
+                return str(local)
         if medicine.photos.get(kind):
             return medicine.photos[kind]
     return None

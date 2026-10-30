@@ -1,0 +1,46 @@
+{
+ "cn": "662025",
+ "nregistro": "70310",
+ "name": "PARACETAMOL CINFA 1 g COMPRIMIDOS EFG",
+ "active_ingredients": [
+  "PARACETAMOL"
+ ],
+ "strengths": [
+  {
+   "nombre": "PARACETAMOL",
+   "cantidad": "1000",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "N02B",
+   "nombre": "OTROS ANALGESICOS Y ANTIPIRETICOS",
+   "nivel": 3
+  },
+  {
+   "codigo": "N02BE",
+   "nombre": "Anilidas",
+   "nivel": 4
+  },
+  {
+   "codigo": "N02BE01",
+   "nombre": "Paracetamol",
+   "nivel": 5
+  }
+ ],
+ "form": "COMPRIMIDO",
+ "presentation": "PARACETAMOL CINFA 1 g COMPRIMIDOS EFG , 20 comprimidos",
+ "marketed": true,
+ "holder": "Laboratorios Cinfa S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/70310/70310_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/70310/70310_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/70310/FT_70310.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/70310/P_70310.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=70310",
+ "fetched": "2026-10-26"
+}

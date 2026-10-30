@@ -11,6 +11,15 @@ export function drawScan(canvas, srcWidth, state, noCodeText, fontPx = 13) {
   g.font = `600 ${fontPx}px system-ui, sans-serif`; g.textBaseline = 'bottom';
   const bar = Math.round(fontPx * 1.5), now = performance.now();
   let animating = false;
+  const taken = [];        // labels already drawn: a label that would cover one moves below its box, then further down, so every name stays readable
+  const place = (x, y, w, h, below) => {
+    const hits = (yy) => taken.some(r => x < r[0] + r[2] && x + w > r[0] && yy < r[1] + r[3] && yy + h > r[1]);
+    let yy = y;
+    if (hits(yy)) yy = below;
+    while (hits(yy) && yy < canvas.height) yy += h + 2;
+    taken.push([x, yy, w, h]);
+    return yy;
+  };
   for (const code of state.boxes) {
     const [x0, y0, x1, y1] = code.bbox;
     const id = `${Math.round((x0 + x1) / 160)},${Math.round((y0 + y1) / 160)}`;      // the same code keeps its id between stages (cells of 80 px)
@@ -21,15 +30,16 @@ export function drawScan(canvas, srcWidth, state, noCodeText, fontPx = 13) {
     const ok = code.status === 'verified', color = ok ? GREEN : AMBER;
     g.lineWidth = 3 + 3 * pop; g.strokeStyle = color; g.strokeRect(cx - half, cy - half, half * 2, half * 2);
     const label = ok ? 'Recognised: ' + (code.name || '').split(' ')[0].toLowerCase().replace(/^./, s => s.toUpperCase()) + (code.expired ? ' (EXPIRED)' : '') : 'Not verified';
-    const w = g.measureText(label).width + 10;
-    g.fillStyle = color; g.fillRect(cx - half, cy - half - bar, w, bar);
-    g.fillStyle = INK; g.fillText(label, cx - half + 5, cy - half - 3);
+    const w = g.measureText(label).width + 10, lx = Math.min(Math.max(cx - half, 0), Math.max(canvas.width - w, 0));     // kept inside the picture
+    const ly = Math.max(place(lx, cy - half - bar, w, bar, cy + half), 0);
+    g.fillStyle = color; g.fillRect(lx, ly, w, bar);
+    g.fillStyle = INK; g.fillText(label, lx + 5, ly + bar - 3);
   }
   for (const [x0, y0, x1, y1] of state.nocode) {      // a pack was seen here and no code was read from it
     const left = x0 * k, top = y0 * k, wide = (x1 - x0) * k, high = (y1 - y0) * k;
     g.lineWidth = 3; g.strokeStyle = AMBER; g.setLineDash([9, 6]); g.strokeRect(left, top, wide, high); g.setLineDash([]);
     const w = g.measureText(noCodeText).width + 10;
-    const lx = Math.min(Math.max(left, 0), Math.max(canvas.width - w, 0)), ly = top > bar + 3 ? top - bar : top + high;
+    const lx = Math.min(Math.max(left, 0), Math.max(canvas.width - w, 0)), ly = place(lx, top > bar + 3 ? top - bar : top + high, w, bar, top + high);
     g.fillStyle = AMBER; g.fillRect(lx, ly, w, bar); g.fillStyle = INK; g.fillText(noCodeText, lx + 5, ly + bar - 3);
   }
   return animating;

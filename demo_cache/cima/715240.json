@@ -1,0 +1,46 @@
+{
+ "cn": "715240",
+ "nregistro": "66204",
+ "name": "GELOCATIL 1 g COMPRIMIDOS",
+ "active_ingredients": [
+  "PARACETAMOL"
+ ],
+ "strengths": [
+  {
+   "nombre": "PARACETAMOL",
+   "cantidad": "1000",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "N02B",
+   "nombre": "OTROS ANALGESICOS Y ANTIPIRETICOS",
+   "nivel": 3
+  },
+  {
+   "codigo": "N02BE",
+   "nombre": "Anilidas",
+   "nivel": 4
+  },
+  {
+   "codigo": "N02BE01",
+   "nombre": "Paracetamol",
+   "nivel": 5
+  }
+ ],
+ "form": "COMPRIMIDO",
+ "presentation": "GELOCATIL 1 g COMPRIMIDOS,10 comprimidos",
+ "marketed": true,
+ "holder": "Vemedia Pharma Hispania S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/66204/66204_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/66204/66204_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/66204/FT_66204.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/66204/P_66204.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=66204",
+ "fetched": "2026-10-26"
+}

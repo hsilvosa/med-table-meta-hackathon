@@ -43,3 +43,20 @@ def test_leaflet_sections_that_cannot_be_fetched_are_reported_as_not_checked(tmp
     findings = rules.check_packs([pack(OMEPRAZOL), pack(LORAZEPAM)], Smpc(tmp_path))
     assert {f.kind for f in findings} >= {"smpc_unavailable"}
     assert not any(f.kind == "smpc_mention" for f in findings)
+
+
+def test_the_demo_photo_is_read_with_no_connection_from_the_data_shipped_in_the_repository(tmp_path, monkeypatch):
+    from medtable import synthetic
+    offline(monkeypatch)
+    items = [("654177", "281231"), ("662025", "270430"), ("715240", "250600"), ("677379", "280131"), ("656012", "271130"), ("100008", "281231")]
+    readings = identify.identify(synthetic.demo_photo(items), Resolver(tmp_path))         # an empty cache: only demo_cache/ and no network
+    assert sorted(r.medicine.cn for r in readings if r.status == "verified") == ["654177", "656012", "662025", "677379", "715240"]
+    unknown = [r for r in readings if r.status != "verified"]
+    assert len(unknown) == 1 and unknown[0].problems == ["CIMA has no medicine with CN 100008"]       # known to be unknown, not "no connection"
+    assert Smpc(tmp_path).section("58994", "4.5").text                     # the leaflet quotes too
+
+
+def test_a_medicine_outside_the_demo_still_needs_the_connection(tmp_path, monkeypatch):
+    offline(monkeypatch)
+    reading = identify.read_code(decode.Detection(ntin_element_string("848226"), (0, 0, 10, 10), "zxing"), Resolver(tmp_path))
+    assert reading.status == "unverified" and reading.problems == [identify.UNREACHABLE]

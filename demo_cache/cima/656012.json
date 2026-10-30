@@ -1,0 +1,46 @@
+{
+ "cn": "656012",
+ "nregistro": "66020",
+ "name": "IBUPROFENO CINFA 20 MG/ML SUSPENSIÓN ORAL EFG",
+ "active_ingredients": [
+  "IBUPROFENO"
+ ],
+ "strengths": [
+  {
+   "nombre": "IBUPROFENO",
+   "cantidad": "2,0",
+   "unidad": "g"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "M01A",
+   "nombre": "PRODUCTOS ANTIINFLAMATORIOS Y ANTIRREUMATICOS NO ESTEROIDEOS",
+   "nivel": 3
+  },
+  {
+   "codigo": "M01AE",
+   "nombre": "Derivados del acido propionico",
+   "nivel": 4
+  },
+  {
+   "codigo": "M01AE01",
+   "nombre": "Ibuprofeno",
+   "nivel": 5
+  }
+ ],
+ "form": "SUSPENSIÓN ORAL",
+ "presentation": "IBUPROFENO CINFA 20 MG/ML SUSPENSIÓN ORAL EFG  1 frasco de 200 ml",
+ "marketed": true,
+ "holder": "Laboratorios Cinfa S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/66020/66020_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/66020/66020_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/66020/FT_66020.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/66020/P_66020.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=66020",
+ "fetched": "2026-10-26"
+}

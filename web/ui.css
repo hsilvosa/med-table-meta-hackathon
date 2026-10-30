@@ -73,6 +73,8 @@ body.planner #panel { display: flex; }
   #side { order: 2; width: 100%; flex: 1; height: auto; border-right: 0; border-top: 1px solid var(--line); padding-bottom: 1rem; }
   #panel { order: 3; position: fixed; inset: 0; width: 100%; z-index: 20; border-left: 0; }
   .keys-block { display: none; }
+  #side > #advice { margin: 0 0 .6rem; font-size: 1.1rem; }
+  #stage { height: 52dvh; }
 }
 @media (orientation: landscape) and (max-height: 520px) {
   html { font-size: 15px; }

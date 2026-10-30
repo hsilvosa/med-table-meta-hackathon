@@ -103,14 +103,19 @@ def meal_sentences(text: str) -> list[str]:
 
 
 class Smpc:
-    def __init__(self, cache_dir: Path | str = "data/cache/smpc") -> None:
+    def __init__(self, cache_dir: Path | str = "data/cache/smpc", bundled: Path | None = None) -> None:
+        from .resolve import BUNDLED
         self.cache_dir = Path(cache_dir)
+        self.bundled = bundled if bundled is not None else BUNDLED / "smpc"
 
     def section(self, nregistro: str, section: str) -> Section | None:
         """Text of one SmPC section ('4.2', '4.5'...). None when CIMA has no such section for the medicine."""
         cached = self.cache_dir / f"{nregistro}_{section}.json"
         if cached.exists():
             return Section(**json.loads(cached.read_text(encoding="utf-8")))
+        shipped = self.bundled / f"{nregistro}_{section}.json"
+        if shipped.exists():
+            return Section(**json.loads(shipped.read_text(encoding="utf-8")))
         try:
             raw = cima.fetch(SECTION_URL.format(nregistro=nregistro, section=section)).decode("utf-8", "replace")
         except urllib.error.HTTPError as exc:

@@ -14,6 +14,17 @@ export function initPrefs() {
   apply(stored);
   document.getElementById('textBigger')?.addEventListener('click', () => apply(true));
   document.getElementById('textSmaller')?.addEventListener('click', () => apply(false));
+  placeAdvice();
+}
+
+// On a narrow screen the picture is short, and the advice laid over it would hide the boxes: there it goes right under the picture, at the top of the controls.
+function placeAdvice() {
+  const banner = document.getElementById('advice'), stage = document.getElementById('stage'), side = document.getElementById('side');
+  if (!banner || !stage || !side) return;
+  const narrow = matchMedia('(max-width: 860px)');
+  const put = () => { if (narrow.matches) side.prepend(banner); else stage.append(banner); };
+  put();
+  narrow.addEventListener('change', put);
 }
 
 // Spoken with the voice of the device (nothing is downloaded or sent). Only when the person ticked "Read messages aloud", and never the same sentence twice in a row.

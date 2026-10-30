@@ -1,0 +1,43 @@
+{
+ "cn": "654177",
+ "nregistro": "58994",
+ "name": "SINTROM 1 mg COMPRIMIDOS",
+ "active_ingredients": [
+  "ACENOCUMAROL"
+ ],
+ "strengths": [
+  {
+   "nombre": "ACENOCUMAROL",
+   "cantidad": "1",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "B01A",
+   "nombre": "AGENTES ANTITROMBOTICOS",
+   "nivel": 3
+  },
+  {
+   "codigo": "B01AA",
+   "nombre": "Antagonistas de la vitamina K",
+   "nivel": 4
+  },
+  {
+   "codigo": "B01AA07",
+   "nombre": "Acenocumarol",
+   "nivel": 5
+  }
+ ],
+ "form": "COMPRIMIDO",
+ "presentation": "SINTROM 1 mg COMPRIMIDOS , 60 comprimidos",
+ "marketed": true,
+ "holder": "Merus Labs Luxco Ii S.À.R.L.",
+ "photos": {},
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/58994/FT_58994.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/58994/P_58994.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=58994",
+ "fetched": "2026-10-26"
+}

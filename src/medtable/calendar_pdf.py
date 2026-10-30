@@ -35,10 +35,11 @@ INK = colors.HexColor("#1a1a1a")
 
 def _photo(medicine, photo_dir: Path, local_dir: Path = Path("data/cima/images/full")) -> Path | None:
     """The official pack photo (preferred) or dosage-form photo: from the local CIMA download, else fetched and cached."""
+    from .resolve import BUNDLED
     for kind in ("materialas", "formafarmac"):
-        local = local_dir / kind / f"{medicine.nregistro}.jpg"
-        if local.exists():
-            return local
+        for local in (local_dir / kind / f"{medicine.nregistro}.jpg", BUNDLED / "photos" / kind / f"{medicine.nregistro}.jpg"):
+            if local.exists():
+                return local
         url = medicine.photos.get(kind)
         if url:
             cached = photo_dir / f"{medicine.nregistro}_{kind}.jpg"
