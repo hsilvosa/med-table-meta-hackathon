@@ -92,6 +92,9 @@ def test_doubtful_lines_are_left_out_with_their_reason_never_guessed():
     for medicine, right, wrong in ((salt, "Amlodipino 5 mg", "Amlodipino 10 mg"), (micro, "Eutirox 100 microgramos", "Eutirox 50 microgramos")):
         assert reconcile([Line(medicine.name)], [pack(medicine)]).blocked == {} and reconcile([Line(right)], [pack(medicine)]).blocked == {}     # the name on the box is the strength
         assert reconcile([Line(wrong)], [pack(medicine)]).blocked == {0: "the strength on the sheet does not match the pack"}
+    assert reconcile([Line("Eutirox 100")], [pack(micro)]).blocked == {} and reconcile([Line("Eutirox 50")], [pack(micro)]).blocked     # no unit written
+    odd = med("653398", "TESTAL 165 mg COMPRIMIDOS", ["TESTAL"], "A01AA01", strengths=strength(("165.00*", "mg")))     # CIMA marks some amounts
+    assert reconcile([Line("Testal 165 mg")], [pack(odd)]).blocked == {}
     assert reconcile([Line("Ibuprofeno 20 mg/ml")], [pack(syrup)]).blocked == {}        # CIMA gives liquids per container: not compared
 
 

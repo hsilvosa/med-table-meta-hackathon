@@ -77,6 +77,12 @@ def _numbers(text: str) -> list[float]:
     return sorted(out)
 
 
+def _amount(strength: dict) -> float | None:
+    """One CIMA strength in mg. CIMA sometimes adds marks to the number ('165.00*'): only the number is used; None if there is none."""
+    match = re.search(r"\d+(?:[.,]\d+)?", str(strength.get("cantidad") or ""))
+    return round(float(match.group().replace(",", ".")) * MASS_TO_MG.get(str(strength.get("unidad")).lower(), 1.0), 6) if match else None
+
+
 def strength_matches(line: Line, pack: Pack) -> bool | None:
     """True/False when both sides state strengths; None when either side has none to compare.
 
@@ -87,13 +93,14 @@ def strength_matches(line: Line, pack: Pack) -> bool | None:
     if any(word in form for word in NON_SOLID_FORMS) or re.search(r"/\s*(ml|l|dosis|gota|g)\b", line.text.lower()):
         return None
     wanted = _numbers(line.text)
-    actual = sorted(round(float(str(s["cantidad"]).replace(",", ".")) * MASS_TO_MG.get(str(s["unidad"]).lower(), 1.0), 6)
-                    for s in pack.medicine.strengths if s.get("cantidad") not in (None, ""))
+    actual = sorted(a for a in map(_amount, pack.medicine.strengths) if a is not None)
     # CIMA often gives the amount of the salt (amlodipine besilate 6.94 mg) while the name, the box and the prescription give the base
     # (amlodipine 5 mg): the strengths in the official name count as well.
     named = _numbers(pack.medicine.name)
     if not wanted or not (actual or named):
         return None
+    if not re.search(r"\d\s*(mg|g|mcg|µg|ug|gr|microgramos?)\b", line.text.lower()):      # "Eutirox 100": no unit written, the numbers are compared as written
+        return _numbers(re.sub(r"(mg|g|mcg|µg|ug|gr|microgramos?)\b", " ", pack.medicine.name.lower())) == wanted or wanted in (actual, named)
     return wanted in (actual, named)
 
 
