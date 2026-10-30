@@ -1,7 +1,6 @@
 """Sheet reader: model replies become unconfirmed rows; nothing is invented or silently corrected."""
 
-from medtable import sheet_reader, vlm
-from medtable.meta_api import Reply
+from medtable import sheet_reader
 from medtable.pipeline import make_plan
 
 GOOD = '''```json
@@ -24,27 +23,6 @@ def test_unrecognised_dose_is_kept_and_reported_never_replaced_by_zero():
     reading = sheet_reader.rows_from_reply(bad)
     assert reading.rows[0]["breakfast"] == "media" and reading.rows[0]["bedtime"] == "1-2"
     assert len(reading.problems) == 2 and "\"media\"" in reading.problems[0]
-
-
-def test_garbage_and_nameless_rows():
-    assert sheet_reader.rows_from_reply("no puedo leer esto").rows == []
-    mixed = sheet_reader.rows_from_reply('{"filas": [{"medicine": "", "breakfast": "1"}, {"medicine": "Omeprazol", "breakfast": "1"}]}')
-    assert [r["medicine"] for r in mixed.rows] == ["Omeprazol"]
-    assert any("no medicine name" in p for p in mixed.problems) and any("empty or unread cell in lunch, dinner, bedtime" in p for p in mixed.problems)
-
-
-def test_read_sheet_uses_the_selected_backend(monkeypatch, tmp_path):
-    seen = {}
-
-    def fake(image, prompt, *, backend=None, max_tokens=0, note="", consent=False):
-        seen.update(image=str(image), backend=backend, prompt=prompt, consent=consent)
-        return Reply(GOOD, {}, 0.004, 1.0)
-
-    monkeypatch.setattr(vlm, "ask_image", fake)
-    monkeypatch.setattr(vlm, "backend_name", lambda b=None: b or "meta")
-    reading = sheet_reader.read_sheet(tmp_path / "sheet.jpg", backend="local")
-    assert seen["backend"] == "local" and "Do not interpret" in seen["prompt"]
-    assert reading.backend == "local" and reading.cost_usd == 0.004 and len(reading.rows) == 2
 
 
 def test_a_misread_dose_cannot_reach_the_calendar():

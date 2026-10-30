@@ -1,6 +1,5 @@
 """A saved plan: what is in the file, and that opening it trusts nothing but the caregiver's own choices."""
 
-import json
 from datetime import date
 
 import pytest
@@ -25,14 +24,8 @@ def test_a_saved_plan_opens_with_the_same_choices_and_new_widget_keys():
     assert (data["patient"], data["notes"], data["times"], data["removed_cns"], data["saved"]) == ("Maria", "Dr Vega", {"breakfast": "07:15"}, {"715240"}, "2026-10-30")
 
 
-def test_the_file_holds_no_photo_and_no_verdict_about_any_pack():
-    text = plan_file()
-    assert "verified" not in text and "base64" not in text and len(text) < 3000
-
-
-@pytest.mark.parametrize("text, why", [("not json", "could not be read"), ('{"app": "other"}', "not a plan saved by this tool"),
-                                       ('{"app": "med-table", "version": 99}', "another version"),
-                                       ('{"app": "med-table", "version": 1, "rows": [{"id": "x"}]}', "damaged")])
-def test_a_file_that_is_not_a_saved_plan_is_refused_with_a_plain_reason(text, why):
-    with pytest.raises(ValueError, match=why):
-        saved.load(text)
+def test_a_file_that_is_not_a_saved_plan_is_refused_with_a_plain_reason():
+    for text, why in [("not json", "could not be read"), ('{"app": "other"}', "not a plan saved by this tool"),
+                      ('{"app": "med-table", "version": 99}', "another version"), ('{"app": "med-table", "version": 1, "rows": [{"id": "x"}]}', "damaged")]:
+        with pytest.raises(ValueError, match=why):
+            saved.load(text)

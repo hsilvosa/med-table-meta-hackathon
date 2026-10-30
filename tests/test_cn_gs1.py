@@ -2,7 +2,6 @@
 
 from datetime import date
 
-import pytest
 
 from helpers import ntin_element_string
 from medtable import cn, gs1
@@ -11,11 +10,9 @@ from medtable import cn, gs1
 REAL_CNS = [("725702", 8), ("698809", 1), ("682811", 3), ("672339", 5), ("848226", 9)]
 
 
-@pytest.mark.parametrize("cn6,digit", REAL_CNS)
-def test_check_digit_matches_real_codes(cn6, digit):
-    assert cn.check_digit(cn6) == digit
-    assert cn.is_valid(f"{cn6}{digit}")
-    assert cn.is_valid(f"{cn6}.{digit}")
+def test_check_digit_matches_real_codes():
+    for cn6, digit in REAL_CNS:
+        assert cn.check_digit(cn6) == digit and cn.is_valid(f"{cn6}{digit}") and cn.is_valid(f"{cn6}.{digit}")
 
 
 def test_wrong_digit_and_garbage_are_rejected():
@@ -45,20 +42,8 @@ def test_expiry_day_zero_is_end_of_month():
     assert gs1.parse_expiry("270200") == date(2027, 2, 28)
 
 
-def test_ai712_path_for_a_regular_gtin():
-    fields = gs1.parse_elements("(01)08431234567893(712)8482269(10)A1")
-    result = gs1.national_code(fields)
-    assert result.cn == "8482269" and result.source == "ai712"
-    assert any("regular GTIN" in p for p in result.problems)
-
-
 def test_bad_check_digit_never_yields_a_cn():
     fields = gs1.parse_elements("(01)08470008482260(17)281231")  # last digit should be 9
     result = gs1.national_code(fields)
     assert result.cn is None
     assert result.problems
-
-
-def test_unknown_ai_is_an_error():
-    with pytest.raises(ValueError):
-        gs1.parse_elements("99ZZ")

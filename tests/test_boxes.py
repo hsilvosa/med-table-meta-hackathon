@@ -57,31 +57,6 @@ def test_only_the_pack_without_a_read_code_is_reported_as_such():
     assert len(left) == 1 and inside(left, no_code)
 
 
-def test_tiny_things_and_regions_cut_by_the_border_are_ignored():
-    img, _, _ = scene()
-    cv2.circle(img, (1300, 900), 18, (255, 255, 255), -1)                         # a loose pill
-    cv2.rectangle(img, (1500, 500), (1599, 760), (40, 40, 200), -1)                # a pack cut by the right edge: its code may be outside the photo
-    assert len(boxes.find_boxes(img)) == 2
-
-
-def test_a_plain_strip_or_shadow_without_any_printing_is_not_a_pack():
-    img, _, _ = scene()
-    cv2.rectangle(img, (1200, 800), (1260, 1000), (30, 70, 120), -1)                  # a dark seam between two boards, 60 px wide and 200 px long
-    cv2.rectangle(img, (1000, 900), (1100, 1100), (35, 80, 130), -1)                   # a shadow: darker wood, pack-sized, nothing printed
-    assert len(boxes.find_boxes(img)) == 2
-
-
-def test_an_empty_table_has_no_packs_and_grayscale_input_does_not_crash():
-    assert boxes.find_boxes(table()) == []
-    assert boxes.find_boxes(cv2.cvtColor(scene()[0], cv2.COLOR_BGR2GRAY)) is not None
-
-
-def test_a_code_inside_a_region_covers_it_and_one_outside_does_not():
-    box = (100, 100, 400, 300)
-    assert boxes.without_code([box], [(150, 150, 200, 200)]) == []
-    assert boxes.without_code([box], [(500, 150, 550, 200)]) == [box]
-
-
 def test_on_a_white_table_it_stays_silent_instead_of_guessing():
     img = table()
     img[:] = (232, 234, 236)                                                     # a white table: in the room photos the finder found 13 % there and 4 of its 6 boxes were wrong

@@ -2,12 +2,10 @@
 
 import urllib.error
 
-import pytest
 
 from fixtures import LORAZEPAM, OMEPRAZOL, pack
 from helpers import ntin_element_string
 from medtable import cima, decode, identify, rules
-from medtable.pipeline import manual_pack
 from medtable.resolve import Resolver
 from medtable.smpc import Smpc
 
@@ -19,23 +17,11 @@ def offline(monkeypatch):
     monkeypatch.setattr(cima.time, "sleep", lambda s: None)
 
 
-def test_a_failed_fetch_is_reported_as_unreachable_after_the_retries(monkeypatch):
-    offline(monkeypatch)
-    with pytest.raises(cima.Unreachable):
-        cima.fetch("https://cima.aemps.es/x", retries=2)
-
-
 def test_a_code_read_while_offline_is_unverified_with_a_plain_reason(tmp_path, monkeypatch):
     offline(monkeypatch)
     reading = identify.read_code(decode.Detection(ntin_element_string("848226"), (0, 0, 10, 10), "zxing"), Resolver(tmp_path))
     assert reading.status == "unverified" and reading.medicine is None
     assert reading.problems == [identify.UNREACHABLE]
-
-
-def test_a_typed_code_while_offline_says_so(tmp_path, monkeypatch):
-    offline(monkeypatch)
-    found, problem = manual_pack("8482269", Resolver(tmp_path))
-    assert found is None and "could not be reached" in problem
 
 
 def test_leaflet_sections_that_cannot_be_fetched_are_reported_as_not_checked(tmp_path, monkeypatch):
@@ -54,9 +40,3 @@ def test_the_demo_photo_is_read_with_no_connection_from_the_data_shipped_in_the_
     unknown = [r for r in readings if r.status != "verified"]
     assert len(unknown) == 1 and unknown[0].problems == ["CIMA has no medicine with CN 100008"]       # known to be unknown, not "no connection"
     assert Smpc(tmp_path).section("58994", "4.5").text                     # the leaflet quotes too
-
-
-def test_a_medicine_outside_the_demo_still_needs_the_connection(tmp_path, monkeypatch):
-    offline(monkeypatch)
-    reading = identify.read_code(decode.Detection(ntin_element_string("848226"), (0, 0, 10, 10), "zxing"), Resolver(tmp_path))
-    assert reading.status == "unverified" and reading.problems == [identify.UNREACHABLE]

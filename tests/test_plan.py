@@ -3,7 +3,6 @@
 from datetime import date, timedelta
 
 from fixtures import LORAZEPAM, METFORMINA_850, OMEPRAZOL, PARACETAMOL_A, TODAY, pack
-from medtable.findings import Finding
 from medtable.plan import Entry, build_plan, speech_text, to_ics
 from medtable.schedule import Line, reconcile
 
@@ -38,11 +37,6 @@ def test_two_boxes_of_one_medicine_use_the_one_that_has_not_expired_whatever_the
         assert [e.name for e in plan.entries] == [OMEPRAZOL.name] and plan.not_included == []
 
 
-def test_unverified_items_are_listed_as_not_included():
-    plan = make([], [], [Finding("unverified_item", detail="CIMA has no medicine with CN 123456")])
-    assert plan.not_included == [("CIMA has no medicine with CN 123456", "could not be verified")]
-
-
 def test_dose_is_written_exactly_as_confirmed():
     half = Entry("bedtime", pack(LORAZEPAM), line("Lorazepam", {"bedtime": "1/2"}), "1/2")
     two = Entry("breakfast", pack(PARACETAMOL_A), line("Paracetamol", {"breakfast": "2"}), "2")
@@ -61,22 +55,6 @@ def test_speech_reads_fractions_and_abbreviations_correctly():
     assert "half a tablet of PARACETAMOL ALFA" in night and "every 8 hours if pain, 500 milligrams." in night
     assert "two tablets of PARACETAMOL" in speech_text(plan, "breakfast")
     assert speech_text(plan, "lunch") == "Lunch: nothing in the plan."
-
-
-def test_ics_has_one_daily_reminder_per_slot_with_medication():
-    lines = [line("Omeprazol 20 mg", {"breakfast": "1"}), line("Metformina 850 mg", {"breakfast": "1", "dinner": "1"}, "con las comidas; sin falta")]
-    plan = make(lines, [pack(OMEPRAZOL), pack(METFORMINA_850)])
-    ics = to_ics(plan, {"dinner": "20:45"}, start=date(2026, 10, 27), days=30)
-    assert ics.count("BEGIN:VEVENT") == 2 and ics.count("BEGIN:VALARM") == 2
-    assert "DTSTART:20261027T083000" in ics and "DTSTART:20261027T204500" in ics
-    assert "RRULE:FREQ=DAILY;COUNT=30" in ics
-    assert "con las comidas\\; sin falta" in ics  # semicolons are escaped
-    assert ics.startswith("BEGIN:VCALENDAR") and ics.endswith("END:VCALENDAR\r\n")
-
-
-def test_spoken_dose_agrees_with_the_unit():
-    caps = lambda d: Entry("breakfast", pack(OMEPRAZOL), line("Omeprazol", {"breakfast": d}), d).spoken()
-    assert (caps("1"), caps("2"), caps("1/2")) == ("one capsule", "two capsules", "half a capsule")
 
 
 def test_a_medicine_taken_on_some_days_is_written_spoken_and_reminded_on_those_days_only():

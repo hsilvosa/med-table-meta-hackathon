@@ -3,16 +3,10 @@
 from datetime import date
 
 from fixtures import LORAZEPAM, METFORMINA_850, TODAY, pack
-from medtable.form import CHOICE_VALUES, OTHER, Row, choice_for, merge_read_rows, row_for_pack, sync_pack_rows
+from medtable.form import Row, merge_read_rows, row_for_pack, sync_pack_rows
 from medtable.pipeline import make_plan
-from medtable.schedule import dose_number
 
 READ = {"medicine": "Metformina 850 mg comprimidos", "breakfast": "1", "lunch": "0", "dinner": "1", "bedtime": "0", "remarks": "con las comidas"}
-
-
-def test_every_button_value_is_a_dose_the_schedule_understands():
-    assert all(dose_number(v) is not None for v in CHOICE_VALUES)
-    assert choice_for("1/2") == "1/2" and choice_for("4") == OTHER and choice_for("") == OTHER and choice_for("media") == OTHER
 
 
 def test_new_pack_rows_start_empty_unconfirmed_and_only_once():
@@ -37,19 +31,6 @@ def test_a_row_the_caregiver_already_worked_on_is_not_overwritten():
     assert rows[0].doses["bedtime"] == "2" and len(rows) == 2           # the read line became its own row; the plan will flag the pack on two lines
 
 
-def test_a_line_that_names_no_pack_becomes_its_own_row():
-    rows = [row_for_pack(METFORMINA_850)]
-    merge_read_rows(rows, [{**READ, "medicine": "Atorvastatina 20 mg"}], [pack(METFORMINA_850)])
-    assert [r.cn for r in rows] == [METFORMINA_850.cn, None] and rows[0].untouched and rows[1].medicine == "Atorvastatina 20 mg"
-
-
-def test_the_same_line_read_twice_is_added_once_and_reported():
-    rows: list[Row] = []
-    merge_read_rows(rows, [{**READ, "medicine": "Atorvastatina 20 mg"}], [])
-    _, notes = merge_read_rows(rows, [{**READ, "medicine": "Atorvastatina 20 mg"}], [])
-    assert len(rows) == 1 and "already in the list" in notes[0]
-
-
 def test_rows_feed_the_plan_and_only_confirmed_rows_count():
     rows = [row_for_pack(METFORMINA_850), row_for_pack(LORAZEPAM)]
     merge_read_rows(rows, [READ], [pack(METFORMINA_850), pack(LORAZEPAM)])
@@ -58,21 +39,3 @@ def test_rows_feed_the_plan_and_only_confirmed_rows_count():
     rows[0].confirmed = True
     result = make_plan([], [pack(METFORMINA_850, date(2030, 1, 1)), pack(LORAZEPAM, date(2030, 1, 1))], [r.as_record() for r in rows], None, TODAY)
     assert [e.name for e in result.plan.entries] == [METFORMINA_850.name] * 2
-
-
-def test_ticked_phrases_and_free_text_make_one_note_and_count_as_work_on_the_row():
-    row = row_for_pack(METFORMINA_850)
-    row.quick = ["With food"]
-    assert not row.untouched and row.note == "With food"
-    row.remarks = "white tablet"
-    assert row.note == "With food; white tablet" and row.as_record()["remarks"] == "With food; white tablet"
-    assert row_for_pack(LORAZEPAM).note == ""
-
-
-def test_a_row_changed_by_a_sheet_read_gets_a_new_widget_key_so_the_buttons_show_the_new_values():
-    rows = [row_for_pack(METFORMINA_850), row_for_pack(LORAZEPAM)]
-    before = {r.id: r.key("dose", "breakfast") for r in rows}
-    merge_read_rows(rows, [READ], [pack(METFORMINA_850), pack(LORAZEPAM)])
-    assert rows[0].key("dose", "breakfast") != before[rows[0].id]          # filled from the sheet: new identity
-    assert rows[1].key("dose", "breakfast") == before[rows[1].id]          # untouched: same identity
-

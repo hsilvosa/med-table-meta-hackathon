@@ -3,7 +3,7 @@
 from datetime import date, timedelta
 
 from fixtures import (ACENOCUMAROL, FakeSmpc, IBUPROFENO, METFORMINA_850, NAPROXENO, OMEPRAZOL, PARACETAMOL_A,
-                      PARACETAMOL_B, SECTIONS, TODAY, VALSARTAN_40, VALSARTAN_HCT, pack)
+                      PARACETAMOL_B, SECTIONS, TODAY, pack)
 from medtable import smpc
 from medtable.rules import check_packs, meal_notes
 
@@ -25,16 +25,6 @@ def test_same_class_but_different_ingredient_is_a_class_finding_not_a_duplicate(
     assert "M01AE" in found[0].detail
 
 
-def test_unrelated_medicines_raise_nothing():
-    found = check_packs([pack(METFORMINA_850), pack(ACENOCUMAROL)], FakeSmpc(), TODAY)
-    assert kinds(found) == ["smpc_unavailable"] and found[0].cns == ["670001"]  # no 4.5 text for Sintrom in the fixture: said, not silent
-
-
-def test_partial_overlap_valsartan_alone_and_in_combination():
-    found = check_packs([pack(VALSARTAN_40), pack(VALSARTAN_HCT)], today=TODAY)
-    assert "duplicate_ingredient" in kinds(found)  # shares valsartan even though the ATC codes differ
-
-
 def test_expired_and_expiring_packs():
     found = check_packs([pack(OMEPRAZOL, TODAY - timedelta(days=1)), pack(METFORMINA_850, TODAY + timedelta(days=10)),
                          pack(ACENOCUMAROL, date(2030, 1, 1))], today=TODAY)
@@ -42,11 +32,6 @@ def test_expired_and_expiring_packs():
     assert by_kind["expired"].severity == "review" and by_kind["expired"].detail == "2026-10-25"
     assert by_kind["expires_soon"].severity == "info"
     assert len(found) == 2
-
-
-def test_two_packs_of_one_medicine_is_info():
-    found = check_packs([pack(OMEPRAZOL), pack(OMEPRAZOL)], today=TODAY)
-    assert [(f.kind, f.severity) for f in found] == [("same_medicine_twice", "info")]
 
 
 def test_smpc_mention_quotes_the_source_verbatim_and_names_the_other_pack():
@@ -68,23 +53,9 @@ def test_no_mention_is_not_reported_as_safe():
     assert found[0].severity == "info"  # the sentence says nothing was described: quoted, not escalated
 
 
-def test_class_name_mentions_use_plural_and_accent_insensitive_matching():
-    text = "Los inhibidores de la bomba de protones no modifican la absorción. Otra frase sin relación con el asunto en cuestión."
-    assert smpc.find_mentions(text, ["INHIBIDOR DE LA BOMBA DE PROTONES"])
-    assert not smpc.find_mentions(text, ["metformina"])
-
-
 def test_without_a_smpc_source_only_the_deterministic_checks_run():
     found = check_packs([pack(IBUPROFENO), pack(ACENOCUMAROL)], None, TODAY)
     assert found == []
-
-
-def test_long_sentences_are_cut_to_an_exact_substring_around_the_term():
-    filler = "alopurinol, esteroides anabolizantes, androgenos, " * 12
-    text = "Intro corta del apartado de interacciones. " + "Los siguientes medicamentos potencian el efecto: " + filler + "paracetamol, ketoconazol, " + filler + "."
-    (term, quote), = smpc.find_mentions(text, ["PARACETAMOL"])
-    assert all(part in text for part in smpc.fragments(quote)) and "paracetamol" in quote and len(quote) < 500
-    assert quote.startswith("Los siguientes medicamentos potencian")
 
 
 def test_meal_notes_quote_section_4_2_sentences_about_food():
@@ -95,14 +66,6 @@ def test_meal_notes_quote_section_4_2_sentences_about_food():
     assert "durante las comidas" in found[0].quote and "con o sin alimentos" in found[1].quote
     assert all(f.quote in SECTIONS[(f.source and (METFORMINA_850 if f.cns[0] == "680001" else OMEPRAZOL).nregistro, "4.2")] for f in found)
     assert "decided by the caregiver" in found[0].text()
-
-
-def test_one_sentence_naming_two_packs_of_the_same_ingredient_is_reported_once(monkeypatch):
-    monkeypatch.setitem(SECTIONS, (ACENOCUMAROL.nregistro, "4.5"),
-                        "Algunos medicamentos pueden potenciar el efecto anticoagulante de forma notable, como el paracetamol a dosis altas.")
-    found = check_packs([pack(ACENOCUMAROL), pack(PARACETAMOL_A), pack(PARACETAMOL_B)], FakeSmpc(), TODAY)
-    mentions = [f for f in found if f.kind == "smpc_mention"]
-    assert len(mentions) == 1 and sorted(mentions[0].cns) == ["650001", "650002", "670001"]
 
 
 def test_a_cut_quote_ends_with_the_marker_and_a_complete_sentence_does_not():

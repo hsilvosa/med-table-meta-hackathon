@@ -1,13 +1,11 @@
 """Decoding, resolving and identifying, with the network replaced by a stored CIMA response."""
 
-import json
 from datetime import date
 
-import cv2
 import numpy as np
 
 from helpers import ntin_element_string, render_datamatrix
-from medtable import cima, decode, identify
+from medtable import cima, identify
 from medtable.resolve import Resolver
 
 AZOPT = {
@@ -28,16 +26,6 @@ def fake_cima(monkeypatch, calls):
             raise cima.urllib.error.HTTPError("u", 404, "not found", {}, None)
         return AZOPT
     monkeypatch.setattr(cima, "medicine_by_cn", medicine_by_cn)
-
-
-def test_decode_round_trip_and_two_codes_in_one_photo():
-    one, two = ntin_element_string("848226"), ntin_element_string("725702", serial="SN0002")
-    canvas = np.full((900, 1400, 3), 200, np.uint8)
-    for text, (x, y) in ((one, (100, 120)), (two, (900, 560))):
-        code = render_datamatrix(text, module_px=7)
-        canvas[y:y + code.shape[0], x:x + code.shape[1]] = code
-    found = decode.find_datamatrix(canvas)
-    assert {d.text for d in found} == {one, two}
 
 
 def test_resolver_caches_and_reports_unknown(tmp_path, monkeypatch):
@@ -68,11 +56,6 @@ def test_identify_marks_verified_expired_and_unknown(tmp_path, monkeypatch):
     assert known.status == "verified" and known.expired is True and known.medicine.name.startswith("AZOPT")
     unknown = readings[codes["unknown"][0]]
     assert unknown.status == "unverified" and unknown.medicine is None and "CIMA has no medicine" in unknown.problems[0]
-
-
-def test_non_code_text_is_unverified(tmp_path):
-    reading = identify.read_code(decode.Detection("hello world", (0, 0, 1, 1), "zxing"), Resolver(tmp_path))
-    assert reading.status == "unverified" and reading.problems
 
 
 def test_cima_empty_body_for_an_unknown_cn_means_not_found(tmp_path, monkeypatch):

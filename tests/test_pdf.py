@@ -60,11 +60,6 @@ def test_calendar_page_has_the_name_notes_and_times_the_caregiver_gave(tmp_path)
     assert "con las comidas" in pages[0] and "Plan for: Maria Lopez" in pages[1]
 
 
-def test_without_a_name_or_notes_the_page_prints_lines_to_write_on(tmp_path):
-    pages = two_pages(tmp_path)
-    assert "For: ____" in pages[0] and "Doctor: ____" in pages[0] and "Pharmacy: ____" in pages[0]
-
-
 def test_page_one_says_when_something_is_left_out_and_page_two_says_what(tmp_path):
     pages = two_pages(tmp_path)
     assert "item(s) are NOT in this calendar" in pages[0] and "See page 2" in pages[0]

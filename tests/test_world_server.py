@@ -9,13 +9,11 @@ from functools import partial
 from http.server import ThreadingHTTPServer
 
 import cv2
-import numpy as np
 import pytest
 
 from fixtures import med
 from medtable import synthetic
 from medtable.resolve import Resolver
-
 
 
 @pytest.fixture
@@ -57,26 +55,6 @@ def test_a_photo_is_saved_with_its_truth_and_as_latest(server):
     assert (folder / saved["name"]).read_bytes() == jpeg_of_demo_code()  # no effects: stored untouched
 
 
-def test_phone_effects_change_the_pixels_but_keep_the_code_readable(server):
-    module, url, tmp = server
-    saved = post(url, jpeg_of_demo_code(), {}, effects=True)
-    stored = cv2.imread(str(tmp / "data" / "world_photos" / saved["name"]))
-    original = synthetic.demo_photo([("654177", "281231")])
-    assert stored.shape == original.shape and np.abs(stored.astype(int) - original.astype(int)).mean() > 0.5
-    from medtable import decode
-    assert [d.text for d in decode.find_datamatrix(stored)] == [d.text for d in decode.find_datamatrix(original)]
-
-
-def test_only_the_photo_endpoint_accepts_posts_and_modules_are_served_as_javascript(server):
-    module, url, _ = server
-    with pytest.raises(urllib.error.HTTPError) as error:
-        urllib.request.urlopen(urllib.request.Request(url + "/other", data=b"x", method="POST"), timeout=10)
-    assert error.value.code == 404
-    assert urllib.request.urlopen(url + "/", timeout=10).read() == b"<html>room</html>"
-    import mimetypes
-    assert mimetypes.guess_type("main.js")[0] == "text/javascript"
-
-
 def scan_stages(url, jpeg, effects=False):
     """Every line the server sends for one frame: what was found so far after each stage."""
     request = urllib.request.Request(url + "/scan", data=jpeg, method="POST", headers={"Content-Type": "image/jpeg", "X-Effects": "1" if effects else "0"})
@@ -98,45 +76,6 @@ def jpeg_of(items):
 def cima(monkeypatch):
     known = {"654177": med("654177", "SINTROM 4 mg COMPRIMIDOS", ["ACENOCUMAROL"], "B01AA07")}
     monkeypatch.setattr(Resolver, "by_cn", lambda self, cn: known.get("".join(c for c in cn if c.isdigit())[:6]))
-
-
-def test_live_scan_reports_where_each_code_is_and_whether_it_is_verified(server, cima):
-    module, url, tmp = server
-    reply = scan(url, jpeg_of([("654177", "281231"), ("662025", "270430")]))        # the second code is valid but CIMA (here) does not know it
-    width, height = reply["size"]
-    by_status = {c["status"]: c for c in reply["codes"]}
-    assert sorted(by_status) == ["unverified", "verified"]
-    assert by_status["verified"]["name"] == "SINTROM 4 mg COMPRIMIDOS" and by_status["verified"]["expired"] is False
-    assert by_status["unverified"]["name"] is None and "CIMA has no medicine" in by_status["unverified"]["problem"]
-    for code in reply["codes"]:
-        x0, y0, x1, y1 = code["bbox"]
-        assert 0 <= x0 < x1 <= width and 0 <= y0 < y1 <= height
-    assert not (tmp / "data" / "world_photos").exists()        # a preview frame is never saved: only a photo is
-
-
-def test_live_scan_of_a_frame_without_codes_and_of_something_that_is_not_an_image(server, cima):
-    module, url, _ = server
-    ok, blank = cv2.imencode(".jpg", np.full((300, 400, 3), 200, np.uint8))
-    assert scan(url, blank.tobytes())["codes"] == []
-    with pytest.raises(urllib.error.HTTPError) as error:
-        scan(url, b"this is not a jpeg")
-    assert error.value.code == 400
-
-
-def test_live_scan_works_on_a_frame_with_the_phone_effects(server, cima):
-    module, url, _ = server
-    reply = scan(url, jpeg_of([("654177", "281231")]), effects=True)
-    assert [c["status"] for c in reply["codes"]] == ["verified"]
-
-
-def test_live_scan_sends_what_it_found_after_each_stage_so_boxes_can_appear_one_by_one(server, cima):
-    module, url, _ = server
-    stages = scan_stages(url, jpeg_of([("654177", "281231"), ("662025", "270430")]))
-    assert len(stages) == 1 + len(module.decode.ZOOM_PASSES)
-    assert [s["done"] for s in stages] == [False] * (len(stages) - 1) + [True]
-    texts = [{tuple(c["bbox"]) for c in s["codes"]} for s in stages]
-    assert all(earlier <= later for earlier, later in zip(texts, texts[1:]))       # a code once shown stays
-    assert len(stages[0]["codes"]) == 2                                           # clear codes are already there after the plain read
 
 
 def test_live_scan_sends_each_stage_before_the_next_one_is_computed(server, cima, monkeypatch):

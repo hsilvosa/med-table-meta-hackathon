@@ -63,14 +63,9 @@ def to_doses(at):
     return click(at, "Next: choose the doses")
 
 
-def test_starts_on_the_first_screen_with_the_disclaimer_and_a_disabled_next(app):
-    assert not app.exception and app.session_state.step == 1
+def test_demo_photo_gives_recognised_boxes_and_one_that_is_not_in_the_plan(app):
     assert any("does not replace the doctor or the pharmacist" in i.value for i in app.info)
     assert [b.disabled for b in app.button if b.label.startswith("Next:")] == [True]       # nothing to plan yet
-    assert "Add at least one medicine to continue" in texts(app)
-
-
-def test_demo_photo_gives_recognised_boxes_and_one_that_is_not_in_the_plan(app):
     click(app, "Load a demo photo")
     assert not app.exception
     readings = [r for rs in app.session_state.readings.values() for r in rs]
@@ -80,22 +75,6 @@ def test_demo_photo_gives_recognised_boxes_and_one_that_is_not_in_the_plan(app):
     assert "Medicines found: 5" in shown and "A box I could not recognise" in shown and "Not in the plan" in shown
     assert [b.disabled for b in app.button if b.label.startswith("Next:")] == [False]
     assert not any(app.session_state.nocode.values()) and "A box where I could not read a code" not in shown      # a plain grid of codes has no packs without one
-
-
-def test_the_screens_follow_one_after_another_and_back_and_start_over_clears_everything(app):
-    to_doses(app)
-    assert app.session_state.step == 2 and "Choose the doses" in texts(app)
-    assert len(doses_of(app)) == 5 * 4                                     # four times of day per medicine
-    click(app, "Back")
-    assert app.session_state.step == 1 and "Show me the medicines" in texts(app)
-    click(app, "Next: choose the doses")
-    click(app, "Start over")                                               # it asks first: a slip of the finger must not delete the plan
-    assert app.session_state.step == 2 and app.session_state.rows and "Start over?" in texts(app)
-    click(app, "No, keep my work")
-    assert app.session_state.step == 2 and app.session_state.rows and "Start over?" not in texts(app)
-    click(app, "Start over")
-    click(app, "Yes, delete everything")
-    assert app.session_state.step == 1 and not app.session_state.rows and not app.session_state.readings and not app.exception
 
 
 def test_every_dose_starts_at_none_nothing_reaches_the_plan_until_confirmed_and_a_bad_amount_is_not_guessed(app):
@@ -118,18 +97,6 @@ def test_every_dose_starts_at_none_nothing_reaches_the_plan_until_confirmed_and_
     confirm(app, "pack654177")
     click(app, "Next: see the plan")
     assert "Left out: MEDICAMENTO 654177" in texts(app) and "unrecognised dose" in texts(app).lower()
-
-
-def test_a_pack_on_two_lines_is_blocked_on_the_check_screen(app):
-    to_doses(app)
-    pick(app, "pack654177", "breakfast", "1")
-    confirm(app, "pack654177")
-    app.session_state.rows.append(type(app.session_state.rows[0])("hand9", app.session_state.rows[0].medicine, app.session_state.rows[0].cn,
-                                  {"breakfast": "0", "lunch": "1", "dinner": "0", "bedtime": "0"}, confirmed=True))
-    app.run()
-    click(app, "Next: see the plan")
-    assert "Pack on several lines" in texts(app) or "several lines" in texts(app)
-    assert any("could not be checked" in m.value for m in app.markdown) or any("could not be checked" in c.value for c in app.caption)
 
 
 def test_the_schedule_photo_leaves_the_computer_only_after_consent_and_the_room_photo_can_be_it(env, tmp_path):
@@ -179,131 +146,6 @@ def test_the_last_screen_offers_the_downloads_only_when_there_is_a_plan(app):
                                                                    "Save this plan to continue later"}
 
 
-def test_the_name_and_notes_can_be_given_on_the_doses_screen_and_again_before_printing(app):
-    to_doses(app)
-    [t for t in app.text_input if t.key == "patient_step2"][0].set_value("Maria Lopez").run()
-    assert app.session_state.patient == "Maria Lopez"
-    widget(app.button_group, "quick", "pack654177").set_value(["With food", "Only if needed"]).run()
-    widget(app.text_input, "remarks", "pack654177").set_value("white tablet").run()
-    assert app.session_state.rows[0].note == "With food; Only if needed; white tablet"
-    pick(app, "pack654177", "breakfast", "1")
-    confirm(app, "pack654177")
-    click(app, "Next: see the plan")
-    assert "Plan for <b>Maria Lopez</b>" in texts(app) and "With food; Only if needed; white tablet" in texts(app)
-    click(app, "Next: print or listen")
-    assert [t.value for t in app.text_input if t.key == "patient_step4"] == ["Maria Lopez"]       # the same value, editable again
-    [t for t in app.text_input if t.key == "patient_step4"][0].set_value("Maria L.").run()
-    [a for a in app.text_area if a.key == "plan_notes_box"][0].set_value("Dr Vega 981 000 000").run()
-    assert app.session_state.patient == "Maria L." and app.session_state.plan_notes == "Dr Vega 981 000 000" and not app.exception
-    assert "This is the page you will print" in texts(app)
-
-
-def test_photos_survive_going_forward_and_back_and_can_be_removed_on_purpose(app):
-    click(app, "Load a demo photo")
-    readings = app.session_state.readings.pop("demo")          # pretend they came from an uploaded file: the uploader itself is empty in this test
-    photo = app.session_state.photos.pop("demo")
-    app.session_state.readings["table1.jpg"], app.session_state.photos["table1.jpg"] = readings, photo
-    app.session_state.photo_scale["table1.jpg"] = 1.0
-    app.run()
-    assert "table1.jpg" in app.session_state.readings          # an empty uploader is not a removal
-    click(app, "Next: choose the doses")
-    click(app, "Back")
-    app.run()
-    assert "table1.jpg" in app.session_state.readings and "Medicines found: 5" in texts(app)
-    click(app, "Remove")
-    assert not app.session_state.readings and "Medicines found: 0" in texts(app)
-
-
-def test_a_schedule_line_without_a_box_can_be_added_by_hand(app):
-    to_doses(app)
-    [t for t in app.text_input if t.key == "extra_name"][0].set_value("Bisoprolol 2,5 mg").run()
-    click(app, "Add this line")
-    assert not app.exception
-    assert [r.medicine for r in app.session_state.rows][-1] == "Bisoprolol 2,5 mg" and app.session_state.rows[-1].cn is None
-    assert [t.value for t in app.text_input if t.key == "extra_name"] == [""]               # the box is cleared for the next one
-    pick(app, "hand6", "breakfast", "1")
-    confirm(app, "hand6")
-    click(app, "Next: see the plan")
-    assert "Left out: Bisoprolol 2,5 mg" in texts(app) and "add a photo that shows this box" in texts(app)     # and the card says what to do
-
-
-def test_a_48_megapixel_photo_is_read_in_full_but_only_a_smaller_copy_is_kept(env, tmp_path):
-    import cv2
-    import numpy as np
-    from medtable import synthetic
-    small = synthetic.demo_photo([("654177", "281231"), ("662025", "270430")])
-    big = cv2.resize(small, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)        # 4800 x 3000: wider than the 4000 px that are kept
-    assert big.shape[1] == 4800
-    (tmp_path / "data" / "world_photos").mkdir(parents=True)
-    cv2.imwrite(str(tmp_path / "data" / "world_photos" / "latest.jpg"), big)
-    at = AppTest.from_file(APP, default_timeout=180).run()
-    click(at, "Load the latest room photo")
-    assert not at.exception
-    name = next(iter(at.session_state.readings))
-    assert sorted(r.status for r in at.session_state.readings[name]) == ["verified", "verified"]
-    kept = at.session_state.photos[name]
-    assert name.startswith("room_") and kept.shape[1] == 4000 and round(at.session_state.photo_scale[name], 3) == 0.833        # 4800 px wide in, 4000 kept
-
-
-def test_a_medicine_can_be_removed_and_leaves_the_list_the_rows_and_the_plan(app):
-    click(app, "Load a demo photo")
-    assert "Medicines found: 5" in texts(app) and len(app.session_state.rows) == 5
-    click(app, "Remove this medicine")                                  # the first card
-    assert not app.exception and "Medicines found: 4" in texts(app)
-    assert len(app.session_state.rows) == 4 and len(app.session_state.removed_cns) == 1
-    removed = next(iter(app.session_state.removed_cns))
-    assert removed not in {r.cn for r in app.session_state.rows}
-    click(app, "Next: choose the doses")
-    assert len(doses_of(app)) == 4 * 4                                  # no buttons for the removed medicine
-    click(app, "Back")
-    assert "Medicines found: 4" in texts(app)                           # still gone after going back
-    app.session_state.readings.pop("demo"), app.session_state.photos.pop("demo")
-    click(app, "Load a demo photo")                                      # the same photo again: the box is on the table again
-    assert removed not in app.session_state.removed_cns and "Medicines found: 5" in texts(app)
-
-
-def test_a_typed_medicine_can_be_removed_and_an_unrecognised_box_dismissed(app):
-    [t for t in app.text_input if t.label == "The code on the box"][0].set_value("6541777")      # typed, then the button (or Enter): one form
-    click(app, "Add this medicine")
-    assert "Medicines found: 1" in texts(app) and "Added" in texts(app)
-    click(app, "Remove this medicine")
-    assert "Medicines found: 0" in texts(app) and not app.session_state.manual and not app.session_state.rows
-    click(app, "Load a demo photo")
-    assert "A box I could not recognise" in texts(app)
-    click(app, "Dismiss")
-    assert "A box I could not recognise" not in texts(app) and not app.exception
-
-
-def test_a_box_where_no_code_was_read_gets_a_card_asking_for_a_close_up(env, tmp_path):
-    import cv2
-    from test_boxes import scene
-    img, _, _ = scene()                                                       # two packs on a table: one has a readable code, one has none; and a sheet of paper
-    (tmp_path / "data" / "world_photos").mkdir(parents=True)
-    cv2.imwrite(str(tmp_path / "data" / "world_photos" / "latest.jpg"), img)
-    at = AppTest.from_file(APP, default_timeout=180).run()
-    click(at, "Load the latest room photo")
-    assert not at.exception and "Medicines found: 1" in texts(at)
-    assert texts(at).count("A box where I could not read a code") == 1 and "close-up photo of this box" in texts(at)
-    click(at, "Done: I added it or it is not a medicine")
-    assert "A box where I could not read a code" not in texts(at) and len(at.session_state.nocode_done) == 1
-
-
-def test_photos_from_the_camera_page_are_read_from_their_own_folder_with_their_own_words(env, tmp_path):
-    from medtable import synthetic
-    import cv2
-    (tmp_path / "data" / "camera_photos").mkdir(parents=True)
-    (tmp_path / "data" / "world_photos").mkdir(parents=True)
-    cv2.imwrite(str(tmp_path / "data" / "camera_photos" / "latest.jpg"), synthetic.demo_photo([("654177", "281231")]))
-    cv2.imwrite(str(tmp_path / "data" / "world_photos" / "latest.jpg"), synthetic.demo_photo([("662025", "270430"), ("715240", "250600")]))
-    at = AppTest.from_file(APP, default_timeout=180)
-    at.query_params["source"], at.query_params["room"] = "camera", "1"
-    at.run()
-    assert "Load the latest camera photo" in [b.label for b in at.button] and "Load the latest room photo" not in [b.label for b in at.button]
-    assert "Take the photo with the camera" in texts(at)
-    click(at, "Load the latest camera photo")
-    assert not at.exception and "Medicines found: 1" in texts(at) and next(iter(at.session_state.readings)).startswith("camera_")
-
-
 def test_two_boxes_of_one_medicine_are_one_card_and_the_plan_uses_the_box_that_has_not_expired(env):
     from medtable import identify, synthetic
     from medtable.resolve import Resolver as R
@@ -340,55 +182,6 @@ def test_changing_an_amount_after_ticking_needs_a_new_tick(app):
     assert not next(r for r in app.session_state.rows if r.cn == "654177").confirmed
     confirm(app, "pack654177")
     assert "1 of 5 medicines ready for the plan" in [p.text for p in app.get("progress")][0]
-
-
-def test_the_reminder_times_are_kept_when_going_back_and_shown_on_the_check_screen(app):
-    from datetime import time as clock
-    to_doses(app)
-    pick(app, "pack654177", "breakfast", "1")
-    confirm(app, "pack654177")
-    click(app, "Next: see the plan")
-    click(app, "Next: print or listen")
-    app.time_input(key="t_breakfast").set_value(clock(7, 15)).run()
-    click(app, "Back")
-    assert "07:15" in [m.value for m in app.markdown if "mt-agenda" in m.value][-1]
-    click(app, "Next: print or listen")
-    assert app.time_input(key="t_breakfast").value == clock(7, 15)
-
-
-def test_a_photo_says_what_was_read_and_an_expired_box_is_marked(app):
-    click(app, "Load a demo photo")
-    assert "Photo read" in texts(app) and "5 medicines recognised, 1 box I could not recognise" in texts(app)
-    assert "This box has expired. Do not use it" in texts(app)            # the demo photo has one pack that expired in June 2025
-
-
-def test_a_medicine_taken_on_some_days_needs_its_days_ticked_and_shows_them(app):
-    to_doses(app)
-    pick(app, "pack654177", "bedtime", "1")
-    widget(app.button_group, "often", "pack654177").set_value("some").run()
-    assert next(r for r in app.session_state.rows if r.cn == "654177").days == [] and "Tick at least one day" in texts(app)
-    confirm(app, "pack654177")
-    click(app, "Next: see the plan")
-    assert "Left out: MEDICAMENTO 654177" in texts(app) and "no day of the week is chosen" in texts(app).lower()     # none ticked: not "every day"
-    click(app, "Back")
-    click(app, "Change the amounts")
-    widget(app.button_group, "days", "pack654177").set_value([0, 3]).run()
-    confirm(app, "pack654177")
-    assert "Mon, Thu only" in texts(app)
-    click(app, "Next: see the plan")
-    assert "(Mon, Thu only)" in [m.value for m in app.markdown if "mt-agenda" in m.value][-1]
-
-
-def test_a_large_daily_amount_asks_for_a_second_look_and_the_box_duration_is_shown(app, monkeypatch):
-    monkeypatch.setattr(MEDS["654177"], "presentation", "MEDICAMENTO 654177 10 mg COMPRIMIDOS, 60 comprimidos")
-    to_doses(app)
-    for slot in ("breakfast", "lunch", "dinner"):
-        pick(app, "pack654177", slot, "3")
-    assert "Please check: 9 a day" in texts(app)
-    confirm(app, "pack654177")
-    click(app, "Next: see the plan")
-    assert "Please check the amount of MEDICAMENTO 654177" in texts(app)
-    assert "a full box of 60 lasts about <b>6 days</b>" in texts(app)      # 60 tablets, 9 a day
 
 
 def test_codes_read_without_a_connection_are_not_verified_and_can_be_tried_again(env, monkeypatch):

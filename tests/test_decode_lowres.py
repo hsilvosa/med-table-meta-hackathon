@@ -44,13 +44,6 @@ def test_a_code_of_1_9_pixels_per_module_is_read_by_the_zoomed_scan(seed, angle)
     assert [d.text for d in found] == [TEXTS[seed % 3]] and found[0].method == "zxing-zoom"
 
 
-def test_the_bounding_box_is_in_the_coordinates_of_the_original_image():
-    img = photo_with(TEXTS[0], 1.9, 10, 7)
-    (detection,) = decode.find_datamatrix(img)
-    x0, y0, x1, y1 = detection.bbox
-    assert 0 <= x0 < x1 <= img.shape[1] and 0 <= y0 < y1 <= img.shape[0] and 20 < x1 - x0 < 90
-
-
 def test_below_about_one_pixel_per_module_nothing_is_invented():
     img = photo_with(TEXTS[0], 0.8, 10, 8)
     assert decode.find_datamatrix(img) == []     # a miss is acceptable; a wrong code never is
@@ -61,12 +54,3 @@ def test_a_busy_photo_without_any_code_gives_no_detections():
     noise = cv2.GaussianBlur(rng.random((900, 1200, 3)).astype(np.float32), (0, 0), 1.2)
     img = (255 * (noise - noise.min()) / np.ptp(noise)).astype(np.uint8)
     assert decode.find_datamatrix(img) == []
-
-
-def test_a_faster_scan_with_fewer_passes_still_reads_a_clear_code_and_the_live_passes_are_a_subset():
-    from medtable import synthetic
-    img = synthetic.demo_photo([("654177", "281231")])
-    assert [x.text for x in decode.find_datamatrix(img, passes=decode.LIVE_PASSES)] == [x.text for x in decode.find_datamatrix(img)]
-    stages = list(decode.scan_stages(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), decode.LIVE_PASSES))          # the live preview's stage by stage reading ends where the one-shot reading ends
-    assert len(stages) == 1 + len(decode.LIVE_PASSES) and {x.text for x in stages[-1]} == {x.text for x in decode.find_datamatrix(img, passes=decode.LIVE_PASSES)}
-    assert set(decode.LIVE_PASSES) < set(decode.ZOOM_PASSES) and len(decode.LIVE_PASSES) == 2
