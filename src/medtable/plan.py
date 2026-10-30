@@ -27,6 +27,15 @@ ABBREVIATIONS = ((r"\b(\d+)\s*h\b", r"\1 hours"), (r"\b(\d+)\s*min\b", r"\1 minu
                  (r"\b(\d+(?:[.,]\d+)?)\s*g\b", r"\1 grams"), (r"\bc/\b", "every"))
 
 
+def form_noun(form: str | None) -> tuple[str, str]:
+    """What one dose of this pharmaceutical form is called, singular and plural: ("tablet", "tablets"), or ("dose", "doses") when unknown."""
+    text = "".join(c for c in (form or "").lower() if c.isalpha() or c == " ").replace("á", "a")
+    for key, singular, plural in FORM_NOUNS:
+        if key in text:
+            return singular, plural
+    return "dose", "doses"
+
+
 @dataclass
 class Entry:
     slot: str
@@ -40,12 +49,7 @@ class Entry:
 
     @property
     def noun(self) -> tuple[str, str]:
-        form = (self.pack.medicine.form or "").lower()
-        form = "".join(c for c in form if c.isalpha() or c == " ")
-        for key, singular, plural in FORM_NOUNS:
-            if key in form.replace("á", "a"):
-                return singular, plural
-        return "dose", "doses"
+        return form_noun(self.pack.medicine.form)
 
     def written(self) -> str:
         """For print: the dose as confirmed, plus the unit noun, e.g. '1/2 tablet', '2 tablets'."""

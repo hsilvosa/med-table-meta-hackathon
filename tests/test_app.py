@@ -89,7 +89,12 @@ def test_the_screens_follow_one_after_another_and_back_and_start_over_clears_eve
     click(app, "Back")
     assert app.session_state.step == 1 and "Show me the medicines" in texts(app)
     click(app, "Next: choose the doses")
+    click(app, "Start over")                                               # it asks first: a slip of the finger must not delete the plan
+    assert app.session_state.step == 2 and app.session_state.rows and "Start over?" in texts(app)
+    click(app, "No, keep my work")
+    assert app.session_state.step == 2 and app.session_state.rows and "Start over?" not in texts(app)
     click(app, "Start over")
+    click(app, "Yes, delete everything")
     assert app.session_state.step == 1 and not app.session_state.rows and not app.session_state.readings and not app.exception
 
 
@@ -105,9 +110,12 @@ def test_every_dose_starts_at_none_nothing_reaches_the_plan_until_confirmed_and_
     agenda = [m.value for m in app.markdown if "mt-agenda" in m.value][-1]
     breakfast, rest = agenda.split("Lunch")[0], agenda.split("Lunch")[1]
     assert "1 tablet" in breakfast and "MEDICAMENTO 654177" in breakfast and "MEDICAMENTO 654177" not in rest
-    click(app, "Back")                                                       # an amount typed under "Other" that is not understood is reported, never guessed
+    click(app, "Back")                                                       # a ticked medicine is a short summary with its amounts
+    assert "Breakfast: <b>1 tablet</b>" in texts(app) and not [w for w in doses_of(app) if "pack654177" in w.key]
+    click(app, "Change the amounts")                                         # an amount typed under "Other" that is not understood is reported, never guessed
     pick(app, "pack654177", "dinner", "other")
     widget(app.text_input, "other", "pack654177", "dinner").set_value("media").run()
+    confirm(app, "pack654177")
     click(app, "Next: see the plan")
     assert "Left out: MEDICAMENTO 654177" in texts(app) and "unrecognised dose" in texts(app).lower()
 
@@ -254,9 +262,9 @@ def test_a_medicine_can_be_removed_and_leaves_the_list_the_rows_and_the_plan(app
 
 
 def test_a_typed_medicine_can_be_removed_and_an_unrecognised_box_dismissed(app):
-    [t for t in app.text_input if t.label == "The code on the box"][0].set_value("6541777").run()
+    [t for t in app.text_input if t.label == "The code on the box"][0].set_value("6541777")      # typed, then the button (or Enter): one form
     click(app, "Add this medicine")
-    assert "Medicines found: 1" in texts(app)
+    assert "Medicines found: 1" in texts(app) and "Added" in texts(app)
     click(app, "Remove this medicine")
     assert "Medicines found: 0" in texts(app) and not app.session_state.manual and not app.session_state.rows
     click(app, "Load a demo photo")
@@ -295,3 +303,59 @@ def test_photos_from_the_camera_page_are_read_from_their_own_folder_with_their_o
     assert not at.exception and "Medicines found: 1" in texts(at) and next(iter(at.session_state.readings)).startswith("camera_")
 
 
+def test_two_boxes_of_one_medicine_are_one_card_and_the_plan_uses_the_box_that_has_not_expired(env):
+    from medtable import identify, synthetic
+    from medtable.resolve import Resolver as R
+    at = AppTest.from_file(APP, default_timeout=120).run()
+    image = synthetic.demo_photo([("654177", "291231"), ("654177", "200131"), ("662025", "291231")])     # one box of the first medicine expired in 2020
+    at.session_state["readings"] = {"two": identify.identify(image, R())}
+    at.run()
+    assert not at.exception and "Medicines found: 2" in texts(at) and "2 boxes" in texts(at)
+    assert "1 of 2 boxes have expired" in texts(at)
+    click(at, "Next: choose the doses")
+    pick(at, "pack654177", "breakfast", "1")
+    confirm(at, "pack654177")
+    click(at, "Next: see the plan")
+    agenda = [m.value for m in at.markdown if "mt-agenda" in m.value][-1]
+    assert "MEDICAMENTO 654177" in agenda and "Left out: MEDICAMENTO 654177" not in texts(at)
+
+
+def test_a_removed_medicine_can_be_put_back_with_its_doses(app):
+    to_doses(app)
+    pick(app, "pack654177", "breakfast", "1")
+    confirm(app, "pack654177")
+    click(app, "Back")
+    click(app, "Remove this medicine")
+    assert "Medicines found: 4" in texts(app) and "Removed: MEDICAMENTO 654177" in texts(app)
+    click(app, "Undo: put it back")
+    row = next(r for r in app.session_state.rows if r.cn == "654177")
+    assert "Medicines found: 5" in texts(app) and row.doses["breakfast"] == "1" and row.confirmed and "Undo" not in [b.label[:4] for b in app.button]
+
+
+def test_changing_an_amount_after_ticking_needs_a_new_tick(app):
+    to_doses(app)
+    confirm(app, "pack654177")                                              # ticked first, amounts after: the tick no longer stands
+    pick(app, "pack654177", "breakfast", "1")
+    assert not next(r for r in app.session_state.rows if r.cn == "654177").confirmed
+    confirm(app, "pack654177")
+    assert "1 of 5 medicines ready for the plan" in [p.text for p in app.get("progress")][0]
+
+
+def test_the_reminder_times_are_kept_when_going_back_and_shown_on_the_check_screen(app):
+    from datetime import time as clock
+    to_doses(app)
+    pick(app, "pack654177", "breakfast", "1")
+    confirm(app, "pack654177")
+    click(app, "Next: see the plan")
+    click(app, "Next: print or listen")
+    app.time_input(key="t_breakfast").set_value(clock(7, 15)).run()
+    click(app, "Back")
+    assert "07:15" in [m.value for m in app.markdown if "mt-agenda" in m.value][-1]
+    click(app, "Next: print or listen")
+    assert app.time_input(key="t_breakfast").value == clock(7, 15)
+
+
+def test_a_photo_says_what_was_read_and_an_expired_box_is_marked(app):
+    click(app, "Load a demo photo")
+    assert "Photo read" in texts(app) and "5 medicines recognised, 1 box I could not recognise" in texts(app)
+    assert "This box has expired. Do not use it" in texts(app)            # the demo photo has one pack that expired in June 2025

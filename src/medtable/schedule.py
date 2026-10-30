@@ -116,7 +116,11 @@ def reconcile(lines: list[Line], packs: list[Pack]) -> Reconciliation:
             candidates = [p for s, p in scored if s == best and best > 0]
             exact = [p for p in candidates if strength_matches(line, p)]
             candidates = exact or candidates  # prefer the pack whose strength agrees with the line
-        distinct = {p.medicine.cn: p for p in candidates}
+        distinct: dict[str, Pack] = {}
+        for p in candidates:        # two boxes of one medicine: the one that lasts longest stands for it (an expired box next to a fresh one is still reported by the checks)
+            kept = distinct.get(p.medicine.cn)
+            if kept is None or (p.expiry is not None and (kept.expiry is None or p.expiry > kept.expiry)):
+                distinct[p.medicine.cn] = p
         if not distinct:
             findings.append(Finding("prescribed_not_found", detail=line.text))
             blocked[i] = "no pack on the table matches"

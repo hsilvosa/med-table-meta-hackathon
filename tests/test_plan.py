@@ -31,6 +31,13 @@ def test_an_expired_pack_never_enters_the_calendar():
     assert plan.entries == [] and "expired" in plan.not_included[0][1]
 
 
+def test_two_boxes_of_one_medicine_use_the_one_that_has_not_expired_whatever_their_order():
+    fresh, old = pack(OMEPRAZOL, TODAY + timedelta(days=200)), pack(OMEPRAZOL, TODAY - timedelta(days=3))
+    for packs in ([fresh, old], [old, fresh]):
+        plan = make([line("Omeprazol 20 mg", {"breakfast": "1"})], packs)
+        assert [e.name for e in plan.entries] == [OMEPRAZOL.name] and plan.not_included == []
+
+
 def test_unverified_items_are_listed_as_not_included():
     plan = make([], [], [Finding("unverified_item", detail="CIMA has no medicine with CN 123456")])
     assert plan.not_included == [("CIMA has no medicine with CN 123456", "could not be verified")]

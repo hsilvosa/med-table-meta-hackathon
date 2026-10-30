@@ -30,10 +30,10 @@ from medtable.calendar_pdf import render_pdf  # noqa: E402
 from medtable.findings import NOT_A_FULL_CHECK, explain_problem  # noqa: E402
 from medtable.form import CHOICE_LABELS, CHOICE_VALUES, OTHER, QUICK_NOTES, Row, choice_for, merge_read_rows, sync_pack_rows  # noqa: E402
 from medtable.pipeline import make_plan, manual_pack  # noqa: E402
-from medtable.plan import DEFAULT_TIMES, NOT_CONFIRMED, SLOT_LABELS, to_ics  # noqa: E402
+from medtable.plan import DEFAULT_TIMES, NOT_CONFIRMED, SLOT_LABELS, form_noun, to_ics  # noqa: E402
 from medtable.resolve import Resolver  # noqa: E402
 from medtable.rules import Pack  # noqa: E402
-from medtable.schedule import SLOTS  # noqa: E402
+from medtable.schedule import SLOTS, dose_number  # noqa: E402
 from medtable.smpc import Smpc  # noqa: E402
 
 DEMO_ITEMS = [("654177", "281231"), ("662025", "270430"), ("715240", "250600"), ("677379", "280131"), ("656012", "271130"), ("100008", "281231")]
@@ -57,7 +57,7 @@ h1, h2, h3 {{ letter-spacing: 0; }}
 .stButton > button, .stDownloadButton > button {{ min-height: 3.1rem; font-size: 1.05rem; font-weight: 650; border-radius: 12px; }}
 .stButton button p, .stDownloadButton button p {{ font-size: 1.15rem !important; font-weight: 700 !important; }}
 [data-testid="stButtonGroup"] button p {{ font-size: 1.15rem !important; font-weight: 700 !important; }}
-[data-testid="stBaseButton-tertiary"] {{ min-height: 2.4rem; color: #a02020; border: 1px solid #ecc3c3; background: #fff; }}
+[data-testid="stBaseButton-tertiary"] {{ min-height: 2.6rem; padding: .3rem 1.1rem; color: #a02020; border: 1px solid #ecc3c3; background: #fff; }}
 [data-testid="stBaseButton-tertiary"] p {{ font-size: 1rem !important; font-weight: 650 !important; color: #a02020 !important; }}
 [data-testid="stBaseButton-tertiary"]:hover {{ background: #fdeeee; border-color: #d98a8a; }}
 [data-testid="stBaseButton-primary"] {{ background: #1b5e8a; border-color: #1b5e8a; }}
@@ -72,7 +72,7 @@ h1, h2, h3 {{ letter-spacing: 0; }}
 .mt-title {{ font-size: 1.75rem !important; font-weight: 800 !important; margin: .2rem 0 .1rem !important; line-height: 1.2 !important; color: #14202b; }}
 .mt-lead {{ font-size: 1.12rem !important; color: #33404d; margin: 0 0 .8rem !important; line-height: 1.5 !important; }}
 .mt-steps {{ display: flex; gap: 6px; margin: .2rem 0 1rem; }}
-.mt-s {{ flex: 1; text-align: center; font-size: .82rem; color: #5d6875; border-top: 6px solid #d3dae3; padding-top: 6px; line-height: 1.2; }}
+.mt-s {{ flex: 1; text-align: center; font-size: .9rem; color: #5d6875; border-top: 6px solid #d3dae3; padding-top: 6px; line-height: 1.2; }}
 .mt-s b {{ display: block; font-size: .95rem; color: #5d6875; }}
 .mt-s.done {{ border-color: #1f8a5b; }} .mt-s.done b {{ color: #1f8a5b; }}
 .mt-s.cur {{ border-color: #1b5e8a; color: #1b5e8a; font-weight: 700; }} .mt-s.cur b {{ color: #1b5e8a; }}
@@ -96,7 +96,15 @@ h1, h2, h3 {{ letter-spacing: 0; }}
 .mt-slot {{ width: 8.5rem; font-weight: 800; }} .mt-time {{ display: block; color: #55606e; font-weight: 500; font-size: .9rem; }}
 .mt-dose {{ font-weight: 800; }} .mt-empty {{ color: #7d8793; }}
 .mt-quote {{ color: #323d49; font-style: italic; margin-top: 6px; }}
+.mt-brand {{ font-size: .95rem !important; font-weight: 800 !important; color: #1b5e8a; margin: 0 0 .3rem !important; letter-spacing: .02em; }}
+.mt-pic.none {{ display: flex; align-items: center; justify-content: center; color: #7d8793; font-size: .8rem; text-align: center; }}
+.mt-sum {{ font-size: 1.05rem; line-height: 1.5; margin: 4px 0 0; }}
+.mt-sum b {{ font-weight: 800; }}
+[data-testid="stProgress"] p {{ font-size: 1.05rem !important; font-weight: 700 !important; }}
+.mt-heads {{ color: #6f4800; font-weight: 650; margin-top: 4px; line-height: 1.4; }}
+.mt-alert {{ color: #8f1818; font-weight: 700; margin-top: 4px; }}
 .mt-hint {{ color: #55606e; font-size: .95rem !important; margin: -4px 0 6px !important; }}
+@media (max-width: 560px) {{ .mt-card {{ gap: 10px; align-items: flex-start; }} .mt-pic {{ width: 76px; height: 60px; }} .mt-agenda td {{ padding: 10px 6px; }} .mt-slot {{ width: 6rem; }} }}
 </style>"""
 
 
@@ -152,23 +160,66 @@ def state_defaults() -> None:
     st.session_state.setdefault("patient", "")  # printed on the calendar
     st.session_state.setdefault("plan_notes", "")  # printed in the notes box of the calendar
     st.session_state.setdefault("room_seen", time.time())  # only room photos taken after the session started load by themselves
+    st.session_state.setdefault("times", dict(DEFAULT_TIMES))  # reminder times; kept here because a widget forgets its value when its screen is left
 
 
 def go(step: int) -> None:
     st.session_state.step = step
     st.session_state.scroll_top = True
+    st.session_state.pop("undo", None)        # "put it back" is offered on the screen where it was removed, until the next step
+    st.session_state.pop("notice", None)
     st.session_state.skip_upload_sync = True      # the file uploader is re-created empty on the next visit to screen 1: that is not the user removing files
 
 
-def remove_medicine(cn: str) -> None:
-    """Take a medicine out of the list, with its sheet row. It comes back if a new photo shows it again or if its code is typed."""
+def remove_medicine(cn: str, name: str = "") -> None:
+    """Take a medicine out of the list, with its sheet row. It comes back with "Undo", if a new photo shows it again or if its code is typed."""
+    st.session_state.undo = {"label": name or "the medicine", "cn": cn, "manual": [p for p in st.session_state.manual if p.medicine.cn == cn],
+                             "rows": [r for r in st.session_state.rows if r.cn == cn]}
+    st.session_state.pop("notice", None)       # its counts would be out of date
     st.session_state.removed_cns.add(cn)
     st.session_state.manual = [p for p in st.session_state.manual if p.medicine.cn != cn]
     st.session_state.rows = [r for r in st.session_state.rows if r.cn != cn]
 
 
 def dismiss_code(raw: str) -> None:
+    st.session_state.undo = {"label": "the box I could not recognise", "raw": raw}
+    st.session_state.pop("notice", None)
     st.session_state.removed_raw.add(raw)
+
+
+def undo_last() -> None:
+    """Put back what was removed last, as it was (doses and tick included)."""
+    undo = st.session_state.pop("undo", None)
+    if not undo:
+        return
+    if "raw" in undo:
+        st.session_state.removed_raw.discard(undo["raw"])
+        return
+    st.session_state.removed_cns.discard(undo["cn"])
+    st.session_state.manual += [p for p in undo["manual"] if p.medicine.cn not in {m.medicine.cn for m in st.session_state.manual}]
+    st.session_state.rows += [r for r in undo["rows"] if r.id not in {x.id for x in st.session_state.rows}]
+
+
+def ask_reset() -> None:
+    st.session_state.ask_reset = True
+    st.session_state.scroll_top = True
+
+
+def unconfirm(row: Row) -> None:
+    """A changed amount needs a fresh tick: the tick says "this matches the doctor's schedule" about the amounts shown when it was given."""
+    row.confirmed = False
+    st.session_state.pop(row.key("ok"), None)
+
+
+def count(n: int, one: str, many: str = "") -> str:
+    return f"{n} {one if n == 1 else (many or one + 's')}"
+
+
+def dose_words(dose: str, form: str | None) -> str:
+    """'1/2' -> '½ tablet', '2' -> '2 tablets'; an amount typed under Other is shown as typed."""
+    singular, plural = form_noun(form)
+    value = dose_number(dose)
+    return f"{CHOICE_LABELS.get(dose, dose)} {singular if value is not None and value <= 1 else plural}"
 
 
 def nocode_key(name: str, box: tuple) -> str:
@@ -220,6 +271,17 @@ def add_photo(name: str, image: np.ndarray) -> None:
     scale = min(1.0, MAX_KEPT_WIDTH / image.shape[1])        # what is kept for crops and for SAM: a 48 MP photo would take 150 MB of memory
     st.session_state.photos[name] = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1.0 else image
     st.session_state.photo_scale[name] = scale
+    found = st.session_state.readings[name]
+    known = len({r.medicine.cn for r in found if r.status == "verified" and r.medicine})
+    unknown = sum(1 for r in found if not (r.status == "verified" and r.medicine))
+    missing = len(st.session_state.nocode[name])
+    if not found and not missing:
+        st.session_state.notice = ("warn", "I could not read any code in this photo",
+                                   "Put the boxes with the printed code facing up, use good light, and take the photo closer (about 30 to 90 cm above the boxes).")
+    else:
+        parts = [count(known, "medicine") + " recognised"] + ([count(unknown, "box", "boxes") + " I could not recognise"] if unknown else []) \
+            + ([count(missing, "box", "boxes") + " where I could not read a code"] if missing else [])
+        st.session_state.notice = ("ok" if not unknown and not missing else "warn", "Photo read", esc(", ".join(parts)) + ". The list below shows them.")
 
 
 def official_photo(medicine) -> str | None:
@@ -242,7 +304,7 @@ def data_uri(image: np.ndarray, width: int = 220) -> str:
 def picture(source: str | np.ndarray | None) -> str:
     """An <img> for a card: a downsized data URI for local files and arrays, the URL itself for remote photos."""
     if source is None:
-        return '<div class="mt-pic"></div>'
+        return '<div class="mt-pic none">No picture</div>'
     if isinstance(source, str) and source.startswith("http"):
         return f'<img class="mt-pic" src="{esc(source)}">'
     image = cv2.imread(source) if isinstance(source, str) else source
@@ -296,7 +358,7 @@ def expiry_chip(expiry: date | None, today: date) -> str:
 
 def header(step: int, title: str, lead: str) -> None:
     cells = "".join(f'<div class="mt-s {"cur" if i == step else "done" if i < step else ""}"><b>{i}</b>{esc(name)}</div>' for i, name in enumerate(STEPS, 1))
-    st.markdown(f'<div class="mt-steps">{cells}</div><p class="mt-title">{esc(title)}</p><p class="mt-lead">{lead}</p>', unsafe_allow_html=True)
+    st.markdown(f'<p class="mt-brand">Medication planner</p><div class="mt-steps">{cells}</div><p class="mt-title">{esc(title)}</p><p class="mt-lead">{lead}</p>', unsafe_allow_html=True)
 
 
 def nav(back: int | None, forward: int | None, forward_label: str = "", enabled: bool = True, why_not: str = "") -> None:
@@ -337,7 +399,32 @@ for name, rs in st.session_state.readings.items():
 readings = [r for _, r in entries]
 verified = [r for r in readings if r.status == "verified" and r.medicine]
 unverified = [(n, r) for n, r in entries if r.status != "verified" or not r.medicine]
-medicines = [r.medicine for r in verified] + [p.medicine for p in st.session_state.manual]
+boxes_of: dict[str, list] = {}       # national code -> the readings of every box of that medicine (two boxes of one medicine are one medicine)
+for r in verified:
+    boxes_of.setdefault(r.medicine.cn, []).append(r)
+typed_only = [p for p in st.session_state.manual if p.medicine.cn not in boxes_of]
+medicines = [rs[0].medicine for rs in boxes_of.values()] + [p.medicine for p in typed_only]
+expired_cns = {cn for cn, rs in boxes_of.items() if all(r.expiry and r.expiry < today for r in rs)}
+
+
+def shared_ingredient(medicine) -> list[str]:
+    """The other medicines in the list with an active ingredient in common (a fact from CIMA, shown so the caregiver can ask)."""
+    mine = {a.strip().lower() for a in medicine.active_ingredients}
+    return [m.name for m in medicines if m.cn != medicine.cn and mine & {a.strip().lower() for a in m.active_ingredients}]
+
+
+def medicine_card(medicine, chips: str, rs: list) -> None:
+    body = f'<div class="mt-name">{esc(medicine.name)}</div>' + chips
+    if medicine.active_ingredients:
+        body += f'<div class="mt-meta">Active ingredient: {esc(", ".join(a.capitalize() for a in medicine.active_ingredients))}</div>'
+    old = [r for r in rs if r.expiry and r.expiry < today]
+    if old and len(old) == len(rs):
+        body += '<div class="mt-alert">This box has expired. Do not use it: it will be left out of the plan.</div>'
+    elif old:
+        body += f'<div class="mt-alert">{len(old)} of {len(rs)} boxes have expired. Do not use the expired one.</div>'
+    if (others := shared_ingredient(medicine)):
+        body += f'<div class="mt-heads">Same active ingredient as: {esc("; ".join(others))}. The plan lists it for the pharmacist.</div>'
+    card(official_photo(medicine), body, plain=True)
 sync_pack_rows(st.session_state.rows, medicines)
 rows: list[Row] = st.session_state.rows
 
@@ -346,7 +433,13 @@ with st.popover("Settings"):
     st.toggle("Larger text", key="large_text")
     use_smpc = st.toggle("Quote the official leaflets (AEMPS) in the notes", value=True)
     st.caption("When off, only the checks that need no leaflet text run, and the plan says so.")
-    st.button("Start over", on_click=reset_state, key="start_over", width="stretch")
+    st.button("Start over", on_click=ask_reset, key="start_over", width="stretch")
+
+if st.session_state.get("ask_reset"):
+    box("warn", "Start over?", "This deletes the medicines, the doses and the notes of this plan. It cannot be undone.")
+    no, yes = st.columns(2)       # the safe answer first and in colour
+    no.button("No, keep my work", on_click=lambda: st.session_state.pop("ask_reset", None), type="primary", key="reset_no", width="stretch")
+    yes.button("Yes, delete everything", on_click=reset_state, key="reset_yes", width="stretch")
 
 if st.session_state.get("scroll_top"):
     st.session_state.scroll_top = False
@@ -406,14 +499,20 @@ if step == 1:
                 st.rerun()
         with tab_code:
             st.write("Every box has a national code (C.N.) printed on it: six or seven digits, for example 848226.9.")
-            typed = st.text_input("The code on the box", placeholder="848226.9")
-            if st.button("Add this medicine", width="stretch") and typed:
+            with st.form("type_code", clear_on_submit=True, border=False):
+                typed = st.text_input("The code on the box", placeholder="848226.9", key="typed_code")
+                submitted = st.form_submit_button("Add this medicine", width="stretch")
+            if submitted and typed.strip():
                 pack, problem = manual_pack(typed, resolver())
                 if problem:
                     st.error(problem)
-                elif pack.medicine.cn not in {p.medicine.cn for p in st.session_state.manual}:
+                elif pack.medicine.cn in {m.cn for m in medicines}:
+                    st.info(f"{pack.medicine.name} is already in the list.")
+                else:
                     st.session_state.removed_cns.discard(pack.medicine.cn)
-                    st.session_state.manual.append(pack)
+                    if pack.medicine.cn not in {p.medicine.cn for p in st.session_state.manual}:
+                        st.session_state.manual.append(pack)
+                    st.session_state.notice = ("ok", "Added", esc(pack.medicine.name) + ". It is in the list below.")
                     st.rerun()
 
     if st.session_state.photos:
@@ -422,19 +521,26 @@ if step == 1:
                 left, right = st.columns([3, 1])
                 left.write(photo_name)
                 right.button("Remove", key=f"rm_{photo_name}", on_click=remove_photo, args=(photo_name,), width="stretch")
+    if (notice := st.session_state.get("notice")):
+        box(*notice)
     st.markdown(f'<p class="mt-title" style="font-size:1.35rem;margin-top:1.2rem">Medicines found: {len(medicines)}</p>', unsafe_allow_html=True)
+    if (undo := st.session_state.get("undo")):
+        box("ok", f"Removed: {undo['label']}", "Removed by mistake? Press the button to put it back.")
+        st.button("Undo: put it back", on_click=undo_last, key="undo_btn", type="primary")
 
     if not entries and not st.session_state.manual:
         box("tip", "Nothing yet", "Add a photo or type a code above. The medicines I recognise will appear here.")
-    for reading in verified:
+    for cn, rs in boxes_of.items():
+        expiries = sorted({r.expiry for r in rs if r.expiry})
+        chips = chip("Recognised from its code", "ok") + (chip(f"{len(rs)} boxes", "grey") if len(rs) > 1 else "") \
+            + ("".join(expiry_chip(e, today) for e in expiries) if expiries else expiry_chip(None, today))
         with st.container(border=True):
-            card(official_photo(reading.medicine), f'<div class="mt-name">{esc(reading.medicine.name)}</div>' + chip("Recognised from its code", "ok")
-                 + expiry_chip(reading.expiry, today), plain=True)
-            st.button("Remove this medicine", key=f"del_{reading.medicine.cn}", on_click=remove_medicine, args=(reading.medicine.cn,), type="tertiary", width="stretch")
-    for pack in st.session_state.manual:
+            medicine_card(rs[0].medicine, chips, rs)
+            st.button("Remove this medicine", key=f"del_{cn}", on_click=remove_medicine, args=(cn, rs[0].medicine.name), type="tertiary")
+    for pack in typed_only:
         with st.container(border=True):
-            card(official_photo(pack.medicine), f'<div class="mt-name">{esc(pack.medicine.name)}</div>' + chip("Added by you", "ok"), plain=True)
-            st.button("Remove this medicine", key=f"del_{pack.medicine.cn}", on_click=remove_medicine, args=(pack.medicine.cn,), type="tertiary", width="stretch")
+            medicine_card(pack.medicine, chip("Added by you", "ok"), [])
+            st.button("Remove this medicine", key=f"del_{pack.medicine.cn}", on_click=remove_medicine, args=(pack.medicine.cn, pack.medicine.name), type="tertiary")
     for name, r in unverified:
         image, crop = st.session_state.photos.get(name), None
         if image is not None and r.bbox:
@@ -445,7 +551,7 @@ if step == 1:
         with st.container(border=True):
             card(crop, f'<div class="mt-name">A box I could not recognise</div>{chip("Not in the plan", "bad")}'
                  f'<div class="mt-meta">{esc("; ".join(explain_problem(p) for p in r.problems) or "reason unknown")}</div>', plain=True)
-            st.button("Dismiss", key=f"dismiss_{r.raw}", on_click=dismiss_code, args=(r.raw,), type="tertiary", width="stretch")
+            st.button("Dismiss", key=f"dismiss_{r.raw}", on_click=dismiss_code, args=(r.raw,), type="tertiary")
     for name, regions in st.session_state.nocode.items():
         for region in regions:
             key = nocode_key(name, region)
@@ -461,7 +567,7 @@ if step == 1:
                      '<div class="mt-meta">Take a close-up photo of this box (about 30 cm above it, the printed code facing up), or type the code printed on it. '
                      + (('Bring the camera closer to this box, then press <b>Take photo</b>. ' if FROM_CAMERA else 'In the room, press <b>Close-up of the box with no code</b> on the left, then <b>Take photo</b>. ') if EMBEDDED else "")
                      + 'I may be wrong: it can also be something that is not a medicine.</div>', plain=True)
-                st.button("Done: I added it or it is not a medicine", key=f"nocode_{key}", on_click=nocode_dealt_with, args=(key,), type="tertiary", width="stretch")
+                st.button("Done: I added it or it is not a medicine", key=f"nocode_{key}", on_click=nocode_dealt_with, args=(key,), type="tertiary")
     if entries or st.session_state.manual:
         st.caption("Is a box missing? Take another photo that shows it close up with its code facing up, or type its code. Wrong box? Remove it.")
 
@@ -524,6 +630,9 @@ elif step == 2:
     header(2, "Choose the doses",
            "For each medicine, choose <b>how many to take</b> at each time of day, as written on the doctor's paper. "
            "Then tick the box under it. I never choose an amount for you, and medicines that are not ticked stay out of the plan.")
+    ready = sum(1 for r in rows if r.confirmed and r.has_dose)
+    if rows:
+        st.progress(ready / len(rows), text=f"{ready} of {count(len(rows), 'medicine')} ready for the plan")
     patient_field("patient_step2")
     with st.expander("Have a photo of the doctor's schedule? Let the computer copy it (optional)"):
         backend = vlm.backend_name()
@@ -560,13 +669,16 @@ elif step == 2:
         picked = st.session_state[row.key("dose", slot)]
         if picked is None:      # clicking the selected button again would clear it: keep the choice
             st.session_state[row.key("dose", slot)] = choice_for(row.doses[slot])
-        elif picked != OTHER:
+            return
+        if picked != OTHER:
             row.doses[slot] = picked
         elif choice_for(row.doses[slot]) != OTHER:
             row.doses[slot] = ""        # "Other" with nothing typed yet: the plan reports it instead of guessing
+        unconfirm(row)
 
     def set_other(row: Row, slot: str) -> None:
         row.doses[slot] = st.session_state[row.key("other", slot)].strip()
+        unconfirm(row)
 
     def set_quick(row: Row) -> None:
         row.quick = list(st.session_state[row.key("quick")] or [])
@@ -582,11 +694,23 @@ elif step == 2:
                 body += chip("Box on the table", "ok")
             else:
                 body += chip("No matching box in the photos", "warn")
+            if row.cn in expired_cns:
+                body += '<div class="mt-alert">The box has expired: this medicine will be left out of the plan until there is a new box.</div>'
             if row.sheet_name and row.sheet_name != row.medicine:
                 body += f'<div class="mt-meta">The schedule says: {esc(row.sheet_name)}</div>'
+            form = pack.form if pack else None
+            if row.confirmed and row.has_dose:          # done: a short summary instead of 28 buttons, so the list stays short
+                taken = [f"{esc(SLOT_LABELS[s])}: <b>{esc(dose_words(row.doses[s], form))}</b>" for s in SLOTS if dose_number(row.doses[s]) != 0]
+                body += chip("Ready for the plan", "ok") + f'<div class="mt-sum">{" &middot; ".join(taken)}</div>' \
+                    + (f'<div class="mt-meta">Note: {esc(row.note)}</div>' if row.note else "")
+                card(official_photo(pack) if pack else None, body, plain=True)
+                st.button("Change the amounts", key=f"edit_{row.id}", on_click=unconfirm, args=(row,))
+                continue
             card(official_photo(pack) if pack else None, body, plain=True)
+            plural = form_noun(form)[1]
             for slot in SLOTS:
-                st.segmented_control(f"{SLOT_LABELS[slot]} ({SLOT_HINT[slot]}): how many?", CHOICE_VALUES + [OTHER], format_func=CHOICE_LABELS.get,
+                question = f"how many {plural}?" if plural != "doses" else "how many?"
+                st.segmented_control(f"{SLOT_LABELS[slot]} ({SLOT_HINT[slot]}): {question}", CHOICE_VALUES + [OTHER], format_func=CHOICE_LABELS.get,
                                      default=choice_for(row.doses[slot]), key=row.key("dose", slot), on_change=set_dose, args=(row, slot))
                 if choice_for(row.doses[slot]) == OTHER:
                     st.text_input("Type the amount (for example 4 or 2,5)", value=row.doses[slot], key=row.key("other", slot), on_change=set_other, args=(row, slot))
@@ -613,9 +737,8 @@ elif step == 2:
         extra = st.text_input("Name on the schedule", key="extra_name")
         st.button("Add this line", on_click=add_line, disabled=not extra.strip(), width="stretch")
     st.write("")
-    ready = sum(1 for r in rows if r.confirmed and r.has_dose)
     nav(1, 3, "Next: see the plan", enabled=bool(rows), why_not="There are no medicines yet. Go back and add one.")
-    st.caption(f"{ready} of {len(rows)} medicine(s) will be in the plan.")
+    st.caption(f"{ready} of {count(len(rows), 'medicine')} will be in the plan.")
 
 # =============================================================================================================================
 # Screens 3 and 4 need the plan
@@ -641,8 +764,7 @@ else:
             st.markdown(f'<p class="mt-lead">Plan for <b>{esc(st.session_state.patient)}</b></p>', unsafe_allow_html=True)
         rows_html = []
         for slot in SLOTS:
-            time_text = st.session_state.get(f"t_{slot}", DEFAULT_TIMES[slot])
-            time_text = time_text.strftime("%H:%M") if hasattr(time_text, "strftime") else time_text
+            time_text = st.session_state.times[slot]
             items = "".join(f'<div style="margin-bottom:6px"><span class="mt-dose">{esc(e.written())}</span> of {esc(e.name)}'
                             + (f' <span class="mt-meta">({esc(e.line.remarks)})</span>' if e.line.remarks else '') + '</div>' for e in plan.slot_entries(slot))
             rows_html.append(f'<tr><td class="mt-slot">{esc(SLOT_LABELS[slot])}<span class="mt-time">{esc(time_text)}</span></td>'
@@ -689,8 +811,13 @@ else:
             patient_field("patient_step4")
             st.text_area("Notes for the whole plan (for example: doctor's phone number, allergies)", value=st.session_state.plan_notes, key="plan_notes_box", height=110,
                          on_change=lambda: st.session_state.update(plan_notes=st.session_state.plan_notes_box.strip()))
+            def set_time(slot: str) -> None:
+                st.session_state.times[slot] = st.session_state[f"t_{slot}"].strftime("%H:%M")
+
             with st.expander("Change the reminder times"):
-                times = {s: st.time_input(SLOT_LABELS[s], value=datetime.strptime(DEFAULT_TIMES[s], "%H:%M").time(), key=f"t_{s}").strftime("%H:%M") for s in SLOTS}
+                for s in SLOTS:
+                    st.time_input(SLOT_LABELS[s], value=datetime.strptime(st.session_state.times[s], "%H:%M").time(), key=f"t_{s}", on_change=set_time, args=(s,))
+            times = dict(st.session_state.times)
         if doses:
             with tempfile.TemporaryDirectory() as tmp:
                 pdf_path = render_pdf(plan, Path(tmp) / "plan.pdf", st.session_state.patient, notes=st.session_state.plan_notes, times=times)
@@ -715,4 +842,4 @@ else:
             st.download_button("Download the phone reminders (.ics)", to_ics(plan, times).encode("utf-8"), "medication_plan.ics", "text/calendar", width="stretch")
         st.write("")
         nav(3, None)
-        st.button("Start over with new medicines", on_click=reset_state, key="start_over_end", width="stretch")
+        st.button("Start over with new medicines", on_click=ask_reset, key="start_over_end", width="stretch")
