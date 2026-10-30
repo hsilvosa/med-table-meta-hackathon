@@ -1,0 +1,46 @@
+{
+ "cn": "652442",
+ "nregistro": "61602",
+ "name": "VAQTA 25 UNIDADES/0,5ml SUSPENSION INYECTABLE EN JERINGA PRECARGADA",
+ "active_ingredients": [
+  "ANTIGENO HEPATITIS A"
+ ],
+ "strengths": [
+  {
+   "nombre": "ANTIGENO HEPATITIS A",
+   "cantidad": "25",
+   "unidad": "U"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "J07B",
+   "nombre": "VACUNAS ANTIVIRALES",
+   "nivel": 3
+  },
+  {
+   "codigo": "J07BC",
+   "nombre": "Vacunas frente a la hepatitis",
+   "nivel": 4
+  },
+  {
+   "codigo": "J07BC02",
+   "nombre": "Hepatitis A, virus entero inactivado",
+   "nivel": 5
+  }
+ ],
+ "form": "SUSPENSIÓN INYECTABLE EN JERINGA PRECARGADA",
+ "presentation": "VAQTA 25 UNIDADES/0,5ml SUSPENSION INYECTABLE EN JERINGA PRECARGADA, 1 jeringa precargada de 0,5 ml + 2 AGUJAS",
+ "marketed": true,
+ "holder": "Laboratorios Abello S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/61602/61602_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/61602/61602_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/61602/FT_61602.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/61602/P_61602.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=61602",
+ "fetched": "2026-10-27"
+}

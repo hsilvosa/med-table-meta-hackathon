@@ -1,0 +1,46 @@
+{
+ "cn": "650664",
+ "nregistro": "72217",
+ "name": "REPAGLINIDA SANDOZ 1 mg COMPRIMIDOS EFG",
+ "active_ingredients": [
+  "REPAGLINIDA"
+ ],
+ "strengths": [
+  {
+   "nombre": "REPAGLINIDA",
+   "cantidad": "1",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "A10B",
+   "nombre": "FARMACOS HIPOGLUCEMIANTES EXCLUYENDO INSULINAS",
+   "nivel": 3
+  },
+  {
+   "codigo": "A10BX",
+   "nombre": "Otros farmacos hipoglucemiantes excluyendo insulinas",
+   "nivel": 4
+  },
+  {
+   "codigo": "A10BX02",
+   "nombre": "Repaglinida",
+   "nivel": 5
+  }
+ ],
+ "form": "COMPRIMIDO",
+ "presentation": "REPAGLINIDA SANDOZ 1 mg COMPRIMIDOS EFG , 90 comprimidos",
+ "marketed": true,
+ "holder": "Sandoz Farmaceutica S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/72217/72217_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/72217/72217_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/72217/FT_72217.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/72217/P_72217.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=72217",
+ "fetched": "2026-10-27"
+}

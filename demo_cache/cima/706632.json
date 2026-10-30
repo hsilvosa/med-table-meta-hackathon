@@ -1,0 +1,46 @@
+{
+ "cn": "706632",
+ "nregistro": "63983",
+ "name": "OMEPRAZOL CINFA 20 mg CAPSULAS DURAS GASTRORRESISTENTES EFG",
+ "active_ingredients": [
+  "OMEPRAZOL"
+ ],
+ "strengths": [
+  {
+   "nombre": "OMEPRAZOL",
+   "cantidad": "20",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "A02B",
+   "nombre": "AGENTES CONTRA LA ULCERA PEPTICA Y EL REFLUJO GASTROESOFAGICO (RGE/GORD)",
+   "nivel": 3
+  },
+  {
+   "codigo": "A02BC",
+   "nombre": "Inhibidores de la bomba de protones",
+   "nivel": 4
+  },
+  {
+   "codigo": "A02BC01",
+   "nombre": "Omeprazol",
+   "nivel": 5
+  }
+ ],
+ "form": "CÁPSULA DURA GASTRORRESISTENTE",
+ "presentation": "OMEPRAZOL CINFA 20 mg CAPSULAS DURAS GASTRORRESISTENTES EFG , 14 cápsulas ",
+ "marketed": true,
+ "holder": "Laboratorios Cinfa S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/63983/63983_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/63983/63983_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/63983/FT_63983.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/63983/P_63983.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=63983",
+ "fetched": "2026-10-27"
+}

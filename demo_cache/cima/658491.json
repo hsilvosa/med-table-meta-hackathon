@@ -1,0 +1,46 @@
+{
+ "cn": "658491",
+ "nregistro": "68477",
+ "name": "LORAZEPAM CINFA 1 mg COMPRIMIDOS EFG",
+ "active_ingredients": [
+  "LORAZEPAM"
+ ],
+ "strengths": [
+  {
+   "nombre": "LORAZEPAM",
+   "cantidad": "1",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "N05B",
+   "nombre": "ANSIOLITICOS",
+   "nivel": 3
+  },
+  {
+   "codigo": "N05BA",
+   "nombre": "Derivados de la benzodiazepina",
+   "nivel": 4
+  },
+  {
+   "codigo": "N05BA06",
+   "nombre": "Lorazepam",
+   "nivel": 5
+  }
+ ],
+ "form": "COMPRIMIDO",
+ "presentation": "LORAZEPAM CINFA 1 mg COMPRIMIDOS EFG, 25 comprimidos",
+ "marketed": true,
+ "holder": "Laboratorios Cinfa S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/68477/68477_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/68477/68477_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/68477/FT_68477.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/68477/P_68477.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=68477",
+ "fetched": "2026-10-27"
+}

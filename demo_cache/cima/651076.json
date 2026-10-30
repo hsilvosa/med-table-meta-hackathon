@@ -1,0 +1,46 @@
+{
+ "cn": "651076",
+ "nregistro": "69536",
+ "name": "ATORVASTATINA CINFA 20 mg COMPRIMIDOS RECUBIERTOS CON PELICULA EFG",
+ "active_ingredients": [
+  "ATORVASTATINA CALCICA "
+ ],
+ "strengths": [
+  {
+   "nombre": "ATORVASTATINA CALCICA ",
+   "cantidad": "20,7",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "C10A",
+   "nombre": "AGENTES MODIFICADORES DE LOS LIPIDOS, MONOFARMACOS",
+   "nivel": 3
+  },
+  {
+   "codigo": "C10AA",
+   "nombre": "Inhibidores de la HMG CoA reductasa",
+   "nivel": 4
+  },
+  {
+   "codigo": "C10AA05",
+   "nombre": "Atorvastatina",
+   "nivel": 5
+  }
+ ],
+ "form": "COMPRIMIDO RECUBIERTO CON PELÍCULA",
+ "presentation": "ATORVASTATINA CINFA 20 mg COMPRIMIDOS RECUBIERTOS CON PELICULA EFG , 28 comprimidos",
+ "marketed": true,
+ "holder": "Laboratorios Cinfa S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/69536/69536_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/69536/69536_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/69536/FT_69536.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/69536/P_69536.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=69536",
+ "fetched": "2026-10-27"
+}

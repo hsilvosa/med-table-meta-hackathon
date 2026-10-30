@@ -1,0 +1,46 @@
+{
+ "cn": "732742",
+ "nregistro": "86537",
+ "name": "VARILIV DIOSMINA FORTE 1.000 MG COMPRIMIDOS RECUBIERTOS CON PELICULA",
+ "active_ingredients": [
+  "DIOSMINA"
+ ],
+ "strengths": [
+  {
+   "nombre": "DIOSMINA",
+   "cantidad": "1.000",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "C05C",
+   "nombre": "AGENTES ESTABILIZADORES DE CAPILARES",
+   "nivel": 3
+  },
+  {
+   "codigo": "C05CA",
+   "nombre": "Bioflavonoides",
+   "nivel": 4
+  },
+  {
+   "codigo": "C05CA03",
+   "nombre": "Diosmina",
+   "nivel": 5
+  }
+ ],
+ "form": "COMPRIMIDO RECUBIERTO CON PELÍCULA",
+ "presentation": "VARILIV DIOSMINA FORTE 1.000 MG COMPRIMIDOS RECUBIERTOS CON PELICULA, 30 comprimidos",
+ "marketed": true,
+ "holder": "Laboratorios Cinfa S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/86537/86537_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/86537/86537_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/86537/FT_86537.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/86537/P_86537.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=86537",
+ "fetched": "2026-10-27"
+}

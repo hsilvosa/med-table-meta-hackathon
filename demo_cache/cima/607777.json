@@ -1,0 +1,52 @@
+{
+ "cn": "607777",
+ "nregistro": "89517",
+ "name": "LIDOCAINA/ADRENALINA NORMOGEN 20 MG/ML + 0,0125 MG/ML SOLUCION INYECTABLE EFG",
+ "active_ingredients": [
+  "LIDOCAINA HIDROCLORURO",
+  "EPINEFRINA"
+ ],
+ "strengths": [
+  {
+   "nombre": "LIDOCAINA HIDROCLORURO",
+   "cantidad": "20",
+   "unidad": "mg/ml"
+  },
+  {
+   "nombre": "EPINEFRINA",
+   "cantidad": "0,0125",
+   "unidad": "mg/ml"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "N01B",
+   "nombre": "ANESTESICOS LOCALES",
+   "nivel": 3
+  },
+  {
+   "codigo": "N01BB",
+   "nombre": "Amidas",
+   "nivel": 4
+  },
+  {
+   "codigo": "N01BB52",
+   "nombre": "Lidocaina, combinaciones con",
+   "nivel": 5
+  }
+ ],
+ "form": "SOLUCIÓN INYECTABLE",
+ "presentation": "LIDOCAINA/ADRENALINA NORMOGEN 20 MG/ML + 0,0125 MG/ML SOLUCION INYECTABLE EFG, 100 cartuchos de 1,7 ml",
+ "marketed": true,
+ "holder": "Laboratorios Normon S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/89517/89517_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/89517/89517_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/89517/FT_89517.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/89517/P_89517.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=89517",
+ "fetched": "2026-10-27"
+}

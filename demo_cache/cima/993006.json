@@ -1,0 +1,46 @@
+{
+ "cn": "993006",
+ "nregistro": "64140",
+ "name": "FUROSEMIDA CINFA 40 mg COMPRIMIDOS EFG",
+ "active_ingredients": [
+  "FUROSEMIDA"
+ ],
+ "strengths": [
+  {
+   "nombre": "FUROSEMIDA",
+   "cantidad": "40",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "C03C",
+   "nombre": "DIURETICOS DE TECHO ALTO",
+   "nivel": 3
+  },
+  {
+   "codigo": "C03CA",
+   "nombre": "Sulfonamidas, monofarmacos",
+   "nivel": 4
+  },
+  {
+   "codigo": "C03CA01",
+   "nombre": "Furosemida",
+   "nivel": 5
+  }
+ ],
+ "form": "COMPRIMIDO",
+ "presentation": "FUROSEMIDA CINFA 40 mg COMPRIMIDOS EFG, 10 comprimidos",
+ "marketed": true,
+ "holder": "Laboratorios Cinfa S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/64140/64140_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/64140/64140_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/64140/FT_64140.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/64140/P_64140.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=64140",
+ "fetched": "2026-10-27"
+}

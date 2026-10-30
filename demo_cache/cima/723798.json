@@ -1,0 +1,46 @@
+{
+ "cn": "723798",
+ "nregistro": "62825",
+ "name": "ADIRO 100 MG COMPRIMIDOS GASTRORRESISTENTES EFG",
+ "active_ingredients": [
+  "ACETILSALICILICO ACIDO"
+ ],
+ "strengths": [
+  {
+   "nombre": "ACETILSALICILICO ACIDO",
+   "cantidad": "100",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "B01A",
+   "nombre": "AGENTES ANTITROMBOTICOS",
+   "nivel": 3
+  },
+  {
+   "codigo": "B01AC",
+   "nombre": "Inhibidores de la agregacion plaquetaria, heparina excl.",
+   "nivel": 4
+  },
+  {
+   "codigo": "B01AC06",
+   "nombre": "Acido acetilsalicilico",
+   "nivel": 5
+  }
+ ],
+ "form": "COMPRIMIDO GASTRORRESISTENTE",
+ "presentation": "ADIRO 100 MG COMPRIMIDOS GASTRORRESISTENTES EFG, 30 comprimidos (PVC- Aluminio)",
+ "marketed": true,
+ "holder": "Bayer Hispania S.L.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/62825/62825_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/62825/62825_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/62825/FT_62825.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/62825/P_62825.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=62825",
+ "fetched": "2026-10-27"
+}

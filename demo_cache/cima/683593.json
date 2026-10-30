@@ -1,0 +1,46 @@
+{
+ "cn": "683593",
+ "nregistro": "74643",
+ "name": "CANDESARTAN STADA 32 mg COMPRIMIDOS EFG",
+ "active_ingredients": [
+  "CANDESARTAN CILEXETILO"
+ ],
+ "strengths": [
+  {
+   "nombre": "CANDESARTAN CILEXETILO",
+   "cantidad": "32,00",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "C09C",
+   "nombre": "ANTAGONISTAS DE LOS RECEPTORES DE ANGIOTENSINA II, MONOTERAPIA",
+   "nivel": 3
+  },
+  {
+   "codigo": "C09CA",
+   "nombre": "Antagonistas de los receptores de angiotensina II, monoterapia",
+   "nivel": 4
+  },
+  {
+   "codigo": "C09CA06",
+   "nombre": "Candesartan",
+   "nivel": 5
+  }
+ ],
+ "form": "COMPRIMIDO",
+ "presentation": "CANDESARTAN STADA 32 mg COMPRIMIDOS EFG , 28 comprimidos",
+ "marketed": true,
+ "holder": "Laboratorio Stada S.L.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/74643/74643_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/74643/74643_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/74643/FT_74643.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/74643/P_74643.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=74643",
+ "fetched": "2026-10-27"
+}

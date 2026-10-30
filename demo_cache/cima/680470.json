@@ -1,0 +1,46 @@
+{
+ "cn": "680470",
+ "nregistro": "61015",
+ "name": "BETOPTIC SUSPENSIÓN 2,5 MG/ML COLIRIO EN SUSPENSIÓN",
+ "active_ingredients": [
+  "BETAXOLOL HIDROCLORURO"
+ ],
+ "strengths": [
+  {
+   "nombre": "BETAXOLOL HIDROCLORURO",
+   "cantidad": "2,8",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "S01E",
+   "nombre": "PREPARADOS CONTRA EL GLAUCOMA Y MIOTICOS1)",
+   "nivel": 3
+  },
+  {
+   "codigo": "S01ED",
+   "nombre": "Agentes betabloqueantes",
+   "nivel": 4
+  },
+  {
+   "codigo": "S01ED02",
+   "nombre": "Betaxolol",
+   "nivel": 5
+  }
+ ],
+ "form": "COLIRIO EN SUSPENSIÓN",
+ "presentation": "BETOPTIC SUSPENSIÓN 2,5 MG/ML COLIRIO EN SUSPENSIÓN , 1 frasco de 5 ml",
+ "marketed": true,
+ "holder": "Immedica Pharma Ab",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/61015/61015_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/61015/61015_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/61015/FT_61015.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/61015/P_61015.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=61015",
+ "fetched": "2026-10-26"
+}

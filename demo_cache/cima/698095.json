@@ -1,0 +1,46 @@
+{
+ "cn": "698095",
+ "nregistro": "64014",
+ "name": "EUTIROX 100 microgramos COMPRIMIDOS",
+ "active_ingredients": [
+  "LEVOTIROXINA SODICA"
+ ],
+ "strengths": [
+  {
+   "nombre": "LEVOTIROXINA SODICA",
+   "cantidad": "100",
+   "unidad": "µg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "H03A",
+   "nombre": "PREPARADOS DE HORMONA TIROIDEA",
+   "nivel": 3
+  },
+  {
+   "codigo": "H03AA",
+   "nombre": "Hormonas tiroideas",
+   "nivel": 4
+  },
+  {
+   "codigo": "H03AA01",
+   "nombre": "Levotiroxina sodica",
+   "nivel": 5
+  }
+ ],
+ "form": "COMPRIMIDO",
+ "presentation": "EUTIROX 100 microgramos COMPRIMIDOS , 100 comprimidos",
+ "marketed": true,
+ "holder": "Merck S.L.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/64014/64014_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/64014/64014_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/64014/FT_64014.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/64014/P_64014.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=64014",
+ "fetched": "2026-10-27"
+}

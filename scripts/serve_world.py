@@ -2,6 +2,7 @@
 
   .venv-app/Scripts/python.exe scripts/serve_world.py [--port 8600]
 
+Serves the room built by scripts/build_world.py (web/world) or, in a fresh clone, the small room shipped in web/world_demo.
 Open http://127.0.0.1:8600 . Photos are saved in data/world_photos/ as photo_<time>.jpg with a .json next to it (the ground
 truth: which codes are in view, their pixel size, the CNs, the pose), and copied to latest.jpg / latest.json, which the
 Streamlit app can load. Binds to 127.0.0.1 only; nothing leaves the machine.
@@ -72,6 +73,13 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
+
+    def translate_path(self, path: str) -> str:
+        """The room built on this machine (web/world) when there is one, else the small room shipped in the repository (web/world_demo)."""
+        local = super().translate_path(path)
+        if path.startswith("/world/") and not (Path(self.directory) / "world" / "world.json").exists():
+            return super().translate_path("/world_demo/" + path[len("/world/"):])
+        return local
 
     def end_headers(self) -> None:
         self.send_header("Cache-Control", "no-store")      # a demo server: always serve the current files, never a stale main.js

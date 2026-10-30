@@ -2,7 +2,8 @@
 
   .venv-app/Scripts/python.exe scripts/start_demo.py [--no-browser]
 
-Builds the room data first if web/world is missing (needs data/cutouts and the network once) and fetches three.js if needed.
+Uses the room built on this machine (web/world) or, in a fresh clone, the small room shipped in web/world_demo; fetches three.js
+once if needed (network).
 Ctrl+C stops both servers. Both bind to 127.0.0.1 only. Open the room page; the planner is its right-hand panel (Tab).
 """
 
@@ -20,7 +21,7 @@ python = sys.executable
 
 if not Path("web/vendor/three.module.js").exists():
     subprocess.run([python, "scripts/fetch_web_deps.py"], check=True)
-if not Path("web/world/world.json").exists():
+if not Path("web/world/world.json").exists() and not Path("web/world_demo/world.json").exists():
     subprocess.run([python, "scripts/build_world.py"], check=True)
 
 servers = [

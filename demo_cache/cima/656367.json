@@ -1,0 +1,46 @@
+{
+ "cn": "656367",
+ "nregistro": "68167",
+ "name": "METFORMINA CINFA 850 mg COMPRIMIDOS RECUBIERTOS CON PELICULA EFG",
+ "active_ingredients": [
+  "METFORMINA HIDROCLORURO"
+ ],
+ "strengths": [
+  {
+   "nombre": "METFORMINA HIDROCLORURO",
+   "cantidad": "850",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "A10B",
+   "nombre": "FARMACOS HIPOGLUCEMIANTES EXCLUYENDO INSULINAS",
+   "nivel": 3
+  },
+  {
+   "codigo": "A10BA",
+   "nombre": "Biguanidas",
+   "nivel": 4
+  },
+  {
+   "codigo": "A10BA02",
+   "nombre": "Metformina",
+   "nivel": 5
+  }
+ ],
+ "form": "COMPRIMIDO RECUBIERTO CON PELÍCULA",
+ "presentation": "METFORMINA CINFA 850 mg COMPRIMIDOS RECUBIERTOS CON PELICULA EFG, 50 comprimidos",
+ "marketed": true,
+ "holder": "Laboratorios Cinfa S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/68167/68167_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/68167/68167_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/68167/FT_68167.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/68167/P_68167.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=68167",
+ "fetched": "2026-10-26"
+}

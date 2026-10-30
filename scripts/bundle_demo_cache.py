@@ -31,8 +31,13 @@ WIDTH = 480
 
 
 def demo_cns() -> list[str]:
-    """The national codes of the demo photo."""
-    return [cn for cn, _ in DEMO_ITEMS]
+    """The national codes of the demo photo, then those of the boxes in the small room shipped in web/world_demo."""
+    codes = [cn for cn, _ in DEMO_ITEMS]
+    room = ROOT / "web/world_demo/world.json"
+    if room.exists():
+        for table in json.loads(room.read_text(encoding="utf-8"))["tables"]:
+            codes += [item["cn"] for item in table["items"] if item["kind"] == "box"]
+    return list(dict.fromkeys(codes))
 
 
 def small_photo(source: bytes, target: Path) -> None:

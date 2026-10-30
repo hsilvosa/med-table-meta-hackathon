@@ -1,0 +1,46 @@
+{
+ "cn": "672940",
+ "nregistro": "73152",
+ "name": "DONEPEZILO CINFA 10 mg COMPRIMIDOS EFG",
+ "active_ingredients": [
+  "DONEPEZILO HIDROCLORURO MONOHIDRATO"
+ ],
+ "strengths": [
+  {
+   "nombre": "DONEPEZILO HIDROCLORURO MONOHIDRATO",
+   "cantidad": "10",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "N06D",
+   "nombre": "FARMACOS ANTI-DEMENCIA",
+   "nivel": 3
+  },
+  {
+   "codigo": "N06DA",
+   "nombre": "Anticolinesterasas",
+   "nivel": 4
+  },
+  {
+   "codigo": "N06DA02",
+   "nombre": "Donepezilo",
+   "nivel": 5
+  }
+ ],
+ "form": "COMPRIMIDO",
+ "presentation": "DONEPEZILO CINFA 10 mg COMPRIMIDOS EFG, 28 comprimidos",
+ "marketed": true,
+ "holder": "Laboratorios Cinfa S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/73152/73152_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/73152/73152_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/73152/FT_73152.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/73152/P_73152.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=73152",
+ "fetched": "2026-10-27"
+}

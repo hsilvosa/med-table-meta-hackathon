@@ -1,0 +1,46 @@
+{
+ "cn": "658532",
+ "nregistro": "68501",
+ "name": "CAPTOR SIMPLEX 100 MG CAPSULAS DURAS DE LIBERACION PROLONGADA",
+ "active_ingredients": [
+  "TRAMADOL HIDROCLORURO"
+ ],
+ "strengths": [
+  {
+   "nombre": "TRAMADOL HIDROCLORURO",
+   "cantidad": "100",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "N02A",
+   "nombre": "OPIOIDES",
+   "nivel": 3
+  },
+  {
+   "codigo": "N02AX",
+   "nombre": "Otros opioides",
+   "nivel": 4
+  },
+  {
+   "codigo": "N02AX02",
+   "nombre": "Tramadol",
+   "nivel": 5
+  }
+ ],
+ "form": "CÁPSULA DURA DE LIBERACIÓN PROLONGADA",
+ "presentation": "CAPTOR SIMPLEX 100 MG CAPSULAS DURAS DE LIBERACION PROLONGADA, 20 cápsulas",
+ "marketed": true,
+ "holder": "Ferrer Internacional S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/68501/68501_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/68501/68501_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/68501/FT_68501.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/68501/P_68501.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=68501",
+ "fetched": "2026-10-27"
+}

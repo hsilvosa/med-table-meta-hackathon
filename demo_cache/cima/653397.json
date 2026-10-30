@@ -1,0 +1,46 @@
+{
+ "cn": "653397",
+ "nregistro": "65460",
+ "name": "AMLODIPINO CINFA 5 mg COMPRIMIDOS EFG",
+ "active_ingredients": [
+  "AMLODIPINO BESILATO"
+ ],
+ "strengths": [
+  {
+   "nombre": "AMLODIPINO BESILATO",
+   "cantidad": "6,94",
+   "unidad": "mg"
+  }
+ ],
+ "atc": [
+  {
+   "codigo": "C08C",
+   "nombre": "BLOQUEANTES SELECTIVOS DE CANALES DE CALCIO CON EFECTOS PRINCIPALMENTE VASCULARES",
+   "nivel": 3
+  },
+  {
+   "codigo": "C08CA",
+   "nombre": "Derivados de la dihidropiridina",
+   "nivel": 4
+  },
+  {
+   "codigo": "C08CA01",
+   "nombre": "Amlodipino",
+   "nivel": 5
+  }
+ ],
+ "form": "COMPRIMIDO",
+ "presentation": "AMLODIPINO CINFA 5 mg COMPRIMIDOS EFG , 30 comprimidos",
+ "marketed": true,
+ "holder": "Laboratorios Cinfa S.A.",
+ "photos": {
+  "materialas": "https://cima.aemps.es/cima/fotos/full/materialas/65460/65460_materialas.jpg",
+  "formafarmac": "https://cima.aemps.es/cima/fotos/full/formafarmac/65460/65460_formafarmac.jpg"
+ },
+ "docs": {
+  "ficha_tecnica": "https://cima.aemps.es/cima/dochtml/ft/65460/FT_65460.html",
+  "prospecto": "https://cima.aemps.es/cima/dochtml/p/65460/P_65460.html"
+ },
+ "source_url": "https://cima.aemps.es/cima/publico/detalle.html?nregistro=65460",
+ "fetched": "2026-10-27"
+}
