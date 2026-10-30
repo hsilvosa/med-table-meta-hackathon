@@ -18,7 +18,7 @@ SLOTS = ("breakfast", "lunch", "dinner", "bedtime")
 DOSE_RE = re.compile(r"^(?:\d{1,2}(?:[.,]\d{1,2})?|\d/\d)$")  # 0, 1, 2, 0,5, 1/2, 3/4
 FORM_WORDS = {"comprimidos", "comprimido", "capsulas", "capsula", "efg", "recubiertos", "pelicula", "solucion", "sobres", "gotas"}
 NON_SOLID_FORMS = ("suspension", "solucion", "jarabe", "colirio", "crema", "gel", "inyect", "gotas", "pomada", "spray", "emulsion", "polvo", "parche", "inhal", "ungüento", "unguento", "enema", "supositorio", "granulado")
-MASS_TO_MG = {"mg": 1.0, "g": 1000.0, "mcg": 0.001, "ug": 0.001, "µg": 0.001, "microgramos": 0.001, "gr": 1000.0}
+MASS_TO_MG = {"mg": 1.0, "g": 1000.0, "mcg": 0.001, "ug": 0.001, "µg": 0.001, "microgramos": 0.001, "microgramo": 0.001, "gr": 1000.0}
 
 
 ALL_DAYS = (0, 1, 2, 3, 4, 5, 6)
@@ -71,7 +71,7 @@ def lines_from_rows(rows: list[dict]) -> tuple[list[Line], list[Finding]]:
 def _numbers(text: str) -> list[float]:
     """Strengths in a text, in mg when a mass unit follows: '160/12,5 mg' -> [12.5, 160.0]; '1 g' -> [1000.0]."""
     out = []
-    for value, unit in re.findall(r"(\d+(?:[.,]\d+)?)\s*(mg|g|mcg|µg|ug|gr)?\b", text.lower()):
+    for value, unit in re.findall(r"(\d+(?:[.,]\d+)?)\s*(mg|g|mcg|µg|ug|gr|microgramos?)?\b", text.lower()):
         number = float(value.replace(",", "."))
         out.append(round(number * MASS_TO_MG.get(unit, 1.0), 6))
     return sorted(out)
@@ -89,7 +89,12 @@ def strength_matches(line: Line, pack: Pack) -> bool | None:
     wanted = _numbers(line.text)
     actual = sorted(round(float(str(s["cantidad"]).replace(",", ".")) * MASS_TO_MG.get(str(s["unidad"]).lower(), 1.0), 6)
                     for s in pack.medicine.strengths if s.get("cantidad") not in (None, ""))
-    return None if not wanted or not actual else wanted == actual
+    # CIMA often gives the amount of the salt (amlodipine besilate 6.94 mg) while the name, the box and the prescription give the base
+    # (amlodipine 5 mg): the strengths in the official name count as well.
+    named = _numbers(pack.medicine.name)
+    if not wanted or not (actual or named):
+        return None
+    return wanted in (actual, named)
 
 
 def _score(line: Line, pack: Pack) -> int:

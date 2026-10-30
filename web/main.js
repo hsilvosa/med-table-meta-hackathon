@@ -162,11 +162,21 @@ function resize() {
   frame.style.height = `${frameW * PHONE.h / PHONE.w}px`; frame.style.width = `${frameW}px`;
   const usedH = frameW * PHONE.h / PHONE.w;
   // in phone mode the viewfinder rectangle must show exactly the phone's vertical field of view
-  camera.fov = phoneMode ? 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(PHONE_VFOV) / 2) * h / usedH) * 180 / Math.PI : 70;
+  camera.fov = phoneMode ? 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(PHONE_VFOV) / 2) * h / usedH) * 180 / Math.PI : walkFov;
   camera.updateProjectionMatrix();
   if (live.boxes.length) drawBoxes();
 }
 addEventListener('resize', resize);
+// mouse wheel: walking, it zooms the view (field of view 20-70 degrees); holding the phone, it raises or lowers the phone like R and F,
+// so the photo stays what a real phone at that height would take (no digital zoom that the decoder would not get)
+let walkFov = 70;
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const step = Math.sign(e.deltaY);
+  if (phoneMode) player.eye = THREE.MathUtils.clamp(player.eye + step * 0.03, EYE_MIN, EYE_MAX);
+  else { walkFov = THREE.MathUtils.clamp(walkFov + step * 5, 20, 70); resize(); }
+  markDirty();
+}, { passive: false });
 new ResizeObserver(resize).observe(stage);
 const $ = id => document.getElementById(id);
 function setPhoneUi() {

@@ -87,6 +87,11 @@ def test_doubtful_lines_are_left_out_with_their_reason_never_guessed():
     assert reason([line("Valsartan", breakfast="1")], [pack(VALSARTAN_HCT)]) == "no pack on the table matches"             # one ingredient of a combination is not it
     assert reconcile([Line("el de la mañana", cn="6800027")], [pack(METFORMINA_850), pack(METFORMINA_500)]).matches[0].medicine.cn == "680002"
     syrup = med("720001", "IBUPROFENO 20 MG/ML SUSPENSION ORAL", ["IBUPROFENO"], "M01AE01", strengths=strength(("2.0", "g")), form="SUSPENSION ORAL")
+    salt = med("653397", "AMLODIPINO CINFA 5 mg COMPRIMIDOS EFG", ["AMLODIPINO BESILATO"], "C08CA01", strengths=strength(("6,94", "mg")))
+    micro = med("698095", "EUTIROX 100 microgramos COMPRIMIDOS", ["LEVOTIROXINA SODICA"], "H03AA01", strengths=strength(("100", "\u00b5g")))
+    for medicine, right, wrong in ((salt, "Amlodipino 5 mg", "Amlodipino 10 mg"), (micro, "Eutirox 100 microgramos", "Eutirox 50 microgramos")):
+        assert reconcile([Line(medicine.name)], [pack(medicine)]).blocked == {} and reconcile([Line(right)], [pack(medicine)]).blocked == {}     # the name on the box is the strength
+        assert reconcile([Line(wrong)], [pack(medicine)]).blocked == {0: "the strength on the sheet does not match the pack"}
     assert reconcile([Line("Ibuprofeno 20 mg/ml")], [pack(syrup)]).blocked == {}        # CIMA gives liquids per container: not compared
 
 
