@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .rules import Pack
-from .schedule import SLOTS, Line, dose_number, lines_from_rows, reconcile
+from .schedule import ALL_DAYS, SLOTS, Line, dose_number, lines_from_rows, reconcile
 
 # (value stored on the sheet, label on the button). Anything else is typed in by the caregiver under "Other".
 DOSE_CHOICES = (("0", "None"), ("1/4", "\u00bc"), ("1/2", "\u00bd"), ("1", "1"), ("1,5", "1\u00bd"), ("2", "2"), ("3", "3"))
@@ -35,6 +35,7 @@ class Row:
     quick: list[str] = field(default_factory=list)  # ticked phrases from QUICK_NOTES
     confirmed: bool = False
     sheet_name: str = ""  # how the reader saw the medicine, when it differs from the pack name
+    days: list[int] = field(default_factory=lambda: list(ALL_DAYS))  # days of the week (0 = Monday); every day unless the caregiver chose some
     rev: int = 0  # bumped when the row's values are replaced from outside the buttons (a sheet read from a photo)
 
     def key(self, kind: str, slot: str = "") -> str:
@@ -44,7 +45,7 @@ class Row:
 
     @property
     def untouched(self) -> bool:
-        return not self.confirmed and not self.remarks and not self.quick and all(d == "0" for d in self.doses.values())
+        return not self.confirmed and not self.remarks and not self.quick and all(d == "0" for d in self.doses.values()) and tuple(self.days) == ALL_DAYS
 
     @property
     def has_dose(self) -> bool:
@@ -56,7 +57,7 @@ class Row:
         return "; ".join([*self.quick, *([self.remarks] if self.remarks else [])])
 
     def as_record(self) -> dict:
-        return {"medicine": self.medicine, **self.doses, "remarks": self.note, "confirmed": self.confirmed, "cn": self.cn}
+        return {"medicine": self.medicine, **self.doses, "remarks": self.note, "confirmed": self.confirmed, "cn": self.cn, "days": list(self.days)}
 
 
 def row_for_pack(medicine) -> Row:

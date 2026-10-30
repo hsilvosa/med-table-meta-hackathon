@@ -10,11 +10,11 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from .findings import Finding
 from .rules import Pack
-from .schedule import SLOTS, Line, Reconciliation, dose_number
+from .schedule import ALL_DAYS, SLOTS, Line, Reconciliation, dose_number
 
 NOT_CONFIRMED = "the caregiver has not confirmed this line"
 SLOT_LABELS = {"breakfast": "Breakfast", "lunch": "Lunch", "dinner": "Dinner", "bedtime": "Bedtime"}
@@ -25,6 +25,44 @@ FORM_NOUNS = (("comprimid", "tablet", "tablets"), ("capsula", "capsule", "capsul
 SPOKEN = {2.0: "two", 3.0: "three", 4.0: "four", 5.0: "five", 6.0: "six"}
 ABBREVIATIONS = ((r"\b(\d+)\s*h\b", r"\1 hours"), (r"\b(\d+)\s*min\b", r"\1 minutes"), (r"\b(\d+(?:[.,]\d+)?)\s*mg\b", r"\1 milligrams"),
                  (r"\b(\d+(?:[.,]\d+)?)\s*g\b", r"\1 grams"), (r"\bc/\b", "every"))
+
+
+DAY_SHORT = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+DAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+ICS_DAYS = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
+LARGE_DAILY, LARGE_SINGLE = 6, 3        # above these a second look is asked for: a typing slip, not a medical judgement (the plan keeps the amount)
+PACK_UNITS = r"(comprimidos?|c[aá]psulas?|sobres?|parches?|supositorios?|grageas?)"
+
+
+def units_in_pack(presentation: str | None) -> int | None:
+    """How many doses a full box holds, from the CIMA presentation text ('..., 60 comprimidos'); None for liquids, creams and the like."""
+    match = re.search(r"(\d+)\s+" + PACK_UNITS + r"\b", (presentation or "").split(",")[-1].lower()) if presentation and "," in presentation else None
+    return int(match.group(1)) if match else None
+
+
+def per_week(line: Line) -> float | None:
+    """Units taken in a week by the confirmed amounts; None if an amount is not a number."""
+    amounts = [dose_number(line.doses.get(s, "0")) for s in SLOTS]
+    if any(a is None for a in amounts):
+        return None
+    return sum(amounts) * len(line.days)
+
+
+def box_days(units: int | None, line: Line) -> int | None:
+    """About how many days a full box lasts at the confirmed amounts (whole days, rounded down)."""
+    weekly = per_week(line)
+    if not units or not weekly:
+        return None
+    return int(units / weekly * 7)
+
+
+def large_amount(line: Line) -> float | None:
+    """The daily total when it, or one single amount, is larger than usual for one medicine; None otherwise."""
+    amounts = [dose_number(line.doses.get(s, "0")) for s in SLOTS]
+    if any(a is None for a in amounts):
+        return None
+    total = sum(amounts)
+    return total if total > LARGE_DAILY or max(amounts) > LARGE_SINGLE else None
 
 
 def form_noun(form: str | None) -> tuple[str, str]:
@@ -56,6 +94,16 @@ class Entry:
         singular, plural = self.noun
         value = dose_number(self.dose)
         return f"{self.dose} {singular if value is not None and value <= 1 else plural}"
+
+    def days_text(self) -> str:
+        """'' for every day, else the days in short: 'Mon, Thu only'."""
+        return "" if tuple(self.line.days) == ALL_DAYS else ", ".join(DAY_SHORT[d] for d in self.line.days) + " only"
+
+    def days_spoken(self) -> str:
+        if tuple(self.line.days) == ALL_DAYS:
+            return ""
+        names = [DAY_NAMES[d] + "s" for d in self.line.days]
+        return "on " + (names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]) + " only"
 
     def spoken(self) -> str:
         value = dose_number(self.dose)
@@ -102,6 +150,9 @@ def build_plan(lines: list[Line], recon: Reconciliation, findings: list[Finding]
             if pack.expiry and pack.expiry < today:
                 not_included.append((line.text, f"the pack expired on {pack.expiry.isoformat()}"))
                 continue
+            if not line.days:
+                not_included.append((line.text, "no day of the week is chosen"))
+                continue
             bad = [d for _, d in ((s, line.doses.get(s, "0")) for s in SLOTS) if dose_number(d) is None]
             if bad:
                 not_included.append((line.text, f"unrecognised dose: {bad[0]}"))
@@ -125,7 +176,8 @@ def speech_text(plan: Plan, slot: str) -> str:
         remark = e.line.remarks
         for pattern, repl in ABBREVIATIONS:
             remark = re.sub(pattern, repl, remark)
-        parts.append(f"{e.spoken()} of {e.name}." + (f" {remark}." if remark else ""))
+        when = e.days_spoken()
+        parts.append(f"{e.spoken()} of {e.name}" + (f", {when}" if when else "") + "." + (f" {remark}." if remark else ""))
     return " ".join(parts)
 
 
@@ -155,16 +207,23 @@ def to_ics(plan: Plan, times: dict[str, str] | None = None, start: date | None =
     stamp = datetime.now().strftime("%Y%m%dT%H%M%S")
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//med-table//plan//EN", "CALSCALE:GREGORIAN"]
     for slot in SLOTS:
-        entries = plan.slot_entries(slot)
-        if not entries:
-            continue
-        hour, minute = times[slot].split(":")
-        description = "\n".join(f"{e.written()} of {e.name}" + (f" ({e.line.remarks})" if e.line.remarks else "") for e in entries)
-        description += "\nBased on the medication sheet confirmed by the caregiver. Ask a pharmacist if in doubt."
-        rule = "RRULE:FREQ=DAILY" + (f";COUNT={days}" if days else "")
-        lines += ["BEGIN:VEVENT", f"UID:{uuid.uuid4()}@med-table", f"DTSTAMP:{stamp}",
-                  f"DTSTART:{start.strftime('%Y%m%d')}T{hour}{minute}00", "DURATION:PT15M", rule,
-                  f"SUMMARY:{_ics_escape('Medication: ' + SLOT_LABELS[slot])}", f"DESCRIPTION:{_ics_escape(description)}",
-                  "BEGIN:VALARM", "ACTION:DISPLAY", "TRIGGER:PT0M", "DESCRIPTION:Time for the medication", "END:VALARM", "END:VEVENT"]
+        groups: dict[tuple, list] = {}          # one reminder per set of days: the daily medicines, then each weekly pattern
+        for e in plan.slot_entries(slot):
+            groups.setdefault(tuple(e.line.days), []).append(e)
+        for week, entries in groups.items():
+            hour, minute = times[slot].split(":")
+            description = "\n".join(f"{e.written()} of {e.name}" + (f" ({e.line.remarks})" if e.line.remarks else "") for e in entries)
+            description += "\nBased on the medication sheet confirmed by the caregiver. Ask a pharmacist if in doubt."
+            first = start
+            if week == ALL_DAYS:
+                rule = "RRULE:FREQ=DAILY" + (f";COUNT={days}" if days else "")
+            else:
+                while first.weekday() not in week:          # the first reminder falls on one of the chosen days
+                    first += timedelta(days=1)
+                rule = "RRULE:FREQ=WEEKLY;BYDAY=" + ",".join(ICS_DAYS[d] for d in week) + (f";COUNT={days}" if days else "")
+            lines += ["BEGIN:VEVENT", f"UID:{uuid.uuid4()}@med-table", f"DTSTAMP:{stamp}",
+                      f"DTSTART:{first.strftime('%Y%m%d')}T{hour}{minute}00", "DURATION:PT15M", rule,
+                      f"SUMMARY:{_ics_escape('Medication: ' + SLOT_LABELS[slot])}", f"DESCRIPTION:{_ics_escape(description)}",
+                      "BEGIN:VALARM", "ACTION:DISPLAY", "TRIGGER:PT0M", "DESCRIPTION:Time for the medication", "END:VALARM", "END:VEVENT"]
     lines.append("END:VCALENDAR")
     return "\r\n".join(_fold(line) for line in lines) + "\r\n"

@@ -21,6 +21,9 @@ NON_SOLID_FORMS = ("suspension", "solucion", "jarabe", "colirio", "crema", "gel"
 MASS_TO_MG = {"mg": 1.0, "g": 1000.0, "mcg": 0.001, "ug": 0.001, "µg": 0.001, "microgramos": 0.001, "gr": 1000.0}
 
 
+ALL_DAYS = (0, 1, 2, 3, 4, 5, 6)
+
+
 @dataclass
 class Line:
     text: str  # medicine as written on the sheet
@@ -28,9 +31,17 @@ class Line:
     remarks: str = ""
     cn: str | None = None  # when the caregiver typed or picked the exact pack
     confirmed: bool = False  # the caregiver has checked this line
+    days: tuple[int, ...] = ALL_DAYS  # days of the week it is taken (0 = Monday); every day unless the caregiver chose some
 
     def active_slots(self) -> list[tuple[str, str]]:
         return [(s, d) for s, d in ((s, self.doses.get(s, "0").strip()) for s in SLOTS) if dose_number(d) != 0]
+
+
+def days_from(value) -> tuple[int, ...]:
+    """Days of the week from a row: missing means every day; an empty list means none was chosen (and the plan says so)."""
+    if value is None:
+        return ALL_DAYS
+    return tuple(sorted({int(d) for d in value if 0 <= int(d) <= 6}))
 
 
 def dose_number(dose: str) -> float | None:
@@ -49,7 +60,7 @@ def lines_from_rows(rows: list[dict]) -> tuple[list[Line], list[Finding]]:
     lines, findings = [], []
     for row in rows:
         line = Line(str(row.get("medicine", "")).strip(), {s: str(row.get(s, "") or "0").strip() for s in SLOTS},
-                    str(row.get("remarks", "") or "").strip(), row.get("cn"))
+                    str(row.get("remarks", "") or "").strip(), row.get("cn"), days=days_from(row.get("days")))
         for slot, dose in line.doses.items():
             if dose_number(dose) is None:
                 findings.append(Finding("invalid_dose", detail=line.text, quote=dose))

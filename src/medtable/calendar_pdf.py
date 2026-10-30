@@ -56,7 +56,8 @@ def _photo(medicine, photo_dir: Path, local_dir: Path = Path("data/cima/images/f
 def _dose_markup(entry) -> str:
     """Big number, smaller unit below it, so the unit word never breaks across lines."""
     number, unit = entry.written().split(" ", 1)
-    return f'{esc(number)}<br/><font size="11">{esc(unit)}</font>'
+    days = entry.days_text()
+    return f'{esc(number)}<br/><font size="11">{esc(unit)}</font>' + (f'<br/><font size="10"><b>{esc(days)}</b></font>' if days else "")
 
 
 class SlotIcon(Flowable):

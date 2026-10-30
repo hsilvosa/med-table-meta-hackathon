@@ -77,3 +77,44 @@ def test_ics_has_one_daily_reminder_per_slot_with_medication():
 def test_spoken_dose_agrees_with_the_unit():
     caps = lambda d: Entry("breakfast", pack(OMEPRAZOL), line("Omeprazol", {"breakfast": d}), d).spoken()
     assert (caps("1"), caps("2"), caps("1/2")) == ("one capsule", "two capsules", "half a capsule")
+
+
+def test_a_medicine_taken_on_some_days_is_written_spoken_and_reminded_on_those_days_only():
+    weekly = line("Lorazepam 1 mg", {"bedtime": "1"})
+    weekly.days = (0, 3)                                                    # Monday and Thursday
+    plan = make([weekly, line("Omeprazol 20 mg", {"breakfast": "1"})], [pack(LORAZEPAM), pack(OMEPRAZOL)])
+    night = plan.slot_entries("bedtime")[0]
+    assert night.days_text() == "Mon, Thu only" and plan.slot_entries("breakfast")[0].days_text() == ""
+    assert "one tablet of LORAZEPAM ETA 1 mg COMPRIMIDOS, on Mondays and Thursdays only." in speech_text(plan, "bedtime")
+    ics = to_ics(plan, start=date(2026, 10, 27))                            # a Tuesday
+    assert "RRULE:FREQ=WEEKLY;BYDAY=MO,TH" in ics and "DTSTART:20261029T230000" in ics      # first reminder on the Thursday
+    assert "RRULE:FREQ=DAILY" in ics                                        # the daily one is unchanged
+
+
+def test_a_line_with_no_day_chosen_is_left_out_not_taken_as_every_day():
+    never = line("Lorazepam 1 mg", {"bedtime": "1"})
+    never.days = ()
+    plan = make([never], [pack(LORAZEPAM)])
+    assert plan.entries == [] and plan.not_included == [("Lorazepam 1 mg", "no day of the week is chosen")]
+
+
+def test_how_long_a_box_lasts_is_counted_from_the_pack_size_and_the_confirmed_doses():
+    from medtable.plan import box_days, units_in_pack
+    assert units_in_pack("SINTROM 1 mg COMPRIMIDOS , 60 comprimidos") == 60
+    assert units_in_pack("OMEPRAZOL 20 mg CAPSULAS DURAS EFG, 28 cápsulas") == 28
+    assert units_in_pack("IBUPROFENO 20 MG/ML SUSPENSION ORAL 1 frasco de 200 ml") is None      # not counted in doses
+    daily = line("Sintrom", {"breakfast": "1", "dinner": "1/2"})
+    assert box_days(60, daily) == 40
+    weekly = line("Sintrom", {"breakfast": "1"})
+    weekly.days = (0, 3)
+    assert box_days(60, weekly) == 210                                      # 2 a week
+    assert box_days(60, line("Sintrom", {"breakfast": "media"})) is None
+
+
+def test_an_unusually_large_daily_amount_is_flagged_for_a_second_look_not_blocked():
+    from medtable.plan import large_amount
+    assert large_amount(line("A", {"breakfast": "3", "lunch": "3", "dinner": "2"})) == 8.0
+    assert large_amount(line("A", {"breakfast": "10"})) == 10.0
+    assert large_amount(line("A", {"breakfast": "2", "dinner": "2"})) is None
+    plan = make([line("Omeprazol 20 mg", {"breakfast": "3", "lunch": "3", "dinner": "3"})], [pack(OMEPRAZOL)])
+    assert len(plan.entries) == 3                                           # still the caregiver's decision

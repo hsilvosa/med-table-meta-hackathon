@@ -25,15 +25,15 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from medtable import boxes, candidates, decode, identify, sheet_reader, synthetic, vlm, voice  # noqa: E402
+from medtable import boxes, candidates, cima, decode, identify, saved, sheet_reader, synthetic, vlm, voice  # noqa: E402
 from medtable.calendar_pdf import render_pdf  # noqa: E402
 from medtable.findings import NOT_A_FULL_CHECK, explain_problem  # noqa: E402
 from medtable.form import CHOICE_LABELS, CHOICE_VALUES, OTHER, QUICK_NOTES, Row, choice_for, merge_read_rows, sync_pack_rows  # noqa: E402
 from medtable.pipeline import make_plan, manual_pack  # noqa: E402
-from medtable.plan import DEFAULT_TIMES, NOT_CONFIRMED, SLOT_LABELS, form_noun, to_ics  # noqa: E402
+from medtable.plan import DAY_SHORT, DEFAULT_TIMES, NOT_CONFIRMED, SLOT_LABELS, box_days, form_noun, large_amount, to_ics, units_in_pack  # noqa: E402
 from medtable.resolve import Resolver  # noqa: E402
 from medtable.rules import Pack  # noqa: E402
-from medtable.schedule import SLOTS, dose_number  # noqa: E402
+from medtable.schedule import ALL_DAYS, SLOTS, dose_number, lines_from_rows  # noqa: E402
 from medtable.smpc import Smpc  # noqa: E402
 
 DEMO_ITEMS = [("654177", "281231"), ("662025", "270430"), ("715240", "250600"), ("677379", "280131"), ("656012", "271130"), ("100008", "281231")]
@@ -44,6 +44,7 @@ LOCAL_PHOTOS = Path("data/cima/images/full")
 STEPS = ["Medicines", "Doses", "Check", "Print and listen"]
 SLOT_HINT = {"breakfast": "morning", "lunch": "midday", "dinner": "evening", "bedtime": "before sleep"}
 
+cima.RETRIES, cima.TIMEOUT = 2, 8.0          # a lost connection is reported in seconds; the batch scripts keep the patient defaults
 st.set_page_config(page_title="Medication planner", layout="wide", initial_sidebar_state="collapsed")
 EMBEDDED = st.query_params.get("room") == "1"   # inside the 3D room's side panel: narrower layout
 
@@ -68,6 +69,9 @@ h1, h2, h3 {{ letter-spacing: 0; }}
 [data-testid="stCheckbox"] label > div:nth-of-type(1) {{ width: 1.9rem; height: 1.9rem; min-width: 1.9rem; border-width: 3px; }}
 [data-testid="stButtonGroup"] button[aria-checked="true"] {{ background: #1b5e8a !important; border-color: #1b5e8a !important; }}
 [data-testid="stButtonGroup"] button[aria-checked="true"] p {{ color: #fff !important; }}
+[data-testid="stButtonGroup"] button[data-variant="pills"][aria-pressed="true"] {{ background: #1b5e8a !important; border-color: #1b5e8a !important; }}
+[data-testid="stButtonGroup"] button[data-variant="pills"][aria-pressed="true"] p, [data-testid="stButtonGroup"] button[data-variant="pills"][aria-pressed="true"] span {{ color: #fff !important; }}
+[data-testid="stButtonGroup"] button[data-variant="pills"] {{ min-height: 2.9rem; min-width: 3.4rem; }}
 [data-testid="stTabs"] button p {{ font-size: 1.05rem; font-weight: 650; }}
 .mt-title {{ font-size: 1.75rem !important; font-weight: 800 !important; margin: .2rem 0 .1rem !important; line-height: 1.2 !important; color: #14202b; }}
 .mt-lead {{ font-size: 1.12rem !important; color: #33404d; margin: 0 0 .8rem !important; line-height: 1.5 !important; }}
@@ -200,6 +204,51 @@ def undo_last() -> None:
     st.session_state.rows += [r for r in undo["rows"] if r.id not in {x.id for x in st.session_state.rows}]
 
 
+def retry_lookups() -> None:
+    """Look the codes up again that were read while the official database could not be reached."""
+    for name, rs in st.session_state.readings.items():
+        st.session_state.readings[name] = [identify.read_code(decode.Detection(r.raw, r.bbox, r.method), resolver()) if identify.UNREACHABLE in r.problems else r
+                                           for r in rs]
+    st.session_state.pop("notice", None)
+
+
+def open_saved(text: str) -> None:
+    """Put a saved plan back: the codes are read again against CIMA, the caregiver's choices are restored. Photos are not in the file."""
+    try:
+        data = saved.load(text)
+    except ValueError as exc:
+        st.session_state.notice = ("bad", "The plan could not be opened", esc(str(exc)))
+        return
+    reset_state()
+    state_defaults()
+    st.session_state.readings["saved plan"] = [identify.read_code(decode.Detection(c, (0, 0, 0, 0), "saved"), resolver()) for c in data["codes"]]
+    for cn in data["typed_cns"]:
+        pack, problem = manual_pack(cn, resolver())
+        if pack:
+            st.session_state.manual.append(pack)
+    st.session_state.rows = data["rows"]
+    st.session_state.patient, st.session_state.plan_notes = data["patient"], data["notes"]
+    st.session_state.times.update({s: v for s, v in data["times"].items() if s in SLOTS})
+    st.session_state.removed_cns, st.session_state.removed_raw = data["removed_cns"], data["removed_raw"]
+    st.session_state.notice = ("ok", "Plan opened", f"Saved on {esc(data['saved'])}. Every box was checked again with the official database. "
+                               "Check that the doses still match the doctor's paper, and add a photo of any new box.")
+
+
+def saved_file() -> str:
+    codes = list(dict.fromkeys(r.raw for rs in st.session_state.readings.values() for r in rs))
+    return saved.dump(rows=st.session_state.rows, codes=codes, typed_cns=[p.medicine.cn for p in st.session_state.manual], patient=st.session_state.patient,
+                      notes=st.session_state.plan_notes, times=st.session_state.times, removed_cns=st.session_state.removed_cns,
+                      removed_raw=st.session_state.removed_raw, today=today)
+
+
+def line_of(row: Row):
+    return lines_from_rows([row.as_record()])[0][0]
+
+
+def days_words(days) -> str:
+    return "" if tuple(days) == ALL_DAYS else (", ".join(DAY_SHORT[d] for d in days) + " only" if days else "no day chosen")
+
+
 def ask_reset() -> None:
     st.session_state.ask_reset = True
     st.session_state.scroll_top = True
@@ -275,13 +324,20 @@ def add_photo(name: str, image: np.ndarray) -> None:
     known = len({r.medicine.cn for r in found if r.status == "verified" and r.medicine})
     unknown = sum(1 for r in found if not (r.status == "verified" and r.medicine))
     missing = len(st.session_state.nocode[name])
+    offline = sum(1 for r in found if identify.UNREACHABLE in r.problems)
+    if offline:
+        st.session_state.notice = ("bad", "No connection to the official database",
+                                   f"I read {count(offline, 'code')} but could not check {'it' if offline == 1 else 'them'} with AEMPS CIMA. "
+                                   "Check the internet connection, then press <b>Try again</b> below.")
+        return
     if not found and not missing:
         st.session_state.notice = ("warn", "I could not read any code in this photo",
                                    "Put the boxes with the printed code facing up, use good light, and take the photo closer (about 30 to 90 cm above the boxes).")
     else:
         parts = [count(known, "medicine") + " recognised"] + ([count(unknown, "box", "boxes") + " I could not recognise"] if unknown else []) \
             + ([count(missing, "box", "boxes") + " where I could not read a code"] if missing else [])
-        st.session_state.notice = ("ok" if not unknown and not missing else "warn", "Photo read", esc(", ".join(parts)) + ". The list below shows them.")
+        light = " On a white table I cannot point out boxes without a code: check by eye that every box is in the list." if boxes.light_table(image) else ""
+        st.session_state.notice = ("ok" if not unknown and not missing else "warn", "Photo read", esc(", ".join(parts)) + ". The list below shows them." + light)
 
 
 def official_photo(medicine) -> str | None:
@@ -463,7 +519,15 @@ if step == 1:
         box("tip", "For a good photo", "Put the boxes on a table with the printed codes facing up, and hold the phone about 90 cm (3 feet) above them or closer.")
         add_area = st.container()
     with add_area:
-        tab_upload, tab_code, tab_demo = st.tabs(["Upload a photo", "Type a code", "Demo photos"])
+        tab_upload, tab_code, tab_saved, tab_demo = st.tabs(["Upload a photo", "Type a code", "Open a saved plan", "Demo photos"])
+        with tab_saved:
+            st.write("A plan saved before with **Save this plan** (on the last screen). The boxes are checked again with the official database.")
+            saved_upload = st.file_uploader("Choose the saved plan (a .json file)", type=["json"], key="saved_upload")
+            if saved_upload is not None and st.session_state.get("opened_file") != saved_upload.file_id:
+                opened = saved_upload.file_id
+                open_saved(saved_upload.getvalue().decode("utf-8", "replace"))
+                st.session_state.opened_file = opened
+                st.rerun()
         with tab_demo:
             st.write("Photos made for trying the tool. They contain no real medication or patient.")
             c1, c2 = st.columns(2)
@@ -551,6 +615,8 @@ if step == 1:
         with st.container(border=True):
             card(crop, f'<div class="mt-name">A box I could not recognise</div>{chip("Not in the plan", "bad")}'
                  f'<div class="mt-meta">{esc("; ".join(explain_problem(p) for p in r.problems) or "reason unknown")}</div>', plain=True)
+            if identify.UNREACHABLE in r.problems:
+                st.button("Try again", key=f"retry_{r.raw}", on_click=retry_lookups, type="primary")
             st.button("Dismiss", key=f"dismiss_{r.raw}", on_click=dismiss_code, args=(r.raw,), type="tertiary")
     for name, regions in st.session_state.nocode.items():
         for region in regions:
@@ -600,7 +666,7 @@ if step == 1:
             if st.button("Suggest medicines", key=f"btn_{key}", disabled=not ok):
                 try:
                     with st.spinner("Asking the model and the official database..."):
-                        st.session_state[key] = candidates.propose(found_box.crop, resolver())
+                        st.session_state[key] = candidates.propose(found_box.crop, resolver(), consent=ok is True)
                 except Exception as exc:  # noqa: BLE001
                     st.error(f"The model could not be reached ({exc}).")
             proposal = st.session_state.get(key)
@@ -655,7 +721,7 @@ elif step == 2:
                     path.write_bytes(content)
                     try:
                         with st.spinner("Reading the schedule..."):
-                            read = sheet_reader.read_sheet(path)
+                            read = sheet_reader.read_sheet(path, consent=consent is True)
                     except Exception as exc:  # network, budget cap, server not running: tell the caregiver, keep manual entry available
                         st.error(f"The schedule could not be read ({exc}). You can choose the doses by hand below.")
                     else:
@@ -680,6 +746,17 @@ elif step == 2:
         row.doses[slot] = st.session_state[row.key("other", slot)].strip()
         unconfirm(row)
 
+    def set_often(row: Row) -> None:
+        picked = st.session_state[row.key("often")]
+        if picked is None:
+            return
+        row.days = list(ALL_DAYS) if picked == "every" else []        # "some days": the caregiver ticks them, none is assumed
+        unconfirm(row)
+
+    def set_days(row: Row) -> None:
+        row.days = sorted(st.session_state[row.key("days")] or [])
+        unconfirm(row)
+
     def set_quick(row: Row) -> None:
         row.quick = list(st.session_state[row.key("quick")] or [])
 
@@ -699,8 +776,12 @@ elif step == 2:
             if row.sheet_name and row.sheet_name != row.medicine:
                 body += f'<div class="mt-meta">The schedule says: {esc(row.sheet_name)}</div>'
             form = pack.form if pack else None
+            if (big := large_amount(line_of(row))):
+                body += f'<div class="mt-alert">Please check: {big:g} a day is more than usual for one medicine. Compare it with the doctor\'s paper.</div>'
             if row.confirmed and row.has_dose:          # done: a short summary instead of 28 buttons, so the list stays short
                 taken = [f"{esc(SLOT_LABELS[s])}: <b>{esc(dose_words(row.doses[s], form))}</b>" for s in SLOTS if dose_number(row.doses[s]) != 0]
+                if (when := days_words(row.days)):
+                    taken.append(f"<b>{esc(when)}</b>")
                 body += chip("Ready for the plan", "ok") + f'<div class="mt-sum">{" &middot; ".join(taken)}</div>' \
                     + (f'<div class="mt-meta">Note: {esc(row.note)}</div>' if row.note else "")
                 card(official_photo(pack) if pack else None, body, plain=True)
@@ -714,6 +795,14 @@ elif step == 2:
                                      default=choice_for(row.doses[slot]), key=row.key("dose", slot), on_change=set_dose, args=(row, slot))
                 if choice_for(row.doses[slot]) == OTHER:
                     st.text_input("Type the amount (for example 4 or 2,5)", value=row.doses[slot], key=row.key("other", slot), on_change=set_other, args=(row, slot))
+            every = tuple(row.days) == ALL_DAYS
+            st.segmented_control("Which days?", ["every", "some"], format_func={"every": "Every day", "some": "Only some days of the week"}.get,
+                                 default="every" if every else "some", key=row.key("often"), on_change=set_often, args=(row,))
+            if not every:
+                st.pills("Tick the days it is taken", list(range(7)), format_func=lambda d: DAY_SHORT[d], selection_mode="multi", default=list(row.days),
+                         key=row.key("days"), on_change=set_days, args=(row,))
+                if not row.days:
+                    st.markdown('<p class="mt-hint">Tick at least one day.</p>', unsafe_allow_html=True)
             with st.expander("Add a note to print next to this medicine (optional)", expanded=bool(row.note)):
                 st.pills("Tick what the doctor's paper says", QUICK_NOTES, selection_mode="multi", default=row.quick, key=row.key("quick"), on_change=set_quick, args=(row,))
                 st.text_input("Anything else (for example: white tablet, keep in the fridge)", value=row.remarks, key=row.key("remarks"), on_change=set_field,
@@ -766,12 +855,28 @@ else:
         for slot in SLOTS:
             time_text = st.session_state.times[slot]
             items = "".join(f'<div style="margin-bottom:6px"><span class="mt-dose">{esc(e.written())}</span> of {esc(e.name)}'
+                            + (f' <b>({esc(e.days_text())})</b>' if e.days_text() else '')
                             + (f' <span class="mt-meta">({esc(e.line.remarks)})</span>' if e.line.remarks else '') + '</div>' for e in plan.slot_entries(slot))
             rows_html.append(f'<tr><td class="mt-slot">{esc(SLOT_LABELS[slot])}<span class="mt-time">{esc(time_text)}</span></td>'
                              f'<td>{items or "<span class=mt-empty>Nothing</span>"}</td></tr>')
         with st.container(border=True):
             st.markdown(f'<table class="mt-agenda">{"".join(rows_html)}</table>', unsafe_allow_html=True)
 
+        lines_in = {}
+        for e in plan.entries:
+            lines_in.setdefault(e.pack.medicine.cn, (e.pack.medicine, e.line))
+        for medicine, line in lines_in.values():
+            if (big := large_amount(line)):
+                box("warn", f"Please check the amount of {medicine.name}", f"{big:g} a day is more than usual for one medicine. "
+                    "It is in the plan as you chose it: compare it with the doctor's paper.")
+        lasting = []
+        for medicine, line in lines_in.values():
+            units = units_in_pack(medicine.presentation)
+            if (days_left := box_days(units, line)):
+                lasting.append(f"<li><b>{esc(medicine.name)}</b>: a full box of {units} lasts about <b>{days_left} days</b> at these amounts.</li>")
+        if lasting:
+            box("tip", "How long a box lasts", f'<ul style="margin:.3rem 0 0 1.1rem;padding:0">{"".join(lasting)}</ul>'
+                '<div class="mt-meta">Counted from the pack size listed by AEMPS CIMA, for a full box. Ask for the next box a week before.</div>')
         if pending and doses:
             box("tip", f"Waiting for you ({len(pending)})", f"Not in the plan until you tick the box on the Doses screen: {esc(', '.join(pending))}.")
         for what, why in left_out:
@@ -839,6 +944,9 @@ else:
             else:
                 st.caption("Reading aloud needs an English voice on this computer; none is installed.")
             st.markdown('<p class="mt-title" style="font-size:1.25rem;margin-top:1rem">Reminders on a phone</p><p class="mt-hint">Open the file on the phone to add daily reminders to its calendar.</p>', unsafe_allow_html=True)
+            st.markdown('<p class="mt-title" style="font-size:1.25rem;margin-top:1rem">Continue later</p><p class="mt-hint">'
+                        'Saves the medicines and the doses (not the photos) in a small file. Open it next month on the first screen.</p>', unsafe_allow_html=True)
+            st.download_button("Save this plan to continue later", saved_file().encode("utf-8"), "medication_plan_saved.json", "application/json", width="stretch")
             st.download_button("Download the phone reminders (.ics)", to_ics(plan, times).encode("utf-8"), "medication_plan.ics", "text/calendar", width="stretch")
         st.write("")
         nav(3, None)

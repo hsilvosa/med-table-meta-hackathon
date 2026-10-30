@@ -151,7 +151,7 @@ def test_a_schedule_read_from_a_photo_fills_the_dose_buttons_of_the_boxes_and_co
     (tmp_path / "data" / "world_photos" / "latest.jpg").write_bytes(b"x")
     rows = [{"medicine": "Enalapril 10 mg comprimidos", "breakfast": "1", "lunch": "0", "dinner": "1/2", "bedtime": "0", "remarks": "con comida", "confirmed": False},
             {"medicine": "Atorvastatina 20 mg", "breakfast": "0", "lunch": "0", "dinner": "0", "bedtime": "1", "remarks": "", "confirmed": False}]
-    monkeypatch.setattr(sheet_reader, "read_sheet", lambda path, backend=None: sheet_reader.SheetReading(rows, [], "meta", 0.0))
+    monkeypatch.setattr(sheet_reader, "read_sheet", lambda path, backend=None, consent=False: sheet_reader.SheetReading(rows, [], "meta", 0.0) if consent is True else 1 / 0)    # the tick reaches the reader
     named = {**MEDS, "654177": med("654177", "ENALAPRIL TESTLAB 10 mg COMPRIMIDOS", ["ENALAPRIL"], "C09AA02")}      # a name the sheet line can match unambiguously
     monkeypatch.setattr(Resolver, "by_cn", lambda self, cn: named.get("".join(c for c in cn if c.isdigit())[:6]))
     at = AppTest.from_file(APP, default_timeout=120).run()
@@ -175,7 +175,8 @@ def test_the_last_screen_offers_the_downloads_only_when_there_is_a_plan(app):
     click(app, "Next: see the plan")
     click(app, "Next: print or listen")
     assert app.session_state.step == 4 and not app.exception
-    assert {el.proto.label for el in app.get("download_button")} == {"Download the calendar to print (PDF)", "Download the phone reminders (.ics)"}
+    assert {el.proto.label for el in app.get("download_button")} == {"Download the calendar to print (PDF)", "Download the phone reminders (.ics)",
+                                                                   "Save this plan to continue later"}
 
 
 def test_the_name_and_notes_can_be_given_on_the_doses_screen_and_again_before_printing(app):
@@ -359,3 +360,45 @@ def test_a_photo_says_what_was_read_and_an_expired_box_is_marked(app):
     click(app, "Load a demo photo")
     assert "Photo read" in texts(app) and "5 medicines recognised, 1 box I could not recognise" in texts(app)
     assert "This box has expired. Do not use it" in texts(app)            # the demo photo has one pack that expired in June 2025
+
+
+def test_a_medicine_taken_on_some_days_needs_its_days_ticked_and_shows_them(app):
+    to_doses(app)
+    pick(app, "pack654177", "bedtime", "1")
+    widget(app.button_group, "often", "pack654177").set_value("some").run()
+    assert next(r for r in app.session_state.rows if r.cn == "654177").days == [] and "Tick at least one day" in texts(app)
+    confirm(app, "pack654177")
+    click(app, "Next: see the plan")
+    assert "Left out: MEDICAMENTO 654177" in texts(app) and "no day of the week is chosen" in texts(app).lower()     # none ticked: not "every day"
+    click(app, "Back")
+    click(app, "Change the amounts")
+    widget(app.button_group, "days", "pack654177").set_value([0, 3]).run()
+    confirm(app, "pack654177")
+    assert "Mon, Thu only" in texts(app)
+    click(app, "Next: see the plan")
+    assert "(Mon, Thu only)" in [m.value for m in app.markdown if "mt-agenda" in m.value][-1]
+
+
+def test_a_large_daily_amount_asks_for_a_second_look_and_the_box_duration_is_shown(app, monkeypatch):
+    monkeypatch.setattr(MEDS["654177"], "presentation", "MEDICAMENTO 654177 10 mg COMPRIMIDOS, 60 comprimidos")
+    to_doses(app)
+    for slot in ("breakfast", "lunch", "dinner"):
+        pick(app, "pack654177", slot, "3")
+    assert "Please check: 9 a day" in texts(app)
+    confirm(app, "pack654177")
+    click(app, "Next: see the plan")
+    assert "Please check the amount of MEDICAMENTO 654177" in texts(app)
+    assert "a full box of 60 lasts about <b>6 days</b>" in texts(app)      # 60 tablets, 9 a day
+
+
+def test_codes_read_without_a_connection_are_not_verified_and_can_be_tried_again(env, monkeypatch):
+    from medtable import cima
+    from medtable.resolve import Resolver
+    real = Resolver.by_cn
+    monkeypatch.setattr(Resolver, "by_cn", lambda self, cn: (_ for _ in ()).throw(cima.Unreachable("down")))
+    at = AppTest.from_file(APP, default_timeout=120).run()
+    click(at, "Load a demo photo")
+    assert "No connection to the official database" in texts(at) and "Medicines found: 0" in texts(at)
+    monkeypatch.setattr(Resolver, "by_cn", real)                             # the connection is back
+    click(at, "Try again")
+    assert "Medicines found: 5" in texts(at) and not at.exception
