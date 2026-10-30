@@ -20,6 +20,7 @@ from reportlab.lib.utils import simpleSplit
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .calendar_pdf import DISCLAIMER, INK, TINT, SlotIcon
+from .i18n import date_text, tr
 from .plan import DAY_NAMES, DEFAULT_TIMES, SLOT_LABELS, Plan
 from .schedule import SLOTS
 
@@ -53,9 +54,9 @@ def render_pillbox(plan: Plan, out: Path, patient: str = "", times: dict[str, st
     who = esc(patient.strip()) if patient.strip() else "_" * 28
 
     cells = week_cells(plan)
-    rows = [[""] + [Paragraph(day, head) for day in DAY_NAMES]]
+    rows = [[""] + [Paragraph(tr(day), head) for day in DAY_NAMES]]
     for slot in SLOTS:
-        label = [SlotIcon(slot, 10 * mm), Paragraph(f"<b>{esc(SLOT_LABELS[slot])}</b><br/>{esc(times[slot])}", ParagraphStyle("s", parent=base, alignment=TA_CENTER))]
+        label = [SlotIcon(slot, 10 * mm), Paragraph(f"<b>{esc(tr(SLOT_LABELS[slot]))}</b><br/>{esc(times[slot])}", ParagraphStyle("s", parent=base, alignment=TA_CENTER))]
         rows.append([label] + [[Paragraph(f"<b>{esc(dose)}</b><br/>{esc(name)}", cell) for dose, name in cells.get((slot, d), [])] or Paragraph("-", head) for d in range(7)])
     table = Table(rows, colWidths=[27 * mm] + [34.4 * mm] * 7, rowHeights=[9 * mm] + [33 * mm] * 4)
     style = [("GRID", (0, 0), (-1, -1), 0.9, colors.HexColor("#555555")), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("VALIGN", (0, 0), (-1, 0), "MIDDLE"),
@@ -64,22 +65,22 @@ def render_pillbox(plan: Plan, out: Path, patient: str = "", times: dict[str, st
         style.append(("BACKGROUND", (0, i), (0, i), colors.HexColor(TINT[slot])))
     table.setStyle(TableStyle(style))
 
-    story = [Paragraph("Weekly pill organiser", title),
-             Paragraph(f"<b>For:</b> {who} &nbsp;&nbsp;&nbsp; <b>Plan of:</b> {plan.generated.strftime('%d %b %Y')}", big), Spacer(1, 3 * mm),
-             Paragraph("Fill each compartment with what its box says. A dash means nothing at that time.", base), Spacer(1, 3 * mm), table]
+    story = [Paragraph(tr("Weekly pill organiser"), title),
+             Paragraph(tr('<b>For:</b> {who} &nbsp;&nbsp;&nbsp; <b>Plan of:</b> {x1}', who=who, x1=date_text(plan.generated)), big), Spacer(1, 3 * mm),
+             Paragraph(tr("Fill each compartment with what its box says. A dash means nothing at that time."), base), Spacer(1, 3 * mm), table]
     if plan.not_included:
-        story += [Spacer(1, 2 * mm), Paragraph(f"<b>{len(plan.not_included)} item(s) are NOT on this page</b> (see page 2 of the medication plan).", red)]
-    story += [Spacer(1, 3 * mm), Paragraph("Filled on: ______________ &nbsp;&nbsp; by: ______________ &nbsp;&nbsp; Checked by: ______________", base)]
+        story += [Spacer(1, 2 * mm), Paragraph(tr('<b>{x0} item(s) are NOT on this page</b> (see page 2 of the medication plan).', x0=len(plan.not_included)), red)]
+    story += [Spacer(1, 3 * mm), Paragraph(tr("Filled on: ______________ &nbsp;&nbsp; by: ______________ &nbsp;&nbsp; Checked by: ______________"), base)]
 
     def footer(canvas, document):
         canvas.saveState()
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.HexColor("#555555"))
-        for i, text in enumerate(simpleSplit(DISCLAIMER, "Helvetica", 8, 270 * mm)):
+        for i, text in enumerate(simpleSplit(tr(DISCLAIMER), "Helvetica", 8, 270 * mm)):
             canvas.drawString(12 * mm, (8 - 3.4 * i) * mm, text)
         canvas.restoreState()
 
     doc = SimpleDocTemplate(str(out), pagesize=landscape(A4), leftMargin=12 * mm, rightMargin=12 * mm, topMargin=10 * mm, bottomMargin=13 * mm,
-                            title="Weekly pill organiser", author="med-table (prototype)")
+                            title=tr("Weekly pill organiser"), author="med-table (prototype)")
     doc.build(story, onFirstPage=footer)
     return out

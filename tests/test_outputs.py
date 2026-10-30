@@ -1,7 +1,9 @@
 """What leaves the app: the printed calendar (read back from the PDF), the voice, and a saved plan."""
 
+import ast
 import wave
 from datetime import date, timedelta
+from pathlib import Path
 
 import pypdfium2 as pdfium
 import pytest
@@ -16,11 +18,11 @@ from fixtures import (
     pack,
 )
 
-from medtable import saved, voice
+from medtable import findings, form, i18n, saved, voice
 from medtable.calendar_pdf import render_pdf
 from medtable.pillbox_pdf import render_pillbox
 from medtable.form import Row
-from medtable.plan import Entry, build_plan
+from medtable.plan import DAY_NAMES, DAY_SHORT, FORM_NOUNS, NOT_CONFIRMED, SLOT_LABELS, Entry, build_plan, speech_text, to_ics
 from medtable.rules import check_packs, meal_notes
 from medtable.schedule import SLOTS, Line, reconcile
 
@@ -66,6 +68,32 @@ def test_the_pill_organiser_page_fills_each_compartment_only_on_the_chosen_days(
     page, = pages(render_pillbox(plan, tmp_path / "box.pdf", "Maria Lopez"))
     assert page.count("METFORMINA DELTA 850 mg") == 7 and page.count("1/2 tablet LORAZEPAM") == 2 and "OMEPRAZOL" not in page     # the expired box stays out
     assert "1 item(s) are NOT on this page" in page and "does not replace the doctor" in page
+
+
+def test_in_spanish_every_text_is_translated_and_the_outputs_are_spanish(tmp_path):
+    root = Path(__file__).resolve().parent.parent
+    keys = set(SLOT_LABELS.values()) | set(DAY_SHORT) | set(DAY_NAMES) | set(findings.TITLES.values()) | set(findings.TEMPLATES.values()) \
+        | set(form.QUICK_NOTES) | {"None", "Other", NOT_CONFIRMED, findings.NOT_A_FULL_CHECK} | {w for _, one, many in FORM_NOUNS for w in (one, many)}
+    for path in [root / "app.py", *(root / "planner").glob("*.py"), *(root / "src" / "medtable").glob("*.py")]:
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "tr" and node.args and isinstance(node.args[0], ast.Constant):
+                keys.add(node.args[0].value)
+    assert sorted(k for k in keys if k not in i18n.ES) == []                # no half-translated screen or page
+    weekly = line("Lorazepam 1 mg", bedtime="1/2")
+    weekly.days = (0, 3)
+    lines = [weekly, line("Omeprazol 20 mg", breakfast="1", confirmed=False)]
+    plan = build_plan(lines, reconcile(lines, [pack(LORAZEPAM), pack(OMEPRAZOL)]), [], TODAY)
+    i18n.set_language("es")
+    try:
+        front, *rest = pages(render_pdf(plan, tmp_path / "es.pdf"))
+        back = " ".join(rest)
+        spoken, ics = speech_text(plan, "bedtime"), to_ics(plan)
+    finally:
+        i18n.set_language("en")
+    assert "Plan de medicación" in front and "Al acostarse" in front and "1/2 comprimido" in front and "solo Lun, Jue" in front
+    assert "el cuidador no ha confirmado esta línea" in back and "no sustituye al médico ni al farmacéutico" in back
+    assert "medio comprimido de LORAZEPAM ETA 1 mg COMPRIMIDOS, solo los lunes y jueves." in spoken and "SUMMARY:Medicación: Al acostarse" in ics
+    assert "Bedtime" in speech_text(plan, "bedtime")                         # the language is per session: back to English
 
 
 @pytest.mark.skipif(not voice.available(), reason="no English Windows speech voice installed")

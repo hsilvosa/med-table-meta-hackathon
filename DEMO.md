@@ -10,7 +10,7 @@ Run `.venv-app/Scripts/python.exe scripts/start_demo.py`: it opens the 3D room (
 | 1:10 | Step 2: type a name; open "Have a photo of the doctor's schedule?", upload `experiments/out/sheet.jpg`, tick the consent, "Read the schedule"; check a few lines against the paper and tick "Yes, this matches the doctor's schedule" | The doses are the caregiver's. The computer copied the paper, the caregiver confirms line by line; nothing is ticked for them. Unticked lines stay out. |
 | 1:40 | Step 3: the plan, the "Left out" cards (each says what to do) and "To ask your pharmacist" | Anything unverified, expired, unconfirmed, ambiguous or with a strength that does not match is listed with the reason. Quotes from the AEMPS leaflet (4.5 and 4.2) are verbatim, with the source. |
 | 2:10 | Step 4: add a note for the whole plan, look at the preview, download the PDF | Page 1 is for the fridge: pictograms, times, large print, official pack photo, notes. Page 2 is for the pharmacist: what was left out, the quotes and the sources. |
-| 2:30 | "Read the plan aloud"; play one slot | Offline English voice; the text never leaves the machine. |
+| 2:30 | "Read the plan aloud"; play one slot | Offline voice (English, or Spanish with Settings > Language); the text never leaves the machine. The same screen has the weekly pill organiser sheet. |
 | 2:45 | Show the `.ics` file import (optional) | Daily reminders on the phone. |
 | 2:55 | Close | Measured on synthetic data only, so no accuracy claim for real use yet; real photos are the next step. |
 
@@ -45,4 +45,4 @@ Use "Use a photo as the camera" with a photo of the boxes, or type the codes in 
 ## If something fails live
 - CIMA down: packs already seen are served from the local cache; a typed C.N. of an unseen pack needs the network.
 - No GPU: SAM 3 step reports an error and typing the C.N. still works.
-- No English Windows voice: the voice button is hidden; PDF and `.ics` still work.
+- No Windows voice in the chosen language: the voice button is hidden; PDF and `.ics` still work.

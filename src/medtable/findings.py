@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from .i18n import tr
+
 NOT_A_FULL_CHECK = "This is not a full interaction check."
 NOT_AN_INTERACTION_CHECK = "No mention was found in the sections checked. " + NOT_A_FULL_CHECK
 
@@ -46,13 +48,13 @@ TITLES = {   # short headline for each kind, used by the app cards
 def explain_problem(problem: str) -> str:
     """Friendly wording for the internal reasons a reading could not be verified."""
     known = (
-        (r"CIMA has no medicine with CN (\d+)", lambda m: f"AEMPS CIMA does not know the national code {m.group(1)}"),
-        (r"not a GS1 element string", lambda m: "the code read is not a GS1 medicine code"),
-        (r"check digit of the NTIN", lambda m: "the check digit of the national code is invalid"),
-        (r"\(01\) is a regular GTIN", lambda m: "the code does not contain a Spanish national code"),
-        (r"\(712\) is not a valid", lambda m: "field 712 is not a valid national code"),
-        (r"no \(01\) and no \(712\)", lambda m: "the code holds no medicine data"),
-        (r"could not be reached", lambda m: "the official database could not be reached (no internet?): press Try again"),
+        (r"CIMA has no medicine with CN (\d+)", lambda m: tr('AEMPS CIMA does not know the national code {x0}', x0=m.group(1))),
+        (r"not a GS1 element string", lambda m: tr("the code read is not a GS1 medicine code")),
+        (r"check digit of the NTIN", lambda m: tr("the check digit of the national code is invalid")),
+        (r"\(01\) is a regular GTIN", lambda m: tr("the code does not contain a Spanish national code")),
+        (r"\(712\) is not a valid", lambda m: tr("field 712 is not a valid national code")),
+        (r"no \(01\) and no \(712\)", lambda m: tr("the code holds no medicine data")),
+        (r"could not be reached", lambda m: tr("the official database could not be reached (no internet?): press Try again")),
     )
     for pattern, wording in known:
         match = re.search(pattern, problem)
@@ -73,11 +75,11 @@ class Finding:
 
     @property
     def title(self) -> str:
-        return TITLES[self.kind]
+        return tr(TITLES[self.kind])
 
     def text(self) -> str:
         names = self.names + ["", ""]
-        return TEMPLATES[self.kind].format(a=names[0], b=names[1], detail=self.detail, quote=self.quote)
+        return tr(TEMPLATES[self.kind]).format(a=names[0], b=names[1], detail=self.detail, quote=self.quote)
 
     def lead(self) -> str:
         """The sentence without the quoted passage, for screens that show the quote on its own line."""

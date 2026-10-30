@@ -9,8 +9,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .i18n import tr
 from .rules import Pack
-from .schedule import ALL_DAYS, SLOTS, Line, dose_number, lines_from_rows, reconcile
+from .schedule import ALL_DAYS, SLOTS, dose_number, lines_from_rows, reconcile
 
 # (value stored on the sheet, label on the button). Anything else is typed in by the caregiver under "Other".
 DOSE_CHOICES = (("0", "None"), ("1/4", "\u00bc"), ("1/2", "\u00bd"), ("1", "1"), ("1,5", "1\u00bd"), ("2", "2"), ("3", "3"))
@@ -54,7 +55,7 @@ class Row:
     @property
     def note(self) -> str:
         """What is printed in the notes column: the ticked phrases, then the free text."""
-        return "; ".join([*self.quick, *([self.remarks] if self.remarks else [])])
+        return "; ".join([*map(tr, self.quick), *([self.remarks] if self.remarks else [])])
 
     def as_record(self) -> dict:
         return {"medicine": self.medicine, **self.doses, "remarks": self.note, "confirmed": self.confirmed, "cn": self.cn, "days": list(self.days)}
@@ -95,7 +96,7 @@ def merge_read_rows(rows: list[Row], read: list[dict], packs: list[Pack]) -> tup
             changed.append(target)
             continue
         if any(r.medicine == line.text for r in rows):
-            notes.append(f'"{line.text}" is already in the list, so the new line was not added. Check the list in case they were different lines.')
+            notes.append(tr('"{x0}" is already in the list, so the new line was not added. Check the list in case they were different lines.', x0=line.text))
             continue
         row = Row(f"sheet{len(rows) + 1}", line.text, None, doses, str(item.get("remarks", "") or "").strip())
         rows.append(row)

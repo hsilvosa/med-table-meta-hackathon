@@ -158,3 +158,18 @@ def test_codes_read_without_a_connection_are_not_verified_and_can_be_tried_again
     monkeypatch.setattr(Resolver, "by_cn", real)                             # the connection is back
     click(at, "Try again")
     assert "Medicines found: 5" in texts(at) and not at.exception
+
+
+def test_the_whole_flow_can_be_done_in_spanish(env):
+    at = AppTest.from_file(APP, default_timeout=120)
+    at.query_params["lang"] = "es"
+    at.run()
+    assert "Enséñeme los medicamentos" in texts(at) and any("no sustituye al médico" in i.value for i in at.info)
+    click(at, "Cargar una foto de prueba")
+    assert "Medicamentos encontrados: 5" in texts(at) and "Una caja que no pude reconocer" in texts(at)
+    click(at, "Siguiente: elegir las dosis")
+    pick(at, "pack654177", "breakfast", "1")
+    confirm(at, "pack654177")
+    click(at, "Siguiente: ver el plan")
+    agenda = [m.value for m in at.markdown if "mt-agenda" in m.value][-1]
+    assert "Desayuno" in agenda and "1 comprimido" in agenda and not at.exception

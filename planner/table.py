@@ -7,6 +7,7 @@ import streamlit as st
 
 from medtable.changes import Changes, compare
 from medtable.form import Row, sync_pack_rows
+from medtable.i18n import tr
 from planner.common import box, card, esc, official_photo
 
 
@@ -63,12 +64,12 @@ def changes_box(t: Table, with_amounts: bool) -> None:
     found = changes(t)
     if not found or not (found.new or found.not_seen or (with_amounts and found.amounts)):
         return
-    items = [f"<li><b>New:</b> {esc(name)}</li>" for name in found.new]
-    items += [f"<li><b>Not seen in the new photos:</b> {esc(name)}. Is it still taken? If not, remove it.</li>" for name in found.not_seen]
+    items = [tr('<li><b>New:</b> {x0}</li>', x0=esc(name)) for name in found.new]
+    items += [tr('<li><b>Not seen in the new photos:</b> {x0}. Is it still taken? If not, remove it.</li>', x0=esc(name)) for name in found.not_seen]
     if with_amounts:
         items += [f"<li><b>{esc(name)}:</b> {esc('; '.join(diff))}</li>" for name, diff in found.amounts]
-    box("warn", f"What changed since the plan saved on {st.session_state.baseline['saved']}",
-        f'<ul style="margin:.3rem 0 0 1.1rem;padding:0">{"".join(items)}</ul><div class="mt-meta">Check each change against the doctor\'s paper.</div>')
+    box("warn", tr('What changed since the plan saved on {x0}', x0=st.session_state.baseline['saved']),
+        tr('<ul style="margin:.3rem 0 0 1.1rem;padding:0">{x0}</ul><div class="mt-meta">Check each change against the doctor\'s paper.</div>', x0="".join(items)))
 
 
 def shared_ingredient(t: Table, medicine) -> list[str]:
@@ -80,12 +81,12 @@ def shared_ingredient(t: Table, medicine) -> list[str]:
 def medicine_card(t: Table, medicine, chips: str, rs: list) -> None:
     body = f'<div class="mt-name">{esc(medicine.name)}</div>' + chips
     if medicine.active_ingredients:
-        body += f'<div class="mt-meta">Active ingredient: {esc(", ".join(a.capitalize() for a in medicine.active_ingredients))}</div>'
+        body += tr('<div class="mt-meta">Active ingredient: {x0}</div>', x0=esc(", ".join(a.capitalize() for a in medicine.active_ingredients)))
     old = [r for r in rs if r.expiry and r.expiry < t.today]
     if old and len(old) == len(rs):
-        body += '<div class="mt-alert">This box has expired. Do not use it: it will be left out of the plan.</div>'
+        body += tr('<div class="mt-alert">This box has expired. Do not use it: it will be left out of the plan.</div>')
     elif old:
-        body += f'<div class="mt-alert">{len(old)} of {len(rs)} boxes have expired. Do not use the expired one.</div>'
+        body += tr('<div class="mt-alert">{x0} of {x1} boxes have expired. Do not use the expired one.</div>', x0=len(old), x1=len(rs))
     if (others := shared_ingredient(t, medicine)):
-        body += f'<div class="mt-heads">Same active ingredient as: {esc("; ".join(others))}. The plan lists it for the pharmacist.</div>'
+        body += tr('<div class="mt-heads">Same active ingredient as: {x0}. The plan lists it for the pharmacist.</div>', x0=esc("; ".join(others)))
     card(official_photo(medicine), body, plain=True)

@@ -52,10 +52,10 @@ def synthesize(text: str, out: Path, rate: int = -2, culture: str = "en-US") -> 
     return out
 
 
-def render_voice(plan: Plan, out_dir: Path, rate: int = -2) -> dict[str, Path]:
+def render_voice(plan: Plan, out_dir: Path, rate: int = -2, culture: str = "en-US") -> dict[str, Path]:
     """One WAV per slot that has medication, plus a short intro; the files are named in the order of the day."""
     files = {}
     for number, slot in enumerate(SLOTS, 1):
         if plan.slot_entries(slot):
-            files[slot] = synthesize(speech_text(plan, slot), out_dir / f"{number}_{slot}.wav", rate)
+            files[slot] = synthesize(speech_text(plan, slot), out_dir / f"{number}_{slot}.wav", rate, culture)
     return files

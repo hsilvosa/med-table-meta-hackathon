@@ -20,26 +20,30 @@ import streamlit as st
 ROOT = Path(__file__).parent
 sys.path[:0] = [str(ROOT), str(ROOT / "src")]
 
+from medtable.i18n import LANGUAGES, set_language, tr  # noqa: E402
 from planner import common, screen_doses, screen_medicines, screen_plan, table  # noqa: E402
 from planner.style import css  # noqa: E402
 
 st.set_page_config(page_title="Medication planner", layout="wide", initial_sidebar_state="collapsed")
 st.session_state.setdefault("large_text", False)
+st.session_state.setdefault("lang", st.query_params.get("lang", "en") if st.query_params.get("lang") in LANGUAGES else "en")
+set_language(st.session_state.lang)
 st.markdown(css(1.25 if st.session_state.large_text else 1.0), unsafe_allow_html=True)
 common.state_defaults()
 t = table.current(date.today())
 
-with st.popover("Settings"):
-    st.toggle("Larger text", key="large_text")
-    use_smpc = st.toggle("Quote the official leaflets (AEMPS) in the notes", value=True)
-    st.caption("When off, only the checks that need no leaflet text run, and the plan says so.")
-    st.button("Start over", on_click=common.ask_reset, key="start_over", width="stretch")
+with st.popover(tr("Settings")):
+    st.segmented_control(tr("Language"), list(LANGUAGES), format_func=LANGUAGES.get, key="lang", on_change=lambda: set_language(st.session_state.lang or "en"))
+    st.toggle(tr("Larger text"), key="large_text")
+    use_smpc = st.toggle(tr("Quote the official leaflets (AEMPS) in the notes"), value=True)
+    st.caption(tr("When off, only the checks that need no leaflet text run, and the plan says so."))
+    st.button(tr("Start over"), on_click=common.ask_reset, key="start_over", width="stretch")
 
 if st.session_state.get("ask_reset"):
-    common.box("warn", "Start over?", "This deletes the medicines, the doses and the notes of this plan. It cannot be undone.")
+    common.box("warn", tr("Start over?"), tr("This deletes the medicines, the doses and the notes of this plan. It cannot be undone."))
     no, yes = st.columns(2)       # the safe answer first and in colour
-    no.button("No, keep my work", on_click=lambda: st.session_state.pop("ask_reset", None), type="primary", key="reset_no", width="stretch")
-    yes.button("Yes, delete everything", on_click=common.reset_state, key="reset_yes", width="stretch")
+    no.button(tr("No, keep my work"), on_click=lambda: st.session_state.pop("ask_reset", None), type="primary", key="reset_no", width="stretch")
+    yes.button(tr("Yes, delete everything"), on_click=common.reset_state, key="reset_yes", width="stretch")
 
 if st.session_state.get("scroll_top"):
     st.session_state.scroll_top = False

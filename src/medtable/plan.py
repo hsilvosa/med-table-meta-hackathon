@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 
 from .findings import Finding
+from .i18n import language, tr
 from .rules import Pack
 from .schedule import ALL_DAYS, SLOTS, Line, Reconciliation, dose_number
 
@@ -30,6 +31,11 @@ ABBREVIATIONS = ((r"\b(\d+)\s*h\b", r"\1 hours"), (r"\b(\d+)\s*min\b", r"\1 minu
 DAY_SHORT = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 DAY_NAMES = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 ICS_DAYS = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
+DAY_NAMES_ES = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábados", "domingos")     # as spoken: "solo los lunes y jueves"
+SPOKEN_ES = {2.0: "dos", 3.0: "tres", 4.0: "cuatro", 5.0: "cinco", 6.0: "seis"}
+FEMININE_ES = {"capsule", "dose"}       # "una cápsula", "media dosis"
+ABBREVIATIONS_ES = ((r"\b(\d+)\s*h\b", r"\1 horas"), (r"\b(\d+)\s*min\b", r"\1 minutos"), (r"\b(\d+(?:[.,]\d+)?)\s*mg\b", r"\1 miligramos"),
+                    (r"\b(\d+(?:[.,]\d+)?)\s*g\b", r"\1 gramos"))
 LARGE_DAILY, LARGE_SINGLE = 6, 3        # above these a second look is asked for: a typing slip, not a medical judgement (the plan keeps the amount)
 PACK_UNITS = r"(comprimidos?|c[aá]psulas?|sobres?|parches?|supositorios?|grageas?)"
 
@@ -93,21 +99,26 @@ class Entry:
         """For print: the dose as confirmed, plus the unit noun, e.g. '1/2 tablet', '2 tablets'."""
         singular, plural = self.noun
         value = dose_number(self.dose)
-        return f"{self.dose} {singular if value is not None and value <= 1 else plural}"
+        return f"{self.dose} {tr(singular) if value is not None and value <= 1 else tr(plural)}"
 
     def days_text(self) -> str:
         """'' for every day, else the days in short: 'Mon, Thu only'."""
-        return "" if tuple(self.line.days) == ALL_DAYS else ", ".join(DAY_SHORT[d] for d in self.line.days) + " only"
+        return "" if tuple(self.line.days) == ALL_DAYS else tr("{days} only", days=", ".join(tr(DAY_SHORT[d]) for d in self.line.days))
 
     def days_spoken(self) -> str:
         if tuple(self.line.days) == ALL_DAYS:
             return ""
+        if language() == "es":
+            names = [DAY_NAMES_ES[d] for d in self.line.days]
+            return "solo los " + (names[0] if len(names) == 1 else ", ".join(names[:-1]) + " y " + names[-1])
         names = [DAY_NAMES[d] + "s" for d in self.line.days]
         return "on " + (names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]) + " only"
 
     def spoken(self) -> str:
         value = dose_number(self.dose)
         singular, plural = self.noun
+        if language() == "es":
+            return spoken_es(value, self.dose, singular, plural)
         if value == 0.5:
             return f"half a {singular}"
         if value == 0.25:
@@ -165,11 +176,37 @@ def build_plan(lines: list[Line], recon: Reconciliation, findings: list[Finding]
     return Plan(entries, not_included, findings, today, sources)
 
 
+def spoken_es(value: float | None, dose: str, singular: str, plural: str) -> str:
+    """The Spanish words for an amount: 'medio comprimido', 'una cápsula y media', 'dos comprimidos'."""
+    one, many, female = tr(singular), tr(plural), singular in FEMININE_ES
+    if value == 0.5:
+        return f"{'media' if female else 'medio'} {one}"
+    if value == 0.25:
+        return f"un cuarto de {one}"
+    if value == 0.75:
+        return f"tres cuartos de {one}"
+    if value == 1:
+        return f"{'una' if female else 'un'} {one}"
+    if value == 1.5:
+        return f"{'una' if female else 'un'} {one} y {'media' if female else 'medio'}"
+    return f"{SPOKEN_ES.get(value) or dose.replace('.', ' coma ').replace(',', ' coma ')} {many}"
+
+
 def speech_text(plan: Plan, slot: str) -> str:
     """What the voice says for one moment of the day, built only from confirmed fields."""
     entries = plan.slot_entries(slot)
     if not entries:
-        return f"{SLOT_LABELS[slot]}: nothing in the plan."
+        return tr("{slot}: nothing in the plan.", slot=tr(SLOT_LABELS[slot]))
+    if language() == "es":
+        count = len(entries)
+        parts = [f"{tr(SLOT_LABELS[slot])}. {'Hay un medicamento' if count == 1 else f'Hay {count} medicamentos'}."]
+        for e in entries:
+            remark = e.line.remarks
+            for pattern, repl in ABBREVIATIONS_ES:
+                remark = re.sub(pattern, repl, remark)
+            when = e.days_spoken()
+            parts.append(f"{e.spoken()} de {e.name}" + (f", {when}" if when else "") + "." + (f" {remark}." if remark else ""))
+        return " ".join(parts)
     count = len(entries)
     parts = [f"{SLOT_LABELS[slot]}. There {'is' if count == 1 else 'are'} {count} medicine{'s' if count != 1 else ''}."]
     for e in entries:
@@ -212,8 +249,8 @@ def to_ics(plan: Plan, times: dict[str, str] | None = None, start: date | None =
             groups.setdefault(tuple(e.line.days), []).append(e)
         for week, entries in groups.items():
             hour, minute = times[slot].split(":")
-            description = "\n".join(f"{e.written()} of {e.name}" + (f" ({e.line.remarks})" if e.line.remarks else "") for e in entries)
-            description += "\nBased on the medication sheet confirmed by the caregiver. Ask a pharmacist if in doubt."
+            description = "\n".join(tr("{dose} of {name}", dose=e.written(), name=e.name) + (f" ({e.line.remarks})" if e.line.remarks else "") for e in entries)
+            description += "\n" + tr("Based on the medication sheet confirmed by the caregiver. Ask a pharmacist if in doubt.")
             first = start
             if week == ALL_DAYS:
                 rule = "RRULE:FREQ=DAILY" + (f";COUNT={days}" if days else "")
@@ -223,7 +260,7 @@ def to_ics(plan: Plan, times: dict[str, str] | None = None, start: date | None =
                 rule = "RRULE:FREQ=WEEKLY;BYDAY=" + ",".join(ICS_DAYS[d] for d in week) + (f";COUNT={days}" if days else "")
             lines += ["BEGIN:VEVENT", f"UID:{uuid.uuid4()}@med-table", f"DTSTAMP:{stamp}",
                       f"DTSTART:{first.strftime('%Y%m%d')}T{hour}{minute}00", "DURATION:PT15M", rule,
-                      f"SUMMARY:{_ics_escape('Medication: ' + SLOT_LABELS[slot])}", f"DESCRIPTION:{_ics_escape(description)}",
-                      "BEGIN:VALARM", "ACTION:DISPLAY", "TRIGGER:PT0M", "DESCRIPTION:Time for the medication", "END:VALARM", "END:VEVENT"]
+                      f"SUMMARY:{_ics_escape(tr('Medication: {slot}', slot=tr(SLOT_LABELS[slot])))}", f"DESCRIPTION:{_ics_escape(description)}",
+                      "BEGIN:VALARM", "ACTION:DISPLAY", "TRIGGER:PT0M", "DESCRIPTION:" + _ics_escape(tr("Time for the medication")), "END:VALARM", "END:VEVENT"]
     lines.append("END:VCALENDAR")
     return "\r\n".join(_fold(line) for line in lines) + "\r\n"

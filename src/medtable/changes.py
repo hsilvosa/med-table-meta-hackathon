@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .form import CHOICE_LABELS, Row
+from .i18n import tr
 from .plan import DAY_SHORT, SLOT_LABELS
 from .schedule import ALL_DAYS, SLOTS
 
@@ -24,11 +25,11 @@ class Changes:
 
 
 def _days(days) -> str:
-    return "every day" if tuple(days) == ALL_DAYS else (", ".join(DAY_SHORT[d] for d in days) or "no day")
+    return tr("every day") if tuple(days) == ALL_DAYS else (", ".join(tr(DAY_SHORT[d]) for d in days) or tr("no day"))
 
 
 def _dose(dose: str) -> str:
-    return CHOICE_LABELS.get(dose, dose or "?")
+    return tr(CHOICE_LABELS.get(dose, dose or "?"))
 
 
 def _key(row: Row) -> str:
@@ -47,9 +48,9 @@ def compare(saved_rows: list[Row], rows: list[Row], seen_cns: set[str] | None = 
         if key not in now:
             continue
         new = now[key]
-        diff = [f"{SLOT_LABELS[s]}: {_dose(old.doses.get(s, '0'))} -> {_dose(new.doses.get(s, '0'))}" for s in SLOTS if old.doses.get(s, "0") != new.doses.get(s, "0")]
+        diff = [f"{tr(SLOT_LABELS[s])}: {_dose(old.doses.get(s, '0'))} -> {_dose(new.doses.get(s, '0'))}" for s in SLOTS if old.doses.get(s, "0") != new.doses.get(s, "0")]
         if list(old.days) != list(new.days):
-            diff.append(f"Days: {_days(old.days)} -> {_days(new.days)}")
+            diff.append(tr('Days: {x0} -> {x1}', x0=_days(old.days), x1=_days(new.days)))
         if diff:
             changes.amounts.append((new.medicine, diff))
     return changes

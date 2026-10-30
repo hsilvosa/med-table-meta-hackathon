@@ -15,6 +15,7 @@ import streamlit as st
 
 from medtable import boxes, cima, decode, identify, saved
 from medtable.form import CHOICE_LABELS, Row
+from medtable.i18n import tr
 from medtable.pipeline import manual_pack
 from medtable.plan import DAY_SHORT, DEFAULT_TIMES, form_noun
 from medtable.resolve import BUNDLED, Resolver
@@ -73,7 +74,7 @@ def smpc_source() -> CachedSmpc:
 def reset_state() -> None:
     shutil.rmtree("data/cache/segments", ignore_errors=True)  # crops of the photos that SAM wrote to disk
     for key in list(st.session_state.keys()):
-        if key not in ("large_text",):
+        if key not in ("large_text", "lang"):
             st.session_state.pop(key, None)
 
 
@@ -104,7 +105,7 @@ def go(step: int) -> None:
 
 def remove_medicine(cn: str, name: str = "") -> None:
     """Take a medicine out of the list, with its sheet row. It comes back with "Undo", if a new photo shows it again or if its code is typed."""
-    st.session_state.undo = {"label": name or "the medicine", "cn": cn, "manual": [p for p in st.session_state.manual if p.medicine.cn == cn],
+    st.session_state.undo = {"label": name or tr("the medicine"), "cn": cn, "manual": [p for p in st.session_state.manual if p.medicine.cn == cn],
                              "rows": [r for r in st.session_state.rows if r.cn == cn]}
     st.session_state.pop("notice", None)       # its counts would be out of date
     st.session_state.removed_cns.add(cn)
@@ -113,7 +114,7 @@ def remove_medicine(cn: str, name: str = "") -> None:
 
 
 def dismiss_code(raw: str) -> None:
-    st.session_state.undo = {"label": "the box I could not recognise", "raw": raw}
+    st.session_state.undo = {"label": tr("the box I could not recognise"), "raw": raw}
     st.session_state.pop("notice", None)
     st.session_state.removed_raw.add(raw)
 
@@ -144,7 +145,7 @@ def open_saved(text: str) -> None:
     try:
         data = saved.load(text)
     except ValueError as exc:
-        st.session_state.notice = ("bad", "The plan could not be opened", esc(str(exc)))
+        st.session_state.notice = ("bad", tr("The plan could not be opened"), esc(str(exc)))
         return
     reset_state()
     state_defaults()
@@ -158,8 +159,7 @@ def open_saved(text: str) -> None:
     st.session_state.patient, st.session_state.plan_notes = data["patient"], data["notes"]
     st.session_state.times.update({s: v for s, v in data["times"].items() if s in SLOTS})
     st.session_state.removed_cns, st.session_state.removed_raw = data["removed_cns"], data["removed_raw"]
-    st.session_state.notice = ("ok", "Plan opened", f"Saved on {esc(data['saved'])}. Every box was checked again with the official database. "
-                               "Check that the doses still match the doctor's paper, and add a photo of any new box.")
+    st.session_state.notice = ("ok", tr("Plan opened"), tr("Saved on {x0}. Every box was checked again with the official database. Check that the doses still match the doctor's paper, and add a photo of any new box.", x0=esc(data['saved'])))
 
 
 def saved_file() -> str:
@@ -174,7 +174,7 @@ def line_of(row: Row):
 
 
 def days_words(days) -> str:
-    return "" if tuple(days) == ALL_DAYS else (", ".join(DAY_SHORT[d] for d in days) + " only" if days else "no day chosen")
+    return "" if tuple(days) == ALL_DAYS else (", ".join(tr(DAY_SHORT[d]) for d in days) + tr(" only") if days else tr("no day chosen"))
 
 
 def ask_reset() -> None:
@@ -189,14 +189,14 @@ def unconfirm(row: Row) -> None:
 
 
 def count(n: int, one: str, many: str = "") -> str:
-    return f"{n} {one if n == 1 else (many or one + 's')}"
+    return f"{n} {tr(one) if n == 1 else tr(many or one + 's')}"
 
 
 def dose_words(dose: str, form: str | None) -> str:
     """'1/2' -> '½ tablet', '2' -> '2 tablets'; an amount typed under Other is shown as typed."""
     singular, plural = form_noun(form)
     value = dose_number(dose)
-    return f"{CHOICE_LABELS.get(dose, dose)} {singular if value is not None and value <= 1 else plural}"
+    return f"{CHOICE_LABELS.get(dose, dose)} {tr(singular) if value is not None and value <= 1 else tr(plural)}"
 
 
 def nocode_key(name: str, box: tuple) -> str:
@@ -218,8 +218,8 @@ def patient_field(key: str) -> None:
     """The name printed on the calendar. It is asked on the doses screen and again before printing; both edit the same value."""
     def changed() -> None:
         st.session_state.patient = st.session_state[key].strip()
-    st.text_input("Who is this plan for? (optional)", value=st.session_state.patient, key=key, on_change=changed, placeholder="For example: Maria Lopez",
-                  help="Printed at the top of the calendar. Leave it empty to write the name by hand.")
+    st.text_input(tr("Who is this plan for? (optional)"), value=st.session_state.patient, key=key, on_change=changed, placeholder=tr("For example: Maria Lopez"),
+                  help=tr("Printed at the top of the calendar. Leave it empty to write the name by hand."))
 
 
 def page_preview(pdf_path: Path):
@@ -239,7 +239,7 @@ MAX_KEPT_WIDTH = 4000
 
 
 def add_photo(name: str, image: np.ndarray) -> None:
-    with st.spinner(f"Reading the codes in {name} (a few seconds)..."):
+    with st.spinner(tr('Reading the codes in {name} (a few seconds)...', name=name)):
         st.session_state.readings[name] = identify.identify(image, resolver())     # always the full-resolution photo
     for reading in st.session_state.readings[name]:        # a new photo that shows a removed box again brings it back
         st.session_state.removed_cns.discard(reading.medicine.cn if reading.medicine else "")
@@ -254,18 +254,17 @@ def add_photo(name: str, image: np.ndarray) -> None:
     missing = len(st.session_state.nocode[name])
     offline = sum(1 for r in found if identify.UNREACHABLE in r.problems)
     if offline:
-        st.session_state.notice = ("bad", "No connection to the official database",
-                                   f"I read {count(offline, 'code')} but could not check {'it' if offline == 1 else 'them'} with AEMPS CIMA. "
-                                   "Check the internet connection, then press <b>Try again</b> below.")
+        st.session_state.notice = ("bad", tr("No connection to the official database"),
+                                   tr('I read {x0} but could not check {x1} with AEMPS CIMA. Check the internet connection, then press <b>Try again</b> below.', x0=count(offline, 'code'), x1='it' if offline == 1 else 'them'))
         return
     if not found and not missing:
-        st.session_state.notice = ("warn", "I could not read any code in this photo",
-                                   "Put the boxes with the printed code facing up, use good light, and take the photo closer (about 30 to 90 cm above the boxes).")
+        st.session_state.notice = ("warn", tr("I could not read any code in this photo"),
+                                   tr("Put the boxes with the printed code facing up, use good light, and take the photo closer (about 30 to 90 cm above the boxes)."))
     else:
-        parts = [count(known, "medicine") + " recognised"] + ([count(unknown, "box", "boxes") + " I could not recognise"] if unknown else []) \
-            + ([count(missing, "box", "boxes") + " where I could not read a code"] if missing else [])
-        light = " On a white table I cannot point out boxes without a code: check by eye that every box is in the list." if boxes.light_table(image) else ""
-        st.session_state.notice = ("ok" if not unknown and not missing else "warn", "Photo read", esc(", ".join(parts)) + ". The list below shows them." + light)
+        parts = [count(known, "medicine") + tr(" recognised")] + ([count(unknown, "box", "boxes") + tr(" I could not recognise")] if unknown else []) \
+            + ([count(missing, "box", "boxes") + tr(" where I could not read a code")] if missing else [])
+        light = tr(" On a white table I cannot point out boxes without a code: check by eye that every box is in the list.") if boxes.light_table(image) else ""
+        st.session_state.notice = ("ok" if not unknown and not missing else "warn", tr("Photo read"), esc(", ".join(parts)) + tr(". The list below shows them.") + light)
 
 
 def official_photo(medicine) -> str | None:
@@ -288,7 +287,7 @@ def data_uri(image: np.ndarray, width: int = 220) -> str:
 def picture(source: str | np.ndarray | None) -> str:
     """An <img> for a card: a downsized data URI for local files and arrays, the URL itself for remote photos."""
     if source is None:
-        return '<div class="mt-pic none">No picture</div>'
+        return tr('<div class="mt-pic none">No picture</div>')
     if isinstance(source, str) and source.startswith("http"):
         return f'<img class="mt-pic" src="{esc(source)}">'
     image = cv2.imread(source) if isinstance(source, str) else source
@@ -306,24 +305,24 @@ def box(kind: str, title: str, text: str = "") -> None:
 def what_to_do(reason: str) -> str:
     """One plain next step for the usual reasons a medicine is left out of the plan."""
     if reason == "no pack on the table matches":
-        return "Go back to Medicines and add a photo that shows this box, or type the code printed on it."
+        return tr("Go back to Medicines and add a photo that shows this box, or type the code printed on it.")
     if reason.startswith("the pack expired"):
-        return "Do not use it. Ask a pharmacist for a new pack."
+        return tr("Do not use it. Ask a pharmacist for a new pack.")
     if reason.startswith("the pack is on several lines"):
-        return "Go back to Doses and keep one line for this medicine."
+        return tr("Go back to Doses and keep one line for this medicine.")
     if reason.startswith("several packs match"):
-        return "Go back to Doses and write the name of the medicine the way it appears on the box."
+        return tr("Go back to Doses and write the name of the medicine the way it appears on the box.")
     if reason.startswith("the strength on the sheet does not match"):
-        return "Compare the strength on the box with the doctor's paper and correct the line."
+        return tr("Compare the strength on the box with the doctor's paper and correct the line.")
     if reason.startswith("unrecognised dose"):
-        return "Go back to Doses and choose the amount with the buttons."
+        return tr("Go back to Doses and choose the amount with the buttons.")
     return ""
 
 
 def source_html(source: str) -> str:
     """A citation as small text, with the long URL turned into a link."""
     match = re.match(r"(.*?):?\s*(https?://\S+)$", source)
-    return f'{esc(match.group(1))}. <a href="{esc(match.group(2))}" target="_blank">Open the official page</a>' if match else esc(source)
+    return tr('{x0}. <a href="{x1}" target="_blank">Open the official page</a>', x0=esc(match.group(1)), x1=esc(match.group(2))) if match else esc(source)
 
 
 def chip(text: str, kind: str = "grey") -> str:
@@ -332,23 +331,23 @@ def chip(text: str, kind: str = "grey") -> str:
 
 def expiry_chip(expiry: date | None, today: date) -> str:
     if expiry is None:
-        return chip("Expiry date unknown", "warn")
+        return chip(tr("Expiry date unknown"), "warn")
     if expiry < today:
-        return chip(f"Expired on {expiry.isoformat()}", "bad")
+        return chip(tr('Expired on {x0}', x0=expiry.isoformat()), "bad")
     if expiry <= today + timedelta(days=30):
-        return chip(f"Expires on {expiry.isoformat()}", "warn")
-    return chip(f"Expires on {expiry.isoformat()}", "grey")
+        return chip(tr('Expires on {x0}', x0=expiry.isoformat()), "warn")
+    return chip(tr('Expires on {x0}', x0=expiry.isoformat()), "grey")
 
 
 def header(step: int, title: str, lead: str) -> None:
-    cells = "".join(f'<div class="mt-s {"cur" if i == step else "done" if i < step else ""}"><b>{i}</b>{esc(name)}</div>' for i, name in enumerate(STEPS, 1))
-    st.markdown(f'<p class="mt-brand">Medication planner</p><div class="mt-steps">{cells}</div><p class="mt-title">{esc(title)}</p><p class="mt-lead">{lead}</p>', unsafe_allow_html=True)
+    cells = "".join(f'<div class="mt-s {"cur" if i == step else "done" if i < step else ""}"><b>{i}</b>{esc(tr(name))}</div>' for i, name in enumerate(STEPS, 1))
+    st.markdown(f'<p class="mt-brand">{esc(tr("Medication planner"))}</p><div class="mt-steps">{cells}</div><p class="mt-title">{esc(title)}</p><p class="mt-lead">{lead}</p>', unsafe_allow_html=True)
 
 
 def nav(back: int | None, forward: int | None, forward_label: str = "", enabled: bool = True, why_not: str = "") -> None:
     left, right = st.columns(2) if forward else (st.container(), None)
     if back:
-        left.button("Back", on_click=go, args=(back,), key=f"back{back}_{st.session_state.step}", width="stretch")
+        left.button(tr("Back"), on_click=go, args=(back,), key=f"back{back}_{st.session_state.step}", width="stretch")
     if forward:
         right.button(forward_label, on_click=go, args=(forward,), type="primary", disabled=not enabled, key=f"next{forward}", width="stretch")
         if not enabled and why_not:

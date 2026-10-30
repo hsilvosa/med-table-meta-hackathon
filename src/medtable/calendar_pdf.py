@@ -24,6 +24,7 @@ from reportlab.lib.utils import simpleSplit
 from reportlab.platypus import Flowable, Image, KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .findings import NOT_A_FULL_CHECK
+from .i18n import date_text, tr, tr_reason
 from .plan import DEFAULT_TIMES, SLOT_LABELS, Plan
 from .schedule import SLOTS
 
@@ -129,25 +130,25 @@ def render_pdf(plan: Plan, out: Path, patient: str = "", photo_dir: Path = Path(
         canvas.saveState()
         canvas.setFont("Helvetica", 8)
         canvas.setFillColor(colors.HexColor("#555555"))
-        for i, text in enumerate(simpleSplit(DISCLAIMER, "Helvetica", 8, 225 * mm)):
+        for i, text in enumerate(simpleSplit(tr(DISCLAIMER), "Helvetica", 8, 225 * mm)):
             canvas.drawString(14 * mm, (9.5 - 3.6 * i) * mm, text)
-        canvas.drawRightString(landscape(A4)[0] - 14 * mm, 7 * mm, f"Page {document.page} of 2")
+        canvas.drawRightString(landscape(A4)[0] - 14 * mm, 7 * mm, tr('Page {x0} of 2', x0=document.page))
         canvas.restoreState()
 
     doc = SimpleDocTemplate(str(out), pagesize=landscape(A4), leftMargin=14 * mm, rightMargin=14 * mm, topMargin=11 * mm, bottomMargin=16 * mm,
-                            title="Medication plan", author="med-table (prototype)")
+                            title=tr("Medication plan"), author="med-table (prototype)")
 
     # ---- page 1: the calendar ---------------------------------------------------------------------------------------------
-    story = [Paragraph("Medication plan", title),
-             Paragraph(f"<b>For:</b> {who} &nbsp;&nbsp;&nbsp; <b>Date:</b> {plan.generated.strftime('%d %b %Y')}", big),
+    story = [Paragraph(tr("Medication plan"), title),
+             Paragraph(tr('<b>For:</b> {who} &nbsp;&nbsp;&nbsp; <b>Date:</b> {x1}', who=who, x1=date_text(plan.generated)), big),
              Spacer(1, 4 * mm)]
     meds: dict[str, list] = {}
     for e in plan.entries:
         meds.setdefault(e.pack.medicine.cn, []).append(e)
-    header = [Paragraph("<b>Medicine</b>", name), ""]
+    header = [Paragraph(tr("<b>Medicine</b>"), name), ""]
     for s in SLOTS:
-        header.append([SlotIcon(s), Paragraph(SLOT_LABELS[s], head), Paragraph(esc(times[s]), clock)])
-    header.append(Paragraph("<b>Notes</b>", name))
+        header.append([SlotIcon(s), Paragraph(tr(SLOT_LABELS[s]), head), Paragraph(esc(times[s]), clock)])
+    header.append(Paragraph(tr("<b>Notes</b>"), name))
     rows = [header]
     for entries in meds.values():
         first = entries[0]
@@ -161,7 +162,7 @@ def render_pdf(plan: Plan, out: Path, patient: str = "", photo_dir: Path = Path(
         rows.append([Image(str(photo), width=34 * mm, height=24 * mm, kind="proportional") if photo else "",
                      Paragraph(esc(first.name.replace("/", "/ ")), name)] + [cells.get(s, Paragraph("-", dose)) for s in SLOTS] + [Paragraph(remarks, base)])
     if len(rows) == 1:
-        rows.append(["", Paragraph("No medication in the plan.", big), "", "", "", "", "", ""])
+        rows.append(["", Paragraph(tr("No medication in the plan."), big), "", "", "", "", "", ""])
     table = Table(rows, colWidths=[36 * mm, 66 * mm, 29 * mm, 29 * mm, 29 * mm, 29 * mm, 50 * mm], repeatRows=1)
     style = [("SPAN", (0, 0), (1, 0)), ("GRID", (0, 0), (-1, -1), 0.9, colors.HexColor("#555555")), ("BACKGROUND", (0, 0), (1, 0), colors.HexColor("#e8eef5")),
              ("BACKGROUND", (6, 0), (6, 0), colors.HexColor("#e8eef5")), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -171,46 +172,46 @@ def render_pdf(plan: Plan, out: Path, patient: str = "", photo_dir: Path = Path(
     table.setStyle(TableStyle(style))
     story.append(table)
     if plan.not_included:
-        story += [Spacer(1, 3 * mm), Paragraph(f"<b>{len(plan.not_included)} item(s) are NOT in this calendar.</b> See page 2 for what and why.", red)]
+        story += [Spacer(1, 3 * mm), Paragraph(tr('<b>{x0} item(s) are NOT in this calendar.</b> See page 2 for what and why.', x0=len(plan.not_included)), red)]
 
-    ruled = [f"Doctor: {'_' * 30} &nbsp; Phone: {'_' * 20}", f"Pharmacy: {'_' * 28} &nbsp; Phone: {'_' * 20}", f"Other: {'_' * 60}"]
+    ruled = [tr('Doctor: {x0} &nbsp; Phone: {x1}', x0='_' * 30, x1='_' * 20), tr('Pharmacy: {x0} &nbsp; Phone: {x1}', x0='_' * 28, x1='_' * 20), tr('Other: {x0}', x0='_' * 60)]
     body = [Paragraph(esc(line) or "&nbsp;", base) for line in notes.splitlines()] if notes else [Paragraph(r, base) for r in ruled]
-    box = Table([[Paragraph("<b>Notes for the whole plan</b>", name)], *[[p] for p in body]], colWidths=[268 * mm])
+    box = Table([[Paragraph(tr("<b>Notes for the whole plan</b>"), name)], *[[p] for p in body]], colWidths=[268 * mm])
     box.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 0.9, colors.HexColor("#555555")), ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e8eef5")),
                              ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 7 if not notes else 3)]))
     story += [Spacer(1, 4 * mm), KeepTogether([box])]
 
     # ---- page 2: for the pharmacist and the caregiver -----------------------------------------------------------------------
-    story += [PageBreak(), Paragraph("For the pharmacist and the caregiver", title), Paragraph(f"<b>Plan for:</b> {who} &nbsp;&nbsp; <b>Date:</b> {plan.generated.strftime('%d %b %Y')}", big),
+    story += [PageBreak(), Paragraph(tr("For the pharmacist and the caregiver"), title), Paragraph(tr('<b>Plan for:</b> {who} &nbsp;&nbsp; <b>Date:</b> {x1}', who=who, x1=date_text(plan.generated)), big),
               Spacer(1, 4 * mm)]
     if plan.not_included:
-        block = [Paragraph("<b>Not included in the calendar</b>", ParagraphStyle("hn", parent=red, fontName="Helvetica-Bold", fontSize=15, leading=18))]
-        block += [Paragraph(f"&bull; {esc(what)}: {esc(why)}", red) for what, why in plan.not_included]
+        block = [Paragraph(tr("<b>Not included in the calendar</b>"), ParagraphStyle("hn", parent=red, fontName="Helvetica-Bold", fontSize=15, leading=18))]
+        block += [Paragraph(f"&bull; {esc(what)}: {esc(tr_reason(why))}", red) for what, why in plan.not_included]
         story += [KeepTogether(block), Spacer(1, 4 * mm)]
     if changes:
-        block = [Paragraph("<b>Changes since the saved plan</b>", ParagraphStyle("hc", parent=base, fontName="Helvetica-Bold", fontSize=15, leading=18))]
-        block += [Paragraph(f"&bull; New: {esc(n)}", base) for n in changes.new]
-        block += [Paragraph(f"&bull; Not seen in the new photos: {esc(n)}", base) for n in changes.not_seen]
+        block = [Paragraph(tr("<b>Changes since the saved plan</b>"), ParagraphStyle("hc", parent=base, fontName="Helvetica-Bold", fontSize=15, leading=18))]
+        block += [Paragraph(tr('&bull; New: {x0}', x0=esc(n)), base) for n in changes.new]
+        block += [Paragraph(tr('&bull; Not seen in the new photos: {x0}', x0=esc(n)), base) for n in changes.not_seen]
         block += [Paragraph(f"&bull; {esc(n)}: {esc('; '.join(d))}", base) for n, d in changes.amounts]
         story += [KeepTogether(block), Spacer(1, 4 * mm)]
     review = sorted((f for f in plan.findings if f.kind != "unverified_item"), key=lambda f: f.severity != "review")
     if review:
-        story.append(Paragraph("<b>To review with your pharmacist</b>", ParagraphStyle("hr", parent=base, fontName="Helvetica-Bold", fontSize=15, leading=18)))
+        story.append(Paragraph(tr("<b>To review with your pharmacist</b>"), ParagraphStyle("hr", parent=base, fontName="Helvetica-Bold", fontSize=15, leading=18)))
         for f in review:
             block = [Spacer(1, 2 * mm), Paragraph(f"<b>{esc(f.title)}.</b> {esc(f.lead())}", base)]
             if f.quote:
                 block.append(Paragraph(esc(f.quote), quote_style))
             if f.source:
-                block.append(Paragraph(f"Source: {esc(f.source)}", small))
+                block.append(Paragraph(tr('Source: {x0}', x0=esc(f.source)), small))
             story.append(KeepTogether(block))
     elif not plan.not_included:
-        story.append(Paragraph("No points were raised by the checks listed below. That does not mean the plan is safe.", base))
-    checked = ("Checks done: duplicate active ingredient, ATC group, expiry read from the code and match with the sheet"
-               + (", and verbatim quotes from sections 4.2 and 4.5 of the leaflets (SmPC; quotes stay in the original Spanish)." if plan.smpc_used else ". The leaflets (SmPC) were NOT consulted."))
+        story.append(Paragraph(tr("No points were raised by the checks listed below. That does not mean the plan is safe."), base))
+    checked = (tr("Checks done: duplicate active ingredient, ATC group, expiry read from the code and match with the sheet")
+               + (tr(", and verbatim quotes from sections 4.2 and 4.5 of the leaflets (SmPC; quotes stay in the original Spanish).") if plan.smpc_used else tr(". The leaflets (SmPC) were NOT consulted.")))
     if any(f.kind == "smpc_unavailable" for f in plan.findings):
-        checked += " Some leaflet section could not be checked (see above)."
+        checked += tr(" Some leaflet section could not be checked (see above).")
     story += [Spacer(1, 5 * mm), Paragraph(esc(checked), small),
-              Paragraph(esc(NOT_A_FULL_CHECK + " No warning does not mean the plan is safe."), small),
-              Paragraph("Sources consulted: " + esc(" | ".join(plan.sources) or "none"), small)]
+              Paragraph(esc(tr(NOT_A_FULL_CHECK) + tr(" No warning does not mean the plan is safe.")), small),
+              Paragraph(tr("Sources consulted: ") + esc(" | ".join(plan.sources) or tr("none")), small)]
     doc.build(story, onFirstPage=footer, onLaterPages=footer)
     return out
