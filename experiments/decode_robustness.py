@@ -22,9 +22,8 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, "src")
-sys.path.insert(0, "tests")
-from helpers import ntin_element_string, render_datamatrix  # noqa: E402
 from medtable import decode  # noqa: E402
+from medtable.synthetic import ntin_element_string, render_datamatrix  # noqa: E402
 
 
 def make_photo(canvas: tuple[int, int], module_px: float, blur: float, rng: random.Random) -> tuple[np.ndarray, str]:
