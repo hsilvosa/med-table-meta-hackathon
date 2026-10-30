@@ -9,6 +9,9 @@ import zxingcpp
 
 from . import cn
 
+# The demo photo of the planner: five real national codes (one box expired, two paracetamol-free medicines with a shared group...) and one CN CIMA does not know.
+DEMO_ITEMS = [("654177", "281231"), ("662025", "270430"), ("715240", "250600"), ("677379", "280131"), ("656012", "271130"), ("100008", "281231")]
+
 
 def ntin_element_string(cn6: str, expiry: str = "281231", lot: str = "LOT123", serial: str = "SN0001") -> str:
     """HRI element string of a Spanish pack: (01) is the NTIN '0' + 847000 + CN6 + check digit."""

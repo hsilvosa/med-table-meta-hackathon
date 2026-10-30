@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 from medtable.resolve import Resolver  # noqa: E402
 from medtable.smpc import Smpc  # noqa: E402
+from medtable.synthetic import DEMO_ITEMS  # noqa: E402
 
 OUT = ROOT / "demo_cache"
 PHOTOS = ROOT / "data/cima/images/full"
@@ -30,10 +31,8 @@ WIDTH = 480
 
 
 def demo_cns() -> list[str]:
-    """The national codes of the demo photo, read from app.py (importing it would start Streamlit)."""
-    text = (ROOT / "app.py").read_text(encoding="utf-8")
-    line = next(l for l in text.splitlines() if l.startswith("DEMO_ITEMS"))
-    return re.findall(r'\("(\d{6})"', line)
+    """The national codes of the demo photo."""
+    return [cn for cn, _ in DEMO_ITEMS]
 
 
 def small_photo(source: bytes, target: Path) -> None:
