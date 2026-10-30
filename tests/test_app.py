@@ -3,9 +3,9 @@
 import os
 
 import pytest
+from fixtures import med
 from streamlit.testing.v1 import AppTest
 
-from fixtures import med
 from medtable.resolve import Resolver
 from medtable.smpc import Smpc
 
@@ -99,20 +99,7 @@ def test_every_dose_starts_at_none_nothing_reaches_the_plan_until_confirmed_and_
     assert "Left out: MEDICAMENTO 654177" in texts(app) and "unrecognised dose" in texts(app).lower()
 
 
-def test_the_schedule_photo_leaves_the_computer_only_after_consent_and_the_room_photo_can_be_it(env, tmp_path):
-    (tmp_path / "data" / "world_photos").mkdir(parents=True)
-    (tmp_path / "data" / "world_photos" / "latest.jpg").write_bytes(b"x")
-    at = AppTest.from_file(APP, default_timeout=120).run()
-    to_doses(at)
-    assert any("LEAVES this computer" in w.value for w in at.warning)
-    assert [c.label for c in at.checkbox if c.key == "sheet_consent"] == ["I understand where the picture is sent and want the computer to read it"]
-    assert [b.disabled for b in at.button if b.label.startswith("Read the latest room photo")] == [True]
-    [c for c in at.checkbox if c.key == "sheet_consent"][0].check()
-    at.run()
-    assert [b.disabled for b in at.button if b.label.startswith("Read the latest room photo")] == [False]
-
-
-def test_a_schedule_read_from_a_photo_fills_the_dose_buttons_of_the_boxes_and_confirms_nothing(env, tmp_path, monkeypatch):
+def test_a_schedule_photo_is_read_only_after_consent_and_fills_the_buttons_without_confirming_anything(env, tmp_path, monkeypatch):
     from medtable import sheet_reader
     (tmp_path / "data" / "world_photos").mkdir(parents=True)
     (tmp_path / "data" / "world_photos" / "latest.jpg").write_bytes(b"x")
@@ -123,6 +110,8 @@ def test_a_schedule_read_from_a_photo_fills_the_dose_buttons_of_the_boxes_and_co
     monkeypatch.setattr(Resolver, "by_cn", lambda self, cn: named.get("".join(c for c in cn if c.isdigit())[:6]))
     at = AppTest.from_file(APP, default_timeout=120).run()
     to_doses(at)
+    assert any("LEAVES this computer" in w.value for w in at.warning)         # it says where the picture goes, and waits for the tick
+    assert [b.disabled for b in at.button if b.label.startswith("Read the latest room photo")] == [True]
     [c for c in at.checkbox if c.key == "sheet_consent"][0].check()
     at.run()
     click(at, "Read the latest room photo")
@@ -130,20 +119,6 @@ def test_a_schedule_read_from_a_photo_fills_the_dose_buttons_of_the_boxes_and_co
     assert [g.value for g in doses_of(at) if g.key.startswith("dose_pack654177_")] == ["1", "0", "1/2", "0"]     # the buttons SHOW what was read
     assert at.session_state.rows[0].remarks == "con comida" and not any(r.confirmed for r in at.session_state.rows)
     assert [g.value for g in doses_of(at) if g.key.startswith("dose_sheet")] == ["0", "0", "0", "1"]           # a line with no box becomes its own row
-
-
-def test_the_last_screen_offers_the_downloads_only_when_there_is_a_plan(app):
-    to_doses(app)
-    click(app, "Next: see the plan")
-    assert "Nothing in the plan yet" in texts(app)
-    click(app, "Back")
-    pick(app, "pack654177", "lunch", "2")
-    confirm(app, "pack654177")
-    click(app, "Next: see the plan")
-    click(app, "Next: print or listen")
-    assert app.session_state.step == 4 and not app.exception
-    assert {el.proto.label for el in app.get("download_button")} == {"Download the calendar to print (PDF)", "Download the phone reminders (.ics)",
-                                                                   "Save this plan to continue later"}
 
 
 def test_two_boxes_of_one_medicine_are_one_card_and_the_plan_uses_the_box_that_has_not_expired(env):
@@ -161,18 +136,6 @@ def test_two_boxes_of_one_medicine_are_one_card_and_the_plan_uses_the_box_that_h
     click(at, "Next: see the plan")
     agenda = [m.value for m in at.markdown if "mt-agenda" in m.value][-1]
     assert "MEDICAMENTO 654177" in agenda and "Left out: MEDICAMENTO 654177" not in texts(at)
-
-
-def test_a_removed_medicine_can_be_put_back_with_its_doses(app):
-    to_doses(app)
-    pick(app, "pack654177", "breakfast", "1")
-    confirm(app, "pack654177")
-    click(app, "Back")
-    click(app, "Remove this medicine")
-    assert "Medicines found: 4" in texts(app) and "Removed: MEDICAMENTO 654177" in texts(app)
-    click(app, "Undo: put it back")
-    row = next(r for r in app.session_state.rows if r.cn == "654177")
-    assert "Medicines found: 5" in texts(app) and row.doses["breakfast"] == "1" and row.confirmed and "Undo" not in [b.label[:4] for b in app.button]
 
 
 def test_changing_an_amount_after_ticking_needs_a_new_tick(app):

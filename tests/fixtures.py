@@ -1,10 +1,12 @@
 """Hand-made medicines in the shape of resolve.Medicine, plus a stand-in for the SmPC cache. Test data, not real SmPC text."""
 
+import urllib.error
 from datetime import date
 
 from medtable.resolve import Medicine
 from medtable.rules import Pack
 from medtable.smpc import Section
+from medtable.synthetic import ntin_element_string, render_datamatrix  # noqa: F401  (re-exported for the tests)
 
 
 def med(cn, name, ingredients, atc5, atc4_name="Grupo", strengths=None, form="COMPRIMIDOS", nregistro=None):
@@ -58,3 +60,13 @@ class FakeSmpc:
 
 
 TODAY = date(2026, 10, 26)
+
+
+def offline(monkeypatch):
+    """No network: every request to CIMA fails at once."""
+    from medtable import cima
+
+    def no_network(request, timeout=None):
+        raise urllib.error.URLError("no route to host")
+    monkeypatch.setattr(cima.urllib.request, "urlopen", no_network)
+    monkeypatch.setattr(cima.time, "sleep", lambda s: None)
