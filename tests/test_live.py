@@ -126,3 +126,33 @@ def test_the_camera_server_listens_on_this_computer_only_and_keeps_only_real_pic
     finally:
         local.shutdown()
         lan.server_close()
+
+
+def test_online_each_visitor_keeps_their_own_room_photos_and_there_is_no_camera_page(tmp_path, monkeypatch):
+    monkeypatch.setenv("PUBLIC_DEMO", "1")
+    spec = importlib.util.spec_from_file_location("serve_world_public", ROOT / "scripts" / "serve_world.py")
+    module = importlib.util.module_from_spec(spec)
+    monkeypatch.chdir(tmp_path)
+    spec.loader.exec_module(module)
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), partial(module.Handler, directory=str(ROOT / "web")))
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{httpd.server_address[1]}"
+    body = cv2.imencode(".jpg", synthetic.demo_photo([("654177", "281231")]))[1].tobytes()
+
+    def photo(session):
+        headers = {"Content-Type": "image/jpeg", **({"X-Session": session} if session else {})}
+        return urllib.request.urlopen(urllib.request.Request(url + "/photo", data=body, method="POST", headers=headers), timeout=60)
+    try:
+        photo("visitor-0001")
+        assert (tmp_path / "data" / "world_photos" / "visitor-0001" / "latest.jpg").read_bytes() == body
+        assert not (tmp_path / "data" / "world_photos" / "latest.jpg").exists()                       # nothing shared between visitors
+        for bad in ("", "../../etc"):
+            with pytest.raises(urllib.error.HTTPError) as error:
+                photo(bad)
+            assert error.value.code == 400
+        with pytest.raises(urllib.error.HTTPError) as error:
+            urllib.request.urlopen(url + "/camera.html", timeout=10)
+        assert error.value.code == 404
+        assert b"Not medical advice" in urllib.request.urlopen(url + "/", timeout=10).read()
+    finally:
+        httpd.shutdown()

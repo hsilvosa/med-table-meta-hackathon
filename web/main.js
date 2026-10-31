@@ -191,8 +191,11 @@ function setPhoneUi() {
   resize();
 }
 // ---- planner panel (the Streamlit app, embedded) ------------------------------------------------------------------------
-const appUrl = new URLSearchParams(location.search).get('app') || 'http://127.0.0.1:8501';
-$('app').src = `${appUrl}/?room=1&embed=true`;       // loaded at start so the planner already runs when the first photo arrives
+// one id per visitor (per browser tab): online, each visitor's photos go to their own folder and only their planner loads them
+const SESSION = sessionStorage.getItem('mt-session') || (() => { const s = crypto.randomUUID(); sessionStorage.setItem('mt-session', s); return s; })();
+const LOCAL = location.port === '8600';        // scripts/start_demo.py; the online demo serves the planner under /app on the same address
+const appUrl = new URLSearchParams(location.search).get('app') || (LOCAL ? 'http://127.0.0.1:8501' : `${location.origin}/app`);
+$('app').src = `${appUrl}/?room=1&embed=true&session=${SESSION}`;       // loaded at start so the planner already runs when the first photo arrives
 $('openApp').href = appUrl;
 function planner(open) {
   document.body.classList.toggle('planner', open ?? !document.body.classList.contains('planner'));
@@ -401,7 +404,7 @@ async function shoot(options = {}) {
     const { table, dist } = nearestTable();
     const truth = { ...truthForPhoto(), table: table.id, distance_m: +dist.toFixed(3), effects, today: world.today,
       pose: { x: player.x, y: player.eye, z: player.z, yaw: player.yaw, pitch: player.pitch }, size: [shot.w, shot.h] };
-    const reply = await fetch('/photo', { method: 'POST', body: blob, headers: { 'Content-Type': 'image/jpeg', 'X-Truth': encodeURIComponent(JSON.stringify(truth)), 'X-Effects': effects ? '1' : '0' } });
+    const reply = await fetch('/photo', { method: 'POST', body: blob, headers: { 'Content-Type': 'image/jpeg', 'X-Session': SESSION, 'X-Truth': encodeURIComponent(JSON.stringify(truth)), 'X-Effects': effects ? '1' : '0' } });
     const saved = await reply.json();
     if (!options.quiet) { toast(`Photo saved (${truth.labels.length} codes in view). The planner is reading it.`, 5000); planner(true); }
     return { ...saved, truth };

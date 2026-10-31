@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>med-table: a verified medication plan from a photo of the boxes</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #f4f6f8; color: #14202b; font-size: 18px; line-height: 1.5; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 20px 48px; }
+  h1 { font-size: 2rem; margin: 0 0 .3rem; }
+  .lead { font-size: 1.15rem; color: #33404d; margin: 0 0 1.4rem; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 1.2rem 0 1.6rem; }
+  .card { background: #fff; border: 1px solid #d7dde4; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; }
+  .card h2 { font-size: 1.25rem; margin: 0 0 .4rem; }
+  .card p { margin: 0 0 1rem; color: #33404d; flex: 1; }
+  .go { display: block; text-align: center; background: #1b5e8a; color: #fff; text-decoration: none; font-weight: 700; padding: 14px; border-radius: 12px; font-size: 1.1rem; }
+  .go.alt { background: #fff; color: #1b5e8a; border: 2px solid #1b5e8a; }
+  .notice { background: #fff6e0; border: 1px solid #f0c777; border-radius: 12px; padding: 14px 18px; margin: 0 0 1rem; }
+  .notice b { display: block; margin-bottom: 2px; }
+  ol { padding-left: 1.3rem; } li { margin: .25rem 0; }
+  .small { color: #55606e; font-size: .9rem; }
+  a { color: #1b5e8a; }
+</style>
+</head>
+<body>
+<main>
+  <h1>med-table</h1>
+  <p class="lead">Photograph the medicine boxes on the table, get a medication plan you can trust. Each box is identified from the official code printed on it and checked against Spain's medicines database (AEMPS CIMA); the caregiver confirms every dose; the plan becomes a large-print calendar, a weekly pill organiser guide and phone reminders.</p>
+
+  <div class="notice"><b>Not medical advice</b>A planning aid for caregivers. It never decides a dose and is not a medical device: every dose comes from the prescription and is confirmed by the caregiver, and every warning quotes its official source for the pharmacist to review.</div>
+  <div class="notice"><b>A shared public demo</b>Use the demo photo or the 3D room. Do not upload photos of real prescriptions or of anything showing a name, address or ID number: pictures are processed on a shared server. Photos taken in the 3D room are kept only for your own planner and deleted after an hour. All medicines shown are public AEMPS CIMA data; the medication schedule in the room is fictional.</div>
+
+  <div class="cards">
+    <div class="card">
+      <h2>The 3D room</h2>
+      <p>Walk to a table of real medicines, hold a virtual phone 90 cm above it and watch the codes being read live. Take the photo: the planner on the right reads it. Best on a computer with a mouse.</p>
+      <a class="go" href="index.html">Open the 3D room</a>
+    </div>
+    <div class="card">
+      <h2>The planner only</h2>
+      <p>The caregiver's four screens: medicines, doses, check, print. Press "Demo photos" and "Load a demo photo" to start. Also in Spanish.</p>
+      <a class="go alt" href="app/">Open the planner</a>
+      <p class="small" style="margin:.6rem 0 0"><a href="app/?lang=es">Abrir en español</a></p>
+    </div>
+  </div>
+
+  <h2 style="font-size:1.25rem">In the 3D room</h2>
+  <ol>
+    <li>Press <b>Table 1</b>, then <b>Phone over the table</b>.</li>
+    <li>Hold still: green boxes appear on the codes that are read, amber on a box with no code.</li>
+    <li>Press <b>Take the photo</b>. The planner opens with the medicines found; choose the doses, tick each one, check the plan and download the PDFs.</li>
+  </ol>
+  <p class="small">Keys: W A S D to walk, mouse wheel to zoom, R and F to raise or lower the phone, Tab to show or hide the planner. The room is a stage set: each medicine is a cut-out of its official CIMA photo carrying a Data Matrix generated from its real national code.</p>
+  <p class="small">In this online version the voice, the reading of the doctor's schedule with Muse Spark and SAM 3 are turned off, and so is the camera page; they run in the local installation. Source code, documentation and the Meta models used: <a href="https://github.com/hsilvosa/med-table-meta-hackathon" target="_blank">github.com/hsilvosa/med-table-meta-hackathon</a>. Medicine information and photos: AEMPS CIMA, https://cima.aemps.es.</p>
+</main>
+</body>
+</html>

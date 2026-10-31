@@ -11,6 +11,9 @@ Streamlit app can load. Binds to 127.0.0.1 only; nothing leaves the machine.
 import argparse
 import json
 import mimetypes
+import os
+import re
+import threading
 import shutil
 import sys
 import time
@@ -27,6 +30,9 @@ from medtable import decode, live_scan  # noqa: E402       (decode: the tests re
 
 mimetypes.add_type("text/javascript", ".js")   # Windows registries often say text/plain, which blocks ES modules
 OUT = Path("data/world_photos")
+PUBLIC = os.environ.get("PUBLIC_DEMO") == "1"      # the online demo: each visitor's photos in their own folder, deleted after an hour
+KEEP_S = 3600
+SCANS = threading.BoundedSemaphore(2 if PUBLIC else 8)      # a shared 2-CPU server: live scans wait their turn
 MAX_BYTES = 64 * 1024 * 1024
 
 
@@ -43,6 +49,13 @@ def phone_effects(jpeg: bytes, seed: int) -> bytes:
     return buffer.tobytes() if ok else jpeg
 
 
+def forget_old_photos() -> None:
+    """Online demo: delete the photo folders of visitors who took no photo in the last hour."""
+    for folder in OUT.glob("*/"):
+        if folder.is_dir() and time.time() - folder.stat().st_mtime > KEEP_S:
+            shutil.rmtree(folder, ignore_errors=True)
+
+
 class Handler(SimpleHTTPRequestHandler):
     def do_POST(self) -> None:
         if self.path not in ("/photo", "/scan"):
@@ -55,24 +68,42 @@ class Handler(SimpleHTTPRequestHandler):
         body = self.rfile.read(length)
         if self.path == "/scan":
             effects = self.headers.get("X-Effects") == "1"
-            live_scan.write_stages(self, live_scan.scan(body, (lambda jpeg: phone_effects(jpeg, int(time.time() * 1000) % 2**32)) if effects else None, thorough=True))      # the room has the time: the whole table is read as hard as a photo, box by box as it goes
+            with SCANS:
+                live_scan.write_stages(self, live_scan.scan(body, (lambda jpeg: phone_effects(jpeg, int(time.time() * 1000) % 2**32)) if effects else None, thorough=True))      # the room has the time: the whole table is read as hard as a photo, box by box as it goes
             return
         if self.headers.get("X-Effects") == "1":
             body = phone_effects(body, int(time.time() * 1000) % 2**32)
         truth = json.loads(urllib.parse.unquote(self.headers.get("X-Truth", "{}")) or "{}")
-        OUT.mkdir(parents=True, exist_ok=True)
+        out = OUT
+        if PUBLIC:
+            session = self.headers.get("X-Session", "")
+            if not re.fullmatch(r"[a-z0-9-]{8,40}", session):
+                self.send_error(400, "missing visitor session")
+                return
+            forget_old_photos()
+            out = OUT / session
+        out.mkdir(parents=True, exist_ok=True)
         stamp = time.strftime("%Y%m%d_%H%M%S") + f"_{int(time.time() * 1000) % 1000:03d}"
-        photo = OUT / f"photo_{stamp}.jpg"
+        photo = out / f"photo_{stamp}.jpg"
         photo.write_bytes(body)
         photo.with_suffix(".json").write_text(json.dumps(truth, indent=1), encoding="utf-8")
-        shutil.copyfile(photo, OUT / "latest.jpg")
-        shutil.copyfile(photo.with_suffix(".json"), OUT / "latest.json")
+        shutil.copyfile(photo, out / "latest.jpg")
+        shutil.copyfile(photo.with_suffix(".json"), out / "latest.json")
         payload = json.dumps({"name": photo.name, "bytes": len(body)}).encode()
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
+
+    def do_GET(self) -> None:
+        page = urllib.parse.urlsplit(self.path).path
+        if PUBLIC and page in ("/camera.html", "/camera.js"):       # a real camera on a shared server: only in the local installation
+            self.send_error(404, "The camera page runs only in the local installation")
+            return
+        if PUBLIC and page == "/":
+            self.path = "/welcome.html"
+        super().do_GET()
 
     def translate_path(self, path: str) -> str:
         """The room built on this machine (web/world) when there is one, else the small room shipped in the repository (web/world_demo)."""

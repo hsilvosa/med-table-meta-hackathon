@@ -31,6 +31,12 @@ set_language(st.session_state.lang)
 st.markdown(css(1.25 if st.session_state.large_text else 1.0), unsafe_allow_html=True)
 common.state_defaults()
 t = table.current(date.today())
+if common.public_demo():
+    common.box("warn", tr("Public online demo"), tr(
+        "Try it with the demo photo or the 3D room. Do not upload photos of real prescriptions or of anything showing a name, address or ID "
+        "number: pictures are processed on a shared server (photos from the 3D room are deleted after an hour). This is a planning aid, not "
+        "medical advice. In this online version the voice, reading the doctor's schedule with Muse Spark and SAM 3 are turned off; they run in "
+        'the local installation (<a href="https://github.com/hsilvosa/med-table-meta-hackathon" target="_blank">source code</a>).'))
 
 with st.popover(tr("Settings")):
     st.segmented_control(tr("Language"), list(LANGUAGES), format_func=LANGUAGES.get, key="lang", on_change=lambda: set_language(st.session_state.lang or "en"))

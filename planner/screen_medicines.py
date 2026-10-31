@@ -14,6 +14,7 @@ from medtable.pipeline import manual_pack
 from medtable.rules import Pack
 from medtable.synthetic import DEMO_ITEMS
 from planner.common import (
+    public_demo,
     add_photo,
     box,
     card,
@@ -171,54 +172,55 @@ def render(t: Table) -> None:
     if entries or st.session_state.manual:
         st.caption(tr("Is a box missing? Take another photo that shows it close up with its code facing up, or type its code. Wrong box? Remove it."))
 
-    with st.expander(tr("A box has no code I can read? Find it in the photo and choose it from the database")):
-        st.write(tr("The computer looks for boxes in the photo that have no readable code and suggests possible medicines from the official database. "
-                 "**Nothing enters the plan until you choose one and confirm it against the official picture.**"))
-        photos = st.session_state.photos
-        if st.button(tr("Look for boxes without a code"), disabled=not photos, width="stretch"):
-            found = []
-            for name, image in photos.items():
-                folder = Path("data/cache/segments") / Path(name.replace(":", "")).stem
-                folder.mkdir(parents=True, exist_ok=True)
-                photo_path = folder / "photo.png"
-                cv2.imwrite(str(photo_path), image)
-                try:
-                    with st.spinner(tr('Looking for boxes in {name} (about 30 seconds)...', name=name)):
-                        segments = candidates.segment(photo_path, folder)
-                except Exception as exc:  # no GPU, SAM environment missing: typing the national code still works
-                    st.error(tr('This step could not run ({exc}). You can type the code on the box instead.', exc=exc))
-                    continue
-                factor = st.session_state.photo_scale.get(name, 1.0)
-                codes = [decode.Detection(r.raw, tuple(int(v * factor) for v in r.bbox), r.method) for r in st.session_state.readings.get(name, [])]
-                found += [(name, b) for b in candidates.boxes_without_code(segments, codes)]
-            st.session_state.unmatched = found
-        for number, (name, found_box) in enumerate(st.session_state.get("unmatched", [])[:12]):
-            st.image(str(found_box.crop), caption=tr('Box {x0}', x0=number + 1), width=170)
-            key = f"proposal_{name}_{found_box.crop.name}"
-            backend = vlm.backend_name()
-            ok = st.checkbox(tr("I understand this small picture is sent to the Meta API (only do this if it shows no personal data)"), key=f"consent_{key}") if backend == "meta" else True
-            if st.button(tr("Suggest medicines"), key=f"btn_{key}", disabled=not ok):
-                try:
-                    with st.spinner(tr("Asking the model and the official database...")):
-                        st.session_state[key] = candidates.propose(found_box.crop, resolver(), consent=ok is True)
-                except Exception as exc:  # noqa: BLE001
-                    st.error(tr('The model could not be reached ({exc}).', exc=exc))
-            proposal = st.session_state.get(key)
-            if proposal:
-                if proposal.note:
-                    st.info(proposal.note)
-                labels = {f"**{c.medicine.name}**  \n{' · '.join(c.why) or tr('no clear match')}": c for c in proposal.candidates}
-                choice = st.radio(tr("Which medicine is this?"), [tr("None of these / I do not know"), *labels], key=f"radio_{key}") if labels else None
-                shown = list(labels.values())[:3]
-                for col, cand in zip(st.columns(max(len(shown), 1)), shown):
-                    url = official_photo(cand.medicine)
-                    if url:
-                        col.image(url, caption=tr('{x0} (official picture)', x0=cand.medicine.name[:30]), width=120)
-                if choice in labels and st.button(tr("Yes, this is the medicine"), key=f"ok_{key}", type="primary"):
-                    picked = labels[choice].medicine
-                    if picked.cn not in {p.medicine.cn for p in st.session_state.manual}:
-                        st.session_state.removed_cns.discard(picked.cn)
-                        st.session_state.manual.append(Pack(picked, "confirmed"))
-                        st.rerun()
+    if not public_demo():      # SAM 3 needs a GPU and the model call a key: not on the shared server
+        with st.expander(tr("A box has no code I can read? Find it in the photo and choose it from the database")):
+            st.write(tr("The computer looks for boxes in the photo that have no readable code and suggests possible medicines from the official database. "
+                     "**Nothing enters the plan until you choose one and confirm it against the official picture.**"))
+            photos = st.session_state.photos
+            if st.button(tr("Look for boxes without a code"), disabled=not photos, width="stretch"):
+                found = []
+                for name, image in photos.items():
+                    folder = Path("data/cache/segments") / Path(name.replace(":", "")).stem
+                    folder.mkdir(parents=True, exist_ok=True)
+                    photo_path = folder / "photo.png"
+                    cv2.imwrite(str(photo_path), image)
+                    try:
+                        with st.spinner(tr('Looking for boxes in {name} (about 30 seconds)...', name=name)):
+                            segments = candidates.segment(photo_path, folder)
+                    except Exception as exc:  # no GPU, SAM environment missing: typing the national code still works
+                        st.error(tr('This step could not run ({exc}). You can type the code on the box instead.', exc=exc))
+                        continue
+                    factor = st.session_state.photo_scale.get(name, 1.0)
+                    codes = [decode.Detection(r.raw, tuple(int(v * factor) for v in r.bbox), r.method) for r in st.session_state.readings.get(name, [])]
+                    found += [(name, b) for b in candidates.boxes_without_code(segments, codes)]
+                st.session_state.unmatched = found
+            for number, (name, found_box) in enumerate(st.session_state.get("unmatched", [])[:12]):
+                st.image(str(found_box.crop), caption=tr('Box {x0}', x0=number + 1), width=170)
+                key = f"proposal_{name}_{found_box.crop.name}"
+                backend = vlm.backend_name()
+                ok = st.checkbox(tr("I understand this small picture is sent to the Meta API (only do this if it shows no personal data)"), key=f"consent_{key}") if backend == "meta" else True
+                if st.button(tr("Suggest medicines"), key=f"btn_{key}", disabled=not ok):
+                    try:
+                        with st.spinner(tr("Asking the model and the official database...")):
+                            st.session_state[key] = candidates.propose(found_box.crop, resolver(), consent=ok is True)
+                    except Exception as exc:  # noqa: BLE001
+                        st.error(tr('The model could not be reached ({exc}).', exc=exc))
+                proposal = st.session_state.get(key)
+                if proposal:
+                    if proposal.note:
+                        st.info(proposal.note)
+                    labels = {f"**{c.medicine.name}**  \n{' · '.join(c.why) or tr('no clear match')}": c for c in proposal.candidates}
+                    choice = st.radio(tr("Which medicine is this?"), [tr("None of these / I do not know"), *labels], key=f"radio_{key}") if labels else None
+                    shown = list(labels.values())[:3]
+                    for col, cand in zip(st.columns(max(len(shown), 1)), shown):
+                        url = official_photo(cand.medicine)
+                        if url:
+                            col.image(url, caption=tr('{x0} (official picture)', x0=cand.medicine.name[:30]), width=120)
+                    if choice in labels and st.button(tr("Yes, this is the medicine"), key=f"ok_{key}", type="primary"):
+                        picked = labels[choice].medicine
+                        if picked.cn not in {p.medicine.cn for p in st.session_state.manual}:
+                            st.session_state.removed_cns.discard(picked.cn)
+                            st.session_state.manual.append(Pack(picked, "confirmed"))
+                            st.rerun()
     st.write("")
     nav(None, 2, tr("Next: choose the doses"), enabled=bool(medicines), why_not=tr("Add at least one medicine to continue."))

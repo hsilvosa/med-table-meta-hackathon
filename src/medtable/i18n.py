@@ -59,6 +59,9 @@ ES = {
     # ---- app.py and shared parts -------------------------------------------------------------------------------------------
     "Medication planner": "Planificador de medicación",
     "Settings": "Ajustes",
+    "Public online demo": "Demo pública en línea",
+    "Try it with the demo photo or the 3D room. Do not upload photos of real prescriptions or of anything showing a name, address or ID number: pictures are processed on a shared server (photos from the 3D room are deleted after an hour). This is a planning aid, not medical advice. In this online version the voice, reading the doctor's schedule with Muse Spark and SAM 3 are turned off; they run in the local installation (<a href=\"https://github.com/hsilvosa/med-table-meta-hackathon\" target=\"_blank\">source code</a>).":
+        "Pruébela con la foto de prueba o con la sala 3D. No suba fotos de recetas reales ni de nada que muestre un nombre, una dirección o un DNI: las imágenes se procesan en un servidor compartido (las fotos de la sala 3D se borran al cabo de una hora). Es una ayuda para organizarse, no consejo médico. En esta versión en línea están desactivados la voz, la lectura de la pauta con Muse Spark y SAM 3; funcionan en la instalación local (<a href=\"https://github.com/hsilvosa/med-table-meta-hackathon\" target=\"_blank\">código fuente</a>).",
     "Language": "Idioma",
     "Larger text": "Letra más grande",
     "Quote the official leaflets (AEMPS) in the notes": "Citar las fichas técnicas oficiales (AEMPS) en las notas",

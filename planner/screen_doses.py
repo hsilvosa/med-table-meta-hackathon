@@ -11,7 +11,7 @@ from medtable.i18n import tr
 from medtable.plan import DAY_SHORT, SLOT_LABELS, form_noun, large_amount
 from medtable.rules import Pack
 from medtable.schedule import ALL_DAYS, SLOTS, dose_number
-from planner.common import SLOT_HINT, card, chip, count, days_words, dose_words, esc, header, latest_photo, line_of, nav, official_photo, patient_field, photo_source, unconfirm
+from planner.common import public_demo, SLOT_HINT, card, chip, count, days_words, dose_words, esc, header, latest_photo, line_of, nav, official_photo, patient_field, photo_source, unconfirm
 from planner.table import Table
 
 
@@ -24,36 +24,37 @@ def render(t: Table) -> None:
     if rows:
         st.progress(ready / len(rows), text=tr('{ready} of {x1} ready for the plan', ready=ready, x1=count(len(rows), 'medicine')))
     patient_field("patient_step2")
-    with st.expander(tr("Have a photo of the doctor's schedule? Let the computer copy it (optional)")):
-        backend = vlm.backend_name()
-        if backend == "meta":
-            st.warning(tr("The photo LEAVES this computer and goes to the Meta API. Use it only for a sheet without personal data "
-                       "(no name, ID number or address). To keep it on this computer, whoever installed the tool can switch it to the offline model (VLM_BACKEND=local)."))
-        else:
-            st.caption(tr("Local model: the picture does not leave this computer."))
-        sheet_photo = st.file_uploader(tr("Photo of the schedule"), type=["jpg", "jpeg", "png"], key="sheet_photo")
-        consent = st.checkbox(tr("I understand where the picture is sent and want the computer to read it"), key="sheet_consent") if backend == "meta" else True
-        sources = []
-        if sheet_photo:
-            sources.append((tr("Read the schedule"), sheet_photo.name, sheet_photo.getvalue()))
-        if latest_photo().exists():
-            sources.append((tr('Read the latest {x0} photo as the schedule', x0=tr(photo_source())), f"{photo_source()}_schedule.jpg", latest_photo().read_bytes() if consent else b""))
-        for label, file_name, content in sources:
-            if st.button(label, disabled=not consent, width="stretch", key=f"read_{file_name}"):
-                with tempfile.TemporaryDirectory() as tmp:
-                    path = Path(tmp) / file_name
-                    path.write_bytes(content)
-                    try:
-                        with st.spinner(tr("Reading the schedule...")):
-                            read = sheet_reader.read_sheet(path, consent=consent is True)
-                    except Exception as exc:  # network, budget cap, server not running: tell the caregiver, keep manual entry available
-                        st.error(tr('The schedule could not be read ({exc}). You can choose the doses by hand below.', exc=exc))
-                    else:
-                        packs_now = [Pack(m, "verified") for m in medicines]
-                        changed, merge_notes = merge_read_rows(rows, read.rows, packs_now)      # bumps `rev`, so the buttons show what was read
-                        st.session_state.sheet_notes = read.problems + merge_notes + [tr("Check every medicine against the paper: a computer reading can contain mistakes.")]
-        for note in st.session_state.get("sheet_notes", []):
-            st.warning(note)
+    if not public_demo():      # the model call sends a picture to the Meta Model API: not offered on the shared server
+        with st.expander(tr("Have a photo of the doctor's schedule? Let the computer copy it (optional)")):
+            backend = vlm.backend_name()
+            if backend == "meta":
+                st.warning(tr("The photo LEAVES this computer and goes to the Meta API. Use it only for a sheet without personal data "
+                           "(no name, ID number or address). To keep it on this computer, whoever installed the tool can switch it to the offline model (VLM_BACKEND=local)."))
+            else:
+                st.caption(tr("Local model: the picture does not leave this computer."))
+            sheet_photo = st.file_uploader(tr("Photo of the schedule"), type=["jpg", "jpeg", "png"], key="sheet_photo")
+            consent = st.checkbox(tr("I understand where the picture is sent and want the computer to read it"), key="sheet_consent") if backend == "meta" else True
+            sources = []
+            if sheet_photo:
+                sources.append((tr("Read the schedule"), sheet_photo.name, sheet_photo.getvalue()))
+            if latest_photo().exists():
+                sources.append((tr('Read the latest {x0} photo as the schedule', x0=tr(photo_source())), f"{photo_source()}_schedule.jpg", latest_photo().read_bytes() if consent else b""))
+            for label, file_name, content in sources:
+                if st.button(label, disabled=not consent, width="stretch", key=f"read_{file_name}"):
+                    with tempfile.TemporaryDirectory() as tmp:
+                        path = Path(tmp) / file_name
+                        path.write_bytes(content)
+                        try:
+                            with st.spinner(tr("Reading the schedule...")):
+                                read = sheet_reader.read_sheet(path, consent=consent is True)
+                        except Exception as exc:  # network, budget cap, server not running: tell the caregiver, keep manual entry available
+                            st.error(tr('The schedule could not be read ({exc}). You can choose the doses by hand below.', exc=exc))
+                        else:
+                            packs_now = [Pack(m, "verified") for m in medicines]
+                            changed, merge_notes = merge_read_rows(rows, read.rows, packs_now)      # bumps `rev`, so the buttons show what was read
+                            st.session_state.sheet_notes = read.problems + merge_notes + [tr("Check every medicine against the paper: a computer reading can contain mistakes.")]
+            for note in st.session_state.get("sheet_notes", []):
+                st.warning(note)
 
     def set_dose(row: Row, slot: str) -> None:
         picked = st.session_state[row.key("dose", slot)]

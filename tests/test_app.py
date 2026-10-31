@@ -173,3 +173,18 @@ def test_the_whole_flow_can_be_done_in_spanish(env):
     click(at, "Siguiente: ver el plan")
     agenda = [m.value for m in at.markdown if "mt-agenda" in m.value][-1]
     assert "Desayuno" in agenda and "1 comprimido" in agenda and not at.exception
+
+
+def test_the_public_demo_warns_and_offers_no_model_upload_and_shows_only_this_visitors_room_photo(env, tmp_path, monkeypatch):
+    monkeypatch.setenv("PUBLIC_DEMO", "1")
+    (tmp_path / "data" / "world_photos" / "someone-else-1").mkdir(parents=True)
+    (tmp_path / "data" / "world_photos" / "someone-else-1" / "latest.jpg").write_bytes(b"x")       # another visitor's photo
+    (tmp_path / "data" / "world_photos" / "latest.jpg").write_bytes(b"x")                           # the local installation's shared photo
+    at = AppTest.from_file(APP, default_timeout=120)
+    at.query_params["session"] = "visitor-0001"
+    at.run()
+    assert "Public online demo" in texts(at) and "Do not upload photos of real prescriptions" in texts(at)
+    assert not [b for b in at.button if b.label.startswith("Load the latest room photo")]           # not this visitor's photo
+    assert not [e for e in at.expander if "no code I can read" in e.label]                         # SAM 3 and the model call are off
+    to_doses(at)
+    assert not [e for e in at.expander if "doctor's schedule" in e.label] and not at.exception

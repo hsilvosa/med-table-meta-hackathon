@@ -1,0 +1,15 @@
+.git
+.github
+.venv*
+.env
+.env.*
+**/__pycache__
+data
+models
+third_party
+docs
+media
+experiments
+tests
+web/world
+web/vendor

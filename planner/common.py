@@ -1,6 +1,7 @@
 """Shared parts of the planner: page settings, session state and the actions that change it, and small rendering helpers."""
 
 import base64
+import os
 import copy
 import html
 import re
@@ -38,7 +39,20 @@ def photo_source() -> str:
     return "camera" if from_camera() else "room"
 
 
+def public_demo() -> bool:
+    """The online demo (Hugging Face Space): shared server, so no model calls, no SAM, and each visitor sees only their own room photos."""
+    return os.environ.get("PUBLIC_DEMO") == "1"
+
+
+def session_id() -> str | None:
+    """The room's visitor id, passed by the 3D room in the planner's address (?session=...)."""
+    value = st.query_params.get("session", "")
+    return value if re.fullmatch(r"[a-z0-9-]{8,40}", value or "") else None
+
+
 def latest_photo() -> Path:
+    if public_demo():           # only the photos taken by this visitor's own room
+        return Path("data/world_photos") / (session_id() or "none") / "latest.jpg"
     return Path("data/camera_photos/latest.jpg" if from_camera() else "data/world_photos/latest.jpg")
 
 
