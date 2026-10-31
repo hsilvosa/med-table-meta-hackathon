@@ -1,4 +1,5 @@
-"""Publish the online demo to Google Cloud Run (project med-table-demo-hs, europe-west1).
+"""Publish the online demo to Google Cloud Run (project med-table-demo-hs, europe-west1), served at https://medtable.hsilvosa.com
+(Cloud Run domain mapping; DNS: CNAME medtable -> ghs.googlehosted.com, without the Cloudflare proxy).
 
   python scripts/deploy_cloudrun.py [--tag 2]
 
