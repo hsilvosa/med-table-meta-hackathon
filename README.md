@@ -1,82 +1,150 @@
-# med-table (hackathon prototype)
+# med-table
 
 [![tests](https://github.com/hsilvosa/med-table-meta-hackathon/actions/workflows/tests.yml/badge.svg)](https://github.com/hsilvosa/med-table-meta-hackathon/actions/workflows/tests.yml)
 
-A tool for caregivers of older adults on many medicines. Photograph the packs on the table; the system identifies each pack from its official code, checks it against Spain's AEMPS/CIMA database, and builds a verified inventory. The caregiver sets the schedule (from the active medication sheet), and the tool produces a printable pictogram calendar, a voice reading and a calendar file for phone reminders.
+**Photograph the medicine boxes on the table, get a medication plan you can trust.** med-table helps the family caregiver of an older person who takes many medicines. It identifies every box from the official code printed on it, checks it against Spain's official medicines database (AEMPS CIMA), and turns the doctor's schedule, confirmed by the caregiver, into a large-print calendar for the fridge, a weekly pill organiser guide, a voice that reads the plan aloud and reminders on the phone.
 
-**What it is not.** It does not give medical advice, does not decide doses, and is not a medical device. The schedule always comes from the prescription, entered or confirmed line by line by the caregiver. Every flag shown cites an AEMPS source, with the quoted sentence checked against the original text; the section 4.5 excerpts are shown for the pharmacist to review, never as a verdict. When it cannot identify an item, it asks; it never guesses.
+Built during the hackathon with Meta's **Muse Spark** (Meta Model API) and **SAM 3 / 3.1**.
 
-## Try it in a minute
-```bash
-python -m venv .venv-app && .venv-app/Scripts/python.exe -m pip install -r requirements.txt     # Python 3.12
-.venv-app/Scripts/python.exe -m streamlit run app.py --server.address 127.0.0.1
+> med-table organises what the doctor prescribed. It gives no medical advice, never decides a dose and is not a medical device. Every warning quotes its official source, word for word, for the pharmacist to review.
+
+## The problem
+
+Caregivers of older people on many medicines juggle boxes from different pharmacies, generics with unfamiliar names, half tablets, medicines taken only on some days, and expiry dates printed in small type. Mistakes are easy to make: two boxes with the same active ingredient under different brands, an expired box still in use, a dose copied wrongly from the doctor's paper. med-table makes the box itself the source of truth: its code says what it is, and the official database says what it contains.
+
+## How it works
+
 ```
-Then "Demo photos" -> "Load a demo photo": six generated codes, five real medicines from AEMPS CIMA (one of them expired, two with the same active ingredient) and one unknown code. Choose doses with the buttons, tick each medicine, check the plan, print the PDF. **No internet needed for the demo**: the CIMA records, leaflet sections and photos of those five medicines are in `demo_cache/` (copied from AEMPS CIMA, see `demo_cache/SOURCE.md`; rebuilt with `scripts/bundle_demo_cache.py`). Any other medicine is looked up in CIMA; without a connection its code stays unverified and the app says so, with a "Try again" button. The interface, the printed pages, the voice and the reminders are in English or Spanish (Settings > Language, or open `http://127.0.0.1:8501/?lang=es`).
+photo of the boxes ─► code on each box ─► AEMPS CIMA ─► doses chosen and confirmed ─► calendar, pill organiser,
+                      (Data Matrix, C.N.)  (official     by the caregiver                voice, phone reminders
+                                            record)
+```
 
-The 3D room also works from a fresh clone, offline once three.js is fetched: `.venv-app/Scripts/python.exe scripts/start_demo.py` (a small copy of the room, 660 KB, is in `web/world_demo/`; see below).
+1. **Medicines.** One photo of the whole table. Each box is read from its GS1 Data Matrix code; its national code (Código Nacional) is validated by its check digit and looked up in CIMA, which returns the official name, active ingredients, drug group, pack size and photo. The expiry date comes from the code itself.
+2. **Doses.** The caregiver copies the doctor's schedule with large buttons (none, ¼, ½, 1, 1½, 2, 3 or another amount) for breakfast, lunch, dinner and bedtime, every day or on chosen days, and ticks each medicine. Optionally, Muse Spark reads a photo of the schedule and fills in the buttons; the caregiver still checks and ticks every line.
+3. **Check.** The plan is shown exactly as it will be printed, with what was left out and why, and the points to ask the pharmacist about.
+4. **Print, listen, remind.** A two-page PDF (the calendar for the fridge, and a page for the pharmacist), a one-page weekly pill organiser guide, the plan read aloud for each time of day, and an `.ics` file for phone reminders. The plan can be saved and opened again next month.
+
+### What it checks
+
+- **Same active ingredient in two boxes** (for example two paracetamol brands) and **same drug group** (ATC class).
+- **Expired boxes** and boxes **expiring within a month**; with two boxes of one medicine, the plan uses the one that has not expired.
+- **The schedule against the boxes**: a medicine on the schedule with no box, a box not on the schedule, a strength that does not match (5 mg on the paper, 10 mg in the box), a line that could match several boxes.
+- **What the official leaflets say**: word-for-word quotes from section 4.5 (interactions) when it mentions another medicine on the table, and from section 4.2 about taking it with meals.
+- **A second look at unusual amounts**, and **how long a full box lasts** at the chosen doses.
+- **What changed since last month**: new medicines, medicines no longer seen, amounts or days that differ.
+
+### Design principles
+
+- **Identification by code, never by a guess.** A box is *verified* only if its code decodes, its national code is valid and CIMA knows it. Models help to locate boxes and to read the schedule; they never identify a medicine or write a dose.
+- **The caregiver decides.** Every dose starts at "None"; nothing enters the plan until it is ticked, and changing an amount asks for a new tick.
+- **When in doubt, ask.** Anything uncertain is left out of the plan with its reason and a next step ("Go back to Doses and keep one line for this medicine").
+- **No verdicts.** The tool never says "safe" or "no interactions"; every warning cites AEMPS and the date of the information.
+- **Private by default.** Photos stay on the computer. Only national codes go to the public CIMA API; a picture goes to the Meta Model API only after explicit consent.
+- **Written for older users.** One task per screen, large text and buttons, plain words, a "Larger text" setting, and everything in English or Spanish: screens, printed pages, voice and reminders.
+
+## Use cases
+
+- **After a hospital stay**: a daughter organises her father's medicines with one photo and the doses from the discharge sheet, and puts the calendar on the fridge.
+- **Filling the weekly pill organiser**: the one-page guide says what goes into each of the 28 compartments, only on the chosen days.
+- **The monthly refill**: open last month's plan, photograph the new boxes, see what changed and when each box runs out.
+- **A visit to the pharmacist**: page 2 of the PDF lists shared ingredients, leaflet quotes and their sources, ready for a medication review.
+- **Low vision or reading difficulties**: the plan read aloud for each time of day.
+- **Home care staff** preparing the medication of the people they look after with the same verified steps.
+
+## Try it
+
+Python 3.12. The demo needs no internet connection: the CIMA data of its medicines is in `demo_cache/`.
+
+```bash
+python -m venv .venv-app && .venv-app/Scripts/python.exe -m pip install -r requirements.txt
+
+# the planner: http://127.0.0.1:8501  (in Spanish: http://127.0.0.1:8501/?lang=es)
+.venv-app/Scripts/python.exe -m streamlit run app.py --server.address 127.0.0.1
+
+# the 3D room with the planner in its side panel: http://127.0.0.1:8600
+.venv-app/Scripts/python.exe scripts/start_demo.py
+
+# the camera page, with a webcam (or a phone on the same Wi-Fi: add --lan --https): http://127.0.0.1:8700/camera.html
+.venv-app/Scripts/python.exe scripts/start_camera.py
+```
+
+In the planner: "Demo photos" > "Load a demo photo" (five real medicines from CIMA, one of them expired, two with the same active ingredient, and one code CIMA does not know). Choose the doses, tick each medicine, check the plan, download the PDF. A guided walkthrough is in [`DEMO.md`](DEMO.md).
 
 | 1. Medicines found in the photo | 2. Doses, chosen with buttons | 3. The plan, checked |
 |---|---|---|
 | ![Medicines found](media/1_medicines.png) | ![Doses](media/2_doses.png) | ![Plan](media/3_check.png) |
 
-| 4. The page to print | The 3D room: live scan from 90 cm | The camera page on a phone-sized screen |
+| 4. The calendar to print | The weekly pill organiser guide | The 3D room: live scan from 90 cm |
 |---|---|---|
-| ![Print](media/4_print.png) | ![Room](media/5_room.jpg) | ![Camera](media/6_camera_phone.png) |
+| ![Print](media/4_print.png) | ![Pill organiser](media/7_pillbox.png) | ![Room](media/5_room.jpg) |
 
-Screenshots of this repository's code running on the demo data (screens 1-4 with no internet connection). The pack photos and texts in them are from AEMPS CIMA.
+Screenshots of this repository's code running on the demo data. Pack photos and leaflet texts in them are from AEMPS CIMA.
 
-## Status
-Working prototype, tested on synthetic data only. No real pack photos have been used yet, so no accuracy claim is made for real use.
+### The 3D room and the camera page
 
-| Part | State |
-|---|---|
-| Data Matrix decoding (zxing-cpp, enlarged windows chosen by their fine detail), GS1 parsing, Codigo Nacional check digit | done |
-| CIMA resolver with local cache; a pack is `verified` only if the code decodes, the CN check digit is valid and CIMA knows the CN; expiry from the code | done |
-| Rules: same active ingredient, same ATC class, expiry, strength vs sheet; verbatim quotes of SmPC sections 4.5 (mentions of another pack on the table) and 4.2 (meals) | done, checked on real CIMA texts |
-| Medication sheet: reconciliation with the packs; a line enters the plan only if confirmed, verified, not expired, unambiguous and with a recognised dose | done |
-| Sheet reader (Muse Spark or local Qwen; every row comes back unconfirmed) | done; 40/40 cells on one fictional 10-row sheet (28/28 on an earlier 7-row one) |
-| Packs without a readable code: SAM 3 boxes, model-proposed CIMA candidates, caregiver confirms against the official photo | done; the true medicine was among the candidates in 3 of 12 small crops (weak by design: the model only proposes) |
-| Output: printable two-page PDF (page 1 for the fridge: pictograms, reminder times, large print, the patient's name and notes typed by the caregiver or ruled lines to write on; page 2 for the pharmacist: what was left out, quotes, sources), a one-page weekly pill organiser guide (seven days by four times of day, each compartment filled only on the chosen days), offline voice (Windows speech engine), `.ics` reminders | done; the PDF is previewed in the app before download |
-| Streamlit app tying it together: a four-screen assistant (medicines, doses, check, print and listen) with one task per screen, large type and buttons, plain words, a "Larger text" setting; written for anyone, including people over 80. On the medicines screen: one card per medicine even with several boxes of it, its active ingredient, a plain warning on expired boxes and on medicines that share an active ingredient, a short report after each photo, and "Undo" after a removal. On the doses screen: the unit in the question ("how many tablets?"), a progress bar, and ticked medicines fold into a one-line summary; changing an amount asks for a new tick. "Start over" asks first; reminder times are kept between screens. Medicines taken only on some days of the week (printed as "Mon, Thu only", spoken, and weekly phone reminders); an unusually large daily amount asks for a second look; how long a full box lasts, from the pack size in CIMA; the plan can be saved to a small file and opened next month (the codes are checked again, photos are not stored); a lost connection to CIMA leaves codes unverified with a "Try again" button. A saved plan opened again shows what changed since then: new medicines, medicines not seen in the new photos, and amounts or days that differ (on screen and on page 2 of the PDF). English or Spanish for everything the tool writes or says; medicine names and AEMPS quotes stay as AEMPS wrote them | done; screens checked in a browser, no test with real elderly users yet |
-| 3D room (three.js): walk around three tables of CIMA medicine cut-outs with generated Data Matrix stickers, take photos with a virtual phone, feed them to the app; photos come with their ground truth | done; synthetic, see below |
-| Evaluation on real photos, real-sheet reading, adherence check with a reference image | not done |
+The **3D room** is both a demo and a test bench. Walk around three tables of real CIMA medicines (cut out of their official photos with SAM 3), hold a virtual 12 or 48 MP phone 90 cm above a table, and green boxes appear live on the codes it can read; "Take the photo" sends the picture to the planner. The tables include an expired box, one expiring soon, a code CIMA does not know, boxes without a visible code, loose pills and a fictional medication schedule, and every photo is saved with its ground truth for evaluation. Keys and mouse: WASD to walk, the wheel to zoom, R and F to raise or lower the phone, Tab for the planner.
 
-Reading at 90 cm (one photo of a whole table, 12 MP phone): about 95 % of the readable codes, 98 % with a 48 MP camera, 0 wrong in 243 verified (room photos; stage-set stickers, so an upper bound). Blender-rendered table scenes (`scripts/blender_scene.py`) decode in 98-100 % of cases from 50 cm or closer and about 90 % at 70 cm; perfect labels on flat boxes, so an upper bound. Details and caveats: `experiments/README.md`.
+The **camera page** does the same with a real webcam or phone: live boxes on the codes, one spoken sentence on what to do next ("Move a little closer", "It is too dark"), the camera's zoom and torch when the device has them, and frame averaging in low light. Frames are processed on the local computer.
 
-Demo script: `DEMO.md`. Run the app: `.venv-app/Scripts/python.exe -m streamlit run app.py --server.address 127.0.0.1` (photo or typed C.N. -> medicines found -> doses chosen with big buttons and confirmed medicine by medicine -> plan check -> PDF, voice, .ics). Dependencies: `requirements.txt` (`requirements-dev.txt` for tests). `experiments/demo_plan.py` builds a demo plan from invented medicines.
+## Meta models
 
-Code: `app.py` lays out the page, `planner/` holds the screens (one module each) and the session state, `src/medtable/` the logic (no Streamlit), `src/medtable/i18n.py` the Spanish texts.
+| Model | What it does | Where it runs |
+|---|---|---|
+| **Muse Spark** (`muse-spark-1.3`, Meta Model API, standard tier) | Reads a photo of the doctor's schedule into rows that pre-fill the dose buttons; proposes CIMA candidates for a box with no readable code. The caregiver confirms both. | Meta Model API, only after explicit consent, with a hard spending cap enforced in code ([`meta_api.py`](src/medtable/meta_api.py)). Standard tier only, so prompts are not used for training. |
+| **SAM 3 / SAM 3.1** | Finds the boxes in a photo that have no readable code, so they can be added; cuts out the CIMA pack photos that build the 3D room. | Locally, on the GPU. |
 
-Tests: `.venv-app/Scripts/python.exe -m pytest` (38 tests in 7 files, about 15 s, run by GitHub Actions on every push: one or more per guarantee of the design, each checked to fail when that guarantee is broken; they render Data Matrix codes, use invented SmPC texts and a stored CIMA response, no network).
+Model access goes through one module ([`vlm.py`](src/medtable/vlm.py)); a local Qwen3.5-9B backend (`VLM_BACKEND=local`) is available for fully offline use.
 
-## 3D room (demo and test bench)
-`.venv-app/Scripts/python.exe scripts/start_demo.py` opens the room (http://127.0.0.1:8600) with the planner app embedded in a side panel (Tab shows or hides it; the app also runs alone at http://127.0.0.1:8501). The left panel of the room always shows the three steps (go to a table, hold the phone 90 cm above it, take the photo) and the keys; the bar there tells you when the distance is good enough to read the codes, and green boxes appear live on the codes it can already read (a preview; the photo is what counts). A pack where no code could be read gets an amber box and a "close-up" button: the planner opens and reads it by itself. The room's own panel is in English; the planner inside it follows the language setting; AEMPS quotes and the Spanish sheet stay as written. The room built on this machine (`web/world`, from the bulk CIMA photos and the SAM 3 cut-outs, `scripts/build_world.py`) is used when it exists; otherwise the server uses `web/world_demo/`, a committed copy of the same scene with lighter pictures (`scripts/bundle_demo_room.py`; the CIMA records of its medicines are in `demo_cache/`, so it works offline). In the shipped copy the expiry dates were set relative to the day it was built (see `web/world_demo/SOURCE.md`). The room is a stage set: each medicine is a flat cut-out of its official CIMA photo lying on a table, with a sticker carrying a Data Matrix that this repository generates from the medicine's real Codigo Nacional. Built-in cases: an expired pack, one expiring within a month, a code that CIMA does not know, packs without a visible code, loose pills and the fictional medication sheet.
+## Results
 
-`experiments/eval_world.py` evaluates the pipeline on photos taken in the room (a batch from random viewpoints is generated by `window.__world.batch(...)` in the page); each photo is saved with its ground truth. Because the stickers are generated by us, this measures optics and pipeline behaviour and gives an upper bound, not an accuracy for real printed packs. Results and caveats: `experiments/README.md`.
+Measured on this repository's evaluation scenes (3D room photos and rendered tables; method and details in [`experiments/README.md`](experiments/README.md)):
 
-## Camera demo (a webcam or a phone)
-`.venv-app/Scripts/python.exe scripts/start_camera.py` starts the camera page (http://127.0.0.1:8700/camera.html) and the planner (embedded in its side panel). The page does what the 3D room does, with the real camera of the device: "Start the camera", hold still over the boxes, and green boxes mark the codes that are read (amber: read but not verified, dashed amber: a pack where no code was read), then "Take the photo" sends the full-size photo to the planner. One sentence, big and optionally read aloud, says what to do next ("Move a little closer", "It is too dark", "The picture looks blurry"...); the camera's own zoom and light buttons appear when the device has them; a view with unread boxes is looked at again, harder, and in the dark several frames are averaged to cut the noise. The text can be made larger (A+), the buttons are at least 44 px, and the page works on a phone-sized screen. "Use a photo as the camera" lets you try it without a camera. Frames are sent to a local server (`scripts/serve_camera.py`), which uses the same decoder, checks and box finder as the room (`src/medtable/live_scan.py`); nothing leaves the computer. For a phone on the same Wi-Fi: `start_camera.py --lan --https` (the servers then listen on the local network and the phone's browser warns once about the self-signed certificate; the planner opens in its own tab). Tested with a simulated camera stream and with a stand-in photo; not yet with a physical webcam or phone (see `DEMO.md`).
+- **A whole table in one photo from 90 cm**: about 95 % of the codes read with a 12 MP phone and 98 % with 48 MP, with **0 wrong identifications** in 243 verified boxes.
+- **Reading the doctor's schedule** with Muse Spark: **40 of 40 cells** right on a fictional 10-line schedule.
+- **Strength check** on 600 randomly drawn CIMA medicines: no false alarm on the official names or the usual ways of writing them, and every changed strength caught.
+- **38 automated tests**, one or more per design principle, run on every push; each was checked to fail when the principle it guards is broken.
 
-## Models
-Vision-language model access goes through `src/medtable/vlm.py`, which has two interchangeable backends selected with `VLM_BACKEND` in `.env`:
-- `meta` (default): Meta Model API, `muse-spark-1.3`, standard tier, with a hard spending cap (`META_BUDGET_USD`, every call logged in `data/meta_usage.jsonl`). Images leave the machine, so the app asks for explicit consent before each use (and `vlm.ask_image` refuses to send without it) and only public CIMA photos and fictional documents should be sent.
-- `local`: Qwen3.5-9B (Q4_K_M GGUF) served by `llama-server`, fully offline and free. Start command and settings are in the docstring of `vlm.py`. It is an alternative path: it reads a fictional medication sheet well but is unreliable on small pack crops (`experiments/README.md`), which is why identification relies on the pack code and not on any model.
+## Project structure
 
-SAM 3 / 3.1 always run locally.
-
-## Hackathon compliance
-- Third-party models, data and libraries, and what is not committed, are listed in `THIRD_PARTY.md`. The official CIMA photos were first downloaded on 2026-10-24; they are third-party data and are not in the repository.
-- No real patient data. Medication sheets used for tests are fictional.
-
-## Reproduce the data tools
-```bash
-python scripts/download_cima_photos.py manifest      # list of medicines with photos (standard library only)
-python scripts/download_cima_photos.py images        # ~5 GB, resumable
-python scripts/make_cutouts.py --n 50                # needs SAM 3 (gated weights) and a GPU
-python scripts/compose_scenes.py --n 12              # synthetic desk scenes with labels
-python experiments/blender_decode_eval.py            # Blender 4.5: decode rate by camera height
 ```
-Models and photos are not in git: they are downloaded locally.
+app.py              Streamlit page layout
+planner/            the four screens and the session state
+src/medtable/       the logic, no UI: codes, CIMA, rules, plan, PDFs, voice, translations
+web/                3D room and camera page (three.js); web/world_demo/ is the room shipped in the repository
+scripts/            servers, demo launchers, data tools
+experiments/        evaluations and their results
+demo_cache/         CIMA data of the demo medicines, for offline use (source: AEMPS)
+tests/              pytest suite
+```
+
+Tests: `.venv-app/Scripts/python.exe -m pip install -r requirements-dev.txt`, then `.venv-app/Scripts/python.exe -m pytest` (about 15 s, no network).
+
+Data tools (optional, to rebuild the full 3D room from all CIMA photos):
+
+```bash
+python scripts/download_cima_photos.py manifest   # medicines with photos
+python scripts/download_cima_photos.py images     # about 5 GB, resumable
+python scripts/make_cutouts.py --n 50             # SAM 3 cut-outs (GPU)
+python scripts/build_world.py                     # the room in web/world
+```
+
+## Hackathon rules
+
+- **Built during the event**, in this public repository; the full history is in `git log`.
+- **Meta models** (Muse Spark, SAM 3 / 3.1) are used where a model adds value; the Meta Model API is used on the standard tier only.
+- **Third-party material** is listed in [`THIRD_PARTY.md`](THIRD_PARTY.md). The only third-party data in the repository is the CIMA information of the demo medicines, reused under the AEMPS terms with source and date ([`demo_cache/SOURCE.md`](demo_cache/SOURCE.md), [`web/world_demo/SOURCE.md`](web/world_demo/SOURCE.md)).
+- **Not an anti-project**: no medical advice (doses come from the prescription and are confirmed by the caregiver); not a chatbot or a RAG app (no free-text answers, leaflet text is only quoted); not a simple image analyser (identification is by verified code, cross-checked with an official database and the prescription).
+- **No real patient data**: every schedule and name in the repository is fictional.
+
+## Next steps
+
+- Validation with photos of real packs and on physical phones, and a pilot with caregivers and community pharmacists.
+- A hosted demo link, so the planner can be tried without installing anything.
+- The 3D room and the camera page in Spanish, and more languages.
+- Checking a filled pill organiser against the plan from a photo.
+- Other countries' medicine databases: the GS1 code is international, and the national lookup is a single module.
 
 ## License
-Apache License 2.0 (see `LICENSE`). Copyright 2026 Hugo Silvosa Cuervo. Third-party models and data keep their own terms (see `THIRD_PARTY.md`).
+
+Apache License 2.0 (see [`LICENSE`](LICENSE)). Copyright 2026 Hugo Silvosa Cuervo. Third-party models and data keep their own terms (see [`THIRD_PARTY.md`](THIRD_PARTY.md)).
