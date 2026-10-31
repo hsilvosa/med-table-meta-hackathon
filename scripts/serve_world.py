@@ -32,7 +32,7 @@ mimetypes.add_type("text/javascript", ".js")   # Windows registries often say te
 OUT = Path("data/world_photos")
 PUBLIC = os.environ.get("PUBLIC_DEMO") == "1"      # the online demo: each visitor's photos in their own folder, deleted after an hour
 KEEP_S = 3600
-SCANS = threading.BoundedSemaphore(2 if PUBLIC else 8)      # a shared 2-CPU server: live scans wait their turn
+SCANS = threading.BoundedSemaphore(1 if PUBLIC else 8)      # a small shared server (512 MB): live scans wait their turn, one at a time
 MAX_BYTES = 64 * 1024 * 1024
 
 
@@ -46,6 +46,25 @@ def phone_effects(jpeg: bytes, seed: int) -> bytes:
         band = img[y:y + 500].astype(np.float32) + rng.standard_normal(img[y:y + 500].shape, dtype=np.float32) * (3.0 * scale ** 0.5)
         img[y:y + 500] = np.clip(band, 0, 255).astype(np.uint8)
     ok, buffer = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 88])
+    return buffer.tobytes() if ok else jpeg
+
+
+def shrink(jpeg: bytes) -> bytes:
+    """Online demo (512 MB): a photo of more than 16 MP is decoded at half size (a quarter of the pixels, 48 MP -> 12 MP) and saved again."""
+    if not PUBLIC:
+        return jpeg
+    if jpeg[:2] != bytes([0xFF, 0xD8]):
+        return jpeg
+    i, width, height = 2, 0, 0
+    while i + 9 < len(jpeg) and jpeg[i] == 0xFF:      # walk the segments to the frame header: the size is read without decoding
+        if jpeg[i + 1] in (0xC0, 0xC1, 0xC2):
+            height, width = int.from_bytes(jpeg[i + 5:i + 7], "big"), int.from_bytes(jpeg[i + 7:i + 9], "big")
+            break
+        i += 2 + int.from_bytes(jpeg[i + 2:i + 4], "big")
+    if width * height <= 16_000_000:
+        return jpeg
+    img = cv2.imdecode(np.frombuffer(jpeg, np.uint8), cv2.IMREAD_REDUCED_COLOR_2)
+    ok, buffer = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 93]) if img is not None else (False, None)
     return buffer.tobytes() if ok else jpeg
 
 
@@ -65,7 +84,7 @@ class Handler(SimpleHTTPRequestHandler):
         if not 0 < length <= MAX_BYTES:
             self.send_error(413)
             return
-        body = self.rfile.read(length)
+        body = shrink(self.rfile.read(length))
         if self.path == "/scan":
             effects = self.headers.get("X-Effects") == "1"
             with SCANS:
