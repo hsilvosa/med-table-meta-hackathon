@@ -32,7 +32,8 @@ mimetypes.add_type("text/javascript", ".js")   # Windows registries often say te
 OUT = Path("data/world_photos")
 PUBLIC = os.environ.get("PUBLIC_DEMO") == "1"      # the online demo: each visitor's photos in their own folder, deleted after an hour
 KEEP_S = 3600
-SCANS = threading.BoundedSemaphore(1 if PUBLIC else 8)      # a small shared server (512 MB): live scans wait their turn, one at a time
+SMALL = os.environ.get("SMALL_HOST") == "1"      # a 512 MB host: one scan at a time, large photos halved (deploy/SMALL_HOST.md)
+SCANS = threading.BoundedSemaphore(1 if SMALL else 2 if PUBLIC else 8)      # a shared server: live scans wait their turn
 MAX_BYTES = 64 * 1024 * 1024
 
 
@@ -50,8 +51,8 @@ def phone_effects(jpeg: bytes, seed: int) -> bytes:
 
 
 def shrink(jpeg: bytes) -> bytes:
-    """Online demo (512 MB): a photo of more than 16 MP is decoded at half size (a quarter of the pixels, 48 MP -> 12 MP) and saved again."""
-    if not PUBLIC:
+    """On a 512 MB host: a photo of more than 16 MP is decoded at half size (a quarter of the pixels, 48 MP -> 12 MP) and saved again."""
+    if not SMALL:
         return jpeg
     if jpeg[:2] != bytes([0xFF, 0xD8]):
         return jpeg

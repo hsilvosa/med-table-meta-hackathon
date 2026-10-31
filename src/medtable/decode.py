@@ -42,7 +42,7 @@ FULL_RANGE = 200                         # a window that spans at least this muc
 MIN_FINE, FINE_NOISE_FACTOR = 4, 5.0     # a pixel is a small sharp detail if it differs from its surroundings by more than max(MIN_FINE, FINE_NOISE_FACTOR x the median difference)
 MIN_FINE_SHARE = 0.0005                  # a window needs this share of such pixels to be worth enlarging
 CLEAN_SIGMA = 0.8                        # the "clean" treatment smooths a window this much before enlarging it: for noisy photos, where sharpening alone amplifies the noise
-_WORKERS = max(1, min(2 if os.environ.get("PUBLIC_DEMO") == "1" else 4, os.cpu_count() or 1))        # four threads at most: zxing releases the GIL, and the computer stays usable
+_WORKERS = max(1, min(2 if os.environ.get("SMALL_HOST") == "1" else 4, os.cpu_count() or 1))        # four threads at most: zxing releases the GIL, and the computer stays usable
 _pool = ThreadPoolExecutor(max_workers=_WORKERS)
 
 

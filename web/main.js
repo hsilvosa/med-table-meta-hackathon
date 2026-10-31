@@ -478,7 +478,7 @@ async function scanOnce(key) {
   const started = performance.now();
   try {
     grabFrame();
-    const blob = await new Promise(resolve => liveCanvas.toBlob(resolve, 'image/jpeg', 0.9));
+    const blob = await new Promise(resolve => liveCanvas.toBlob(resolve, 'image/jpeg', LOCAL ? 0.9 : 0.85));      // online: a smaller upload
     const reply = await fetch('/scan', { method: 'POST', body: blob, headers: { 'Content-Type': 'image/jpeg', 'X-Effects': $('effects').checked ? '1' : '0' } });
     if (!reply.ok) throw new Error(`HTTP ${reply.status}`);
     live.error = false; live.scannedKey = key; live.shownKey = key; live.born.clear(); live.boxes = []; live.nocode = []; live.nocodeIndex = -1; live.advice = null;
@@ -487,9 +487,11 @@ async function scanOnce(key) {
     if (!finished) { live.boxes = []; live.nocode = []; live.advice = null; }          // the phone moved: these boxes would be in the wrong place
   } catch (error) {
     live.error = true; live.scannedKey = key;
+    setTimeout(() => { if (live.scannedKey === key) live.scannedKey = null; }, 3000);      // a dropped connection is tried again, even holding still
   } finally {
     live.busy = false; live.finished = performance.now();
-    live.pause = Math.max(700, 1.5 * (live.finished - started));      // the scan never takes more than about 40 % of the computer, so the PC stays usable
+    // locally the scan never takes more than about 40 % of the computer, so the PC stays usable; online the server paces itself
+    live.pause = LOCAL ? Math.max(700, 1.5 * (live.finished - started)) : 600;
   }
 }
 setInterval(liveTick, 250);

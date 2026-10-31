@@ -4,7 +4,7 @@
 
 Builds the Docker image locally, pushes it to Artifact Registry and deploys it. Needs Docker and the Google Cloud CLI logged in
 (`gcloud auth login`, `gcloud auth configure-docker europe-west1-docker.pkg.dev`). Limits: at most one instance, scales to zero when
-nobody uses it (no cost while idle), 2 vCPU / 2 GiB, startup CPU boost, public access without login.
+nobody uses it (no cost while idle), 4 vCPU / 4 GiB (a live scan of a whole table in about 2 s), startup CPU boost, public access without login.
 """
 
 import argparse
@@ -31,6 +31,6 @@ def run(*cmd: str) -> None:
 
 run("docker", "build", "-t", image, ".")
 run("docker", "push", image)
-run(gcloud, "run", "deploy", SERVICE, f"--project={PROJECT}", f"--region={REGION}", f"--image={image}", "--port=7860", "--memory=2Gi",
-    "--cpu=2", "--cpu-boost", "--min-instances=0", "--max-instances=1", "--concurrency=40", "--timeout=600", "--session-affinity",
+run(gcloud, "run", "deploy", SERVICE, f"--project={PROJECT}", f"--region={REGION}", f"--image={image}", "--port=7860", "--memory=4Gi",
+    "--cpu=4", "--cpu-boost", "--execution-environment=gen1", "--min-instances=0", "--max-instances=1", "--concurrency=40", "--timeout=600", "--session-affinity",
     "--allow-unauthenticated")
