@@ -68,7 +68,7 @@ def advise(gray: np.ndarray, packs: list[dict], codes: list[tuple], nocode: list
             text, distance = "There is too much shine. Tilt the box or the camera a little so the shine moves off the code.", "unread"
         elif per_module is not None and per_module < MIN_PX_PER_MODULE:
             text, distance = "Move a little closer to the boxes.", "closer"
-        elif quality["blur_ratio"] is not None and quality["blur_ratio"] < BLUR_RATIO:
+        elif not codes and quality["blur_ratio"] is not None and quality["blur_ratio"] < BLUR_RATIO:      # codes being read: the blur is not what stops the rest
             text, distance = "The picture looks blurry. Hold the camera steady and wait a moment for it to focus.", "unread"
         else:
             text, distance = "Some boxes have no code read. Turn them so the printed code faces up and hold the camera steady, or add them by hand.", "unread"

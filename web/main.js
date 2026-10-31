@@ -567,4 +567,5 @@ window.__world = {
   project(x, y, z) { this.syncPhone(); const p = project(new THREE.Vector3(x, y, z)); return [p.x, p.y, p.behind]; },
   setPose(x, y, z, yaw, pitch, phone = true) { Object.assign(player, { x, z, eye: y, yaw, pitch }); lean = true; phoneMode = phone; setPhoneUi(); applyCamera(); },
 };
+if (!LOCAL) $('hires').checked = false;      // online: a 12 MP photo is a quarter of the upload and reads about as well at 90 cm (95 % against 98 %)
 if ($('hires').checked) window.__world.setMegapixels(48);       // the virtual phone starts with a 48 MP main camera, like current flagship phones (untick it for a 12 MP one)

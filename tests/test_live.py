@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 from fixtures import med, ntin_element_string, render_datamatrix
 
-from medtable import boxes, decode, synthetic
+from medtable import advice, boxes, decode, synthetic
 from medtable.resolve import Resolver
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -99,6 +99,9 @@ def test_the_room_server_sends_each_stage_as_soon_as_it_is_ready_and_missing_cod
     assert first["done"] is False and computed_then < len(stages)          # the first boxes are on screen before the last pass has run
     assert all(s["nocode"] == [] for s in stages[:-1]) and [c["status"] for c in stages[-1]["codes"]] == ["verified"]
     assert len(stages[-1]["nocode"]) == 1 and near(stages[-1]["nocode"][0], no_code) and stages[-1]["advice"]["text"]
+    blurred, pack = cv2.GaussianBlur(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), (0, 0), 4), {"bbox": (800, 200, 1100, 400), "side": 600}
+    assert "blurry" in advice.advise(blurred, [pack], [], [pack["bbox"]])["text"]
+    assert "blurry" not in advice.advise(blurred, [pack], [(150, 150, 450, 350)], [pack["bbox"]])["text"]      # codes are being read: blur is not the cause
 
 
 def test_the_camera_server_listens_on_this_computer_only_and_keeps_only_real_pictures(tmp_path, monkeypatch, known):
