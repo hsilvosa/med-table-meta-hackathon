@@ -2,7 +2,7 @@
 
 The box and pill pictures (`assets/box_*.webp`, `assets/pill_*.webp`) are cut out of the official medicine photos of **AEMPS CIMA** (Agencia Española de Medicamentos y Productos Sanitarios, https://cima.aemps.es), reused under the AEMPS legal notice (cite the source, state the date, do not distort the meaning). They were reduced in size and, where the photo showed a printed Data Matrix, that code was painted over so it is not read as a second pack (scripts/build_world.py). Not made by this project.
 
-Made by this project: the Data Matrix labels (`assets/dm_*.png`, generated from each medicine's national code), the fictional medication sheet (`assets/sheet.jpg`, no real patient) and the scene layout (`world.json`). Room built on 2026-10-27; bundled on 2026-10-30 by `scripts/bundle_demo_room.py`. Expiry dates in the labels are relative to the build day.
+Made by this project: the Data Matrix labels (`assets/dm_*.png`, generated from each medicine's national code), the fictional medication sheet (`assets/sheet.jpg`, no real patient) and the scene layout (`world.json`). Room built on 2026-10-27; bundled on 2026-10-31 by `scripts/bundle_demo_room.py`. Expiry dates in the labels are relative to the build day.
 
 | Registration number | Medicine | CN |
 |---|---|---|
