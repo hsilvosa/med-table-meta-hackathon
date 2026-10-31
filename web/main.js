@@ -187,6 +187,9 @@ function setPhoneUi() {
   $('step2').classList.toggle('current', phoneMode);
   $('step3').classList.toggle('current', phoneMode);
   $('btnPhone').classList.toggle('on', phoneMode);
+  $('btnPhone').textContent = phoneMode ? 'Lower the phone' : `Raise the phone over ${nearestTable().table.name}`;
+  $('shutter').disabled = !phoneMode;
+  $('shutterHelp').textContent = phoneMode ? 'The planner on the right reads the photo.' : 'Raise the phone first (step 2).';
   forgetSpoken(); roomAdvice();
   resize();
 }
@@ -228,14 +231,14 @@ addEventListener('keydown', e => {
   keys.add(e.code);
   if (e.code === 'KeyP') { phoneMode = !phoneMode; setPhoneUi(); }
   if (e.code === 'KeyX') { lean = !lean; toast(lean ? 'Leaning over the table: tables no longer block you' : 'Tables block you again'); }
-  if (e.code === 'Space') { e.preventDefault(); shoot(); }
+  if (e.code === 'Space') { e.preventDefault(); if (phoneMode) shoot(); else toast('Raise the phone first (step 2).'); }
   const n = ['Digit1', 'Digit2', 'Digit3'].indexOf(e.code);
   if (n >= 0 && world.tables[n]) goTo(world.tables[n], e.shiftKey);
 });
 addEventListener('keyup', e => keys.delete(e.code));
 $('shutter').addEventListener('click', () => shoot());
 document.querySelectorAll('[data-table]').forEach(b => b.addEventListener('click', () => { goTo(world.tables[+b.dataset.table], false); }));
-$('btnPhone').addEventListener('click', () => { goTo(nearestTable().table, true); });
+$('btnPhone').addEventListener('click', () => { if (phoneMode) { phoneMode = false; setPhoneUi(); } else goTo(nearestTable().table, true); });
 canvas.addEventListener('click', () => { if (!locked) canvas.requestPointerLock?.(); });
 document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === canvas; });
 canvas.addEventListener('mousedown', () => { dragging = true; });
@@ -265,7 +268,7 @@ document.querySelectorAll('#pad [data-key]').forEach(b => {
 function goTo(table, above) {
   if (above) {      // 90 cm above the middle of the table: at this height a 12 MP phone sees the whole table (about 1.3 x 1.0 m) in one photo
     lean = true; Object.assign(player, { x: table.x, z: table.z, eye: table.h + PHONE_HEIGHT, yaw: 0, pitch: -Math.PI / 2 + 0.02 }); phoneMode = true;
-    toast(`${table.name}: phone held ${Math.round(PHONE_HEIGHT * 100)} cm above the table, the whole table is in view. R and F raise and lower it.`);
+    toast(`${table.name}: the phone is ${Math.round(PHONE_HEIGHT * 100)} cm above the table. Hold still, then take the photo.`);
   } else { lean = false; Object.assign(player, { x: table.x, z: table.z + table.d / 2 + 0.9, eye: 1.5, yaw: 0, pitch: -0.55 }); phoneMode = false; toast(`${table.name}`); }
   setPhoneUi();
 }
@@ -285,16 +288,18 @@ function nearestTable() {
   return { table: best, dist };
 }
 function hud() {
+  if (!phoneMode) $('btnPhone').textContent = `Raise the phone over ${nearestTable().table.name}`;
   const { table, dist } = nearestTable();
   const cm = Math.round(dist * 100);
   $('where').textContent = phoneMode ? `${table.name}, ${cm} cm above it` : `Near ${table.name}`;
   const g = $('gauge');
+  g.style.display = phoneMode ? '' : 'none';      // walking: step 2's button says what to do
   if (phoneMode) {
     g.className = dist <= 0.95 ? 'good' : dist <= 1.05 ? 'mid' : 'bad';
     g.textContent = dist <= 0.95 ? `${cm} cm above the table: good, take the photo` : dist <= 1.05 ? `${cm} cm: a little far, some codes may be missed (F lowers the view)` : `${cm} cm: too far, the codes will not read (F lowers the view)`;
   } else {
     g.className = '';
-    g.textContent = 'Press the button to raise the phone';
+    g.textContent = 'The phone is down';
   }
   $('lookhint').textContent = locked ? 'Esc frees the mouse' : 'Click the room to look around with the mouse';
   $('lookhint').style.display = phoneMode ? 'none' : 'block';
@@ -457,7 +462,7 @@ function liveStatus() {
   setScanChip(live.boxes.length || none ? parts.join(', ') : 'No codes read here');
 }
 function roomAdvice() {      // the one sentence on what to do next
-  if (!phoneMode) return showAdvice('Press "Phone over the table", then hold still.', '', false);
+  if (!phoneMode) return showAdvice('Choose a table, then press "Raise the phone".', '', false);
   if (!$('live').checked) return showAdvice('Frames on the boxes are switched off. You can still take the photo.', '', false);
   if (live.error) return showAdvice('I cannot look at the boxes right now, but you can still take the photo.', 'mid', false);
   if (live.advice && live.scannedKey === poseKey()) return showAdvice(live.advice.text, live.advice.level);

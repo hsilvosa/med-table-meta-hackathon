@@ -67,7 +67,7 @@ def render(t: Table, step: int, use_smpc: bool) -> None:
             box("tip", tr('Waiting for you ({x0})', x0=len(pending)), tr('Not in the plan until you tick the box on the Doses screen: {x0}.', x0=esc(', '.join(pending))))
         for what, why in left_out:
             if why == "could not be verified":      # here `what` is the reason the box was not recognised
-                box("bad", tr("Left out: a box I could not recognise"), esc(tr_reason(what)[0].upper() + tr_reason(what)[1:]) + tr(". It is not in the plan."))
+                box("bad", tr("Left out: a box not recognised"), esc(tr_reason(what)[0].upper() + tr_reason(what)[1:]) + tr(". It is not in the plan."))
             else:
                 box("bad", tr('Left out: {what}', what=what), esc(tr_reason(why)[0].upper() + tr_reason(why)[1:]) + "." + (tr(' <b>What to do:</b> {x0}', x0=esc(todo)) if (todo := what_to_do(why)) else ""))
         if review:

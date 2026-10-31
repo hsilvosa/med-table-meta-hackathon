@@ -72,9 +72,9 @@ def test_demo_photo_gives_recognised_boxes_and_one_that_is_not_in_the_plan(app):
     assert sorted(r.status for r in readings) == ["unverified"] + ["verified"] * 5
     assert len(app.session_state.rows) == 5 and all(r.untouched for r in app.session_state.rows)      # nothing pre-filled
     shown = texts(app)
-    assert "Medicines found: 5" in shown and "A box I could not recognise" in shown and "Not in the plan" in shown
+    assert "Medicines found: 5" in shown and "Box not recognised" in shown and "Not in the plan" in shown
     assert [b.disabled for b in app.button if b.label.startswith("Next:")] == [False]
-    assert not any(app.session_state.nocode.values()) and "A box where I could not read a code" not in shown      # a plain grid of codes has no packs without one
+    assert not any(app.session_state.nocode.values()) and "Box with no code read" not in shown      # a plain grid of codes has no packs without one
 
 
 def test_every_dose_starts_at_none_nothing_reaches_the_plan_until_confirmed_and_a_bad_amount_is_not_guessed(app):
@@ -164,9 +164,9 @@ def test_the_whole_flow_can_be_done_in_spanish(env):
     at = AppTest.from_file(APP, default_timeout=120)
     at.query_params["lang"] = "es"
     at.run()
-    assert "Enséñeme los medicamentos" in texts(at) and any("no sustituye al médico" in i.value for i in at.info)
+    assert "Cada caja se identifica por el código impreso en ella" in texts(at) and any("no sustituye al médico" in i.value for i in at.info)
     click(at, "Cargar una foto de prueba")
-    assert "Medicamentos encontrados: 5" in texts(at) and "Una caja que no pude reconocer" in texts(at)
+    assert "Medicamentos encontrados: 5" in texts(at) and "Caja no reconocida" in texts(at)
     click(at, "Siguiente: elegir las dosis")
     pick(at, "pack654177", "breakfast", "1")
     confirm(at, "pack654177")

@@ -59,7 +59,7 @@ def advise(gray: np.ndarray, packs: list[dict], codes: list[tuple], nocode: list
         n = len(codes)
         text, level, distance = f"{n} medicine{'s' if n != 1 else ''} recognised. Take the photo when all your boxes are marked.", "good", "good"
     elif not packs and not codes:
-        text, level, distance = "I cannot see any box. Point the camera at the table with the boxes.", "bad", "none"
+        text, level, distance = "No box in view. Point the camera at the table with the boxes.", "bad", "none"
     else:
         level = "mid" if codes else "bad"
         if light == "dark":

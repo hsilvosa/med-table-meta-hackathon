@@ -128,7 +128,7 @@ def remove_medicine(cn: str, name: str = "") -> None:
 
 
 def dismiss_code(raw: str) -> None:
-    st.session_state.undo = {"label": tr("the box I could not recognise"), "raw": raw}
+    st.session_state.undo = {"label": tr("the unrecognised box"), "raw": raw}
     st.session_state.pop("notice", None)
     st.session_state.removed_raw.add(raw)
 
@@ -269,15 +269,15 @@ def add_photo(name: str, image: np.ndarray) -> None:
     offline = sum(1 for r in found if identify.UNREACHABLE in r.problems)
     if offline:
         st.session_state.notice = ("bad", tr("No connection to the official database"),
-                                   tr('I read {x0} but could not check {x1} with AEMPS CIMA. Check the internet connection, then press <b>Try again</b> below.', x0=count(offline, 'code'), x1='it' if offline == 1 else 'them'))
+                                   tr('{x0} read, but {x1} could not be checked with AEMPS CIMA. Check the internet connection, then press <b>Try again</b> below.', x0=count(offline, 'code'), x1='it' if offline == 1 else 'them'))
         return
     if not found and not missing:
-        st.session_state.notice = ("warn", tr("I could not read any code in this photo"),
+        st.session_state.notice = ("warn", tr("No code could be read in this photo"),
                                    tr("Put the boxes with the printed code facing up, use good light, and take the photo closer (about 30 to 90 cm above the boxes)."))
     else:
-        parts = [count(known, "medicine") + tr(" recognised")] + ([count(unknown, "box", "boxes") + tr(" I could not recognise")] if unknown else []) \
-            + ([count(missing, "box", "boxes") + tr(" where I could not read a code")] if missing else [])
-        light = tr(" On a white table I cannot point out boxes without a code: check by eye that every box is in the list.") if boxes.light_table(image) else ""
+        parts = [count(known, "medicine") + tr(" recognised")] + ([count(unknown, "box", "boxes") + tr(" not recognised")] if unknown else []) \
+            + ([count(missing, "box", "boxes") + tr(" with no code read")] if missing else [])
+        light = tr(" On a white table, boxes without a code cannot be marked: check by eye that every box is in the list.") if boxes.light_table(image) else ""
         st.session_state.notice = ("ok" if not unknown and not missing else "warn", tr("Photo read"), esc(", ".join(parts)) + tr(". The list below shows them.") + light)
 
 

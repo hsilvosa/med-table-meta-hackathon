@@ -85,7 +85,7 @@ ES = {
     "suppositories": "supositorios", "sachet": "sobre", "sachets": "sobres", "patch": "parche", "patches": "parches", "dose": "dosis", "doses": "dosis",
     "medicine": "medicamento", "medicines": "medicamentos", "box": "caja", "boxes": "cajas", "code": "código", "codes": "códigos",
     "Back": "Atrás",
-    "the box I could not recognise": "la caja que no pude reconocer",
+    "the unrecognised box": "la caja no reconocida",
     "the medicine": "el medicamento",
     "Plan opened": "Plan abierto",
     "Saved on {x0}. Every box was checked again with the official database. Check that the doses still match the doctor's paper, and add a photo of any new box.":
@@ -113,19 +113,19 @@ ES = {
     " only": " solamente",
     "Reading the codes in {name} (a few seconds)...": "Leyendo los códigos de {name} (unos segundos)...",
     "No connection to the official database": "Sin conexión con la base de datos oficial",
-    "I read {x0} but could not check {x1} with AEMPS CIMA. Check the internet connection, then press <b>Try again</b> below.":
-        "He leído {x0}, pero no he podido comprobarlos con AEMPS CIMA. Revise la conexión a internet y pulse <b>Reintentar</b> abajo.",
+    "{x0} read, but {x1} could not be checked with AEMPS CIMA. Check the internet connection, then press <b>Try again</b> below.":
+        "Se leyeron {x0}, pero no se pudieron comprobar con AEMPS CIMA. Revise la conexión a internet y pulse <b>Reintentar</b> abajo.",
     "it": "lo", "them": "los",
-    "I could not read any code in this photo": "No he podido leer ningún código en esta foto",
+    "No code could be read in this photo": "No se pudo leer ningún código en esta foto",
     "Put the boxes with the printed code facing up, use good light, and take the photo closer (about 30 to 90 cm above the boxes).":
         "Ponga las cajas con el código impreso hacia arriba, con buena luz, y haga la foto más cerca (entre 30 y 90 cm por encima de las cajas).",
-    " On a white table I cannot point out boxes without a code: check by eye that every box is in the list.":
-        " En una mesa blanca no puedo señalar las cajas sin código: compruebe a simple vista que todas están en la lista.",
+    " On a white table, boxes without a code cannot be marked: check by eye that every box is in the list.":
+        " En una mesa blanca no se pueden marcar las cajas sin código: compruebe a simple vista que todas están en la lista.",
     "Photo read": "Foto leída",
     ". The list below shows them.": ". Aparecen en la lista de abajo.",
     " recognised": " reconocido(s)",
-    " I could not recognise": " que no pude reconocer",
-    " where I could not read a code": " en las que no pude leer el código",
+    " not recognised": " sin reconocer",
+    " with no code read": " sin código leído",
     # ---- what changed since a saved plan -----------------------------------------------------------------------------------
     "<li><b>New:</b> {x0}</li>": "<li><b>Nuevo:</b> {x0}</li>",
     "<li><b>Not seen in the new photos:</b> {x0}. Is it still taken? If not, remove it.</li>":
@@ -144,9 +144,9 @@ ES = {
     '<div class="mt-heads">Same active ingredient as: {x0}. The plan lists it for the pharmacist.</div>':
         '<div class="mt-heads">Mismo principio activo que: {x0}. El plan lo indica para el farmacéutico.</div>',
     # ---- screen 1 ----------------------------------------------------------------------------------------------------------
-    "Show me the medicines": "Enséñeme los medicamentos",
-    "Take a photo of the medicine boxes on the table. I read the code printed on each box.":
-        "Haga una foto de las cajas de medicamentos sobre la mesa. Leo el código impreso en cada caja.",
+    "Medicines": "Medicamentos",
+    "Take a photo of the medicine boxes on the table. Each box is identified by the code printed on it.":
+        "Haga una foto de las cajas de medicamentos sobre la mesa. Cada caja se identifica por el código impreso en ella.",
     "This is a helper for planning. It gives no medical advice and does not replace the doctor or the pharmacist.":
         "Esto es una ayuda para organizarse. No da consejo médico y no sustituye al médico ni al farmacéutico.",
     '<p class="mt-title" style="font-size:1.35rem;margin-top:1.2rem">Medicines found: {x0}</p>':
@@ -160,22 +160,22 @@ ES = {
     "Removed by mistake? Press the button to put it back.": "¿Lo quitó por error? Pulse el botón para volver a ponerlo.",
     "Undo: put it back": "Deshacer: volver a ponerlo",
     "Nothing yet": "Todavía nada",
-    "Add a photo or type a code above. The medicines I recognise will appear here.":
-        "Añada una foto o escriba un código arriba. Los medicamentos que reconozca aparecerán aquí.",
+    "Add a photo or type a code above. The medicines found are listed here.":
+        "Añada una foto o escriba un código arriba. Los medicamentos encontrados aparecen aquí.",
     "Is a box missing? Take another photo that shows it close up with its code facing up, or type its code. Wrong box? Remove it.":
         "¿Falta una caja? Haga otra foto de cerca con el código hacia arriba, o escriba su código. ¿Una caja equivocada? Quítela.",
-    "A box has no code I can read? Find it in the photo and choose it from the database":
+    "A box with no readable code? Find it in the photo and choose it from the database":
         "¿Una caja sin código legible? Búsquela en la foto y elíjala en la base de datos",
     "The computer looks for boxes in the photo that have no readable code and suggests possible medicines from the official database. **Nothing enters the plan until you choose one and confirm it against the official picture.**":
         "El ordenador busca en la foto cajas sin código legible y propone posibles medicamentos de la base de datos oficial. **Nada entra en el plan hasta que usted elija uno y lo confirme con la foto oficial.**",
     "Look for boxes without a code": "Buscar cajas sin código",
     "Add at least one medicine to continue.": "Añada al menos un medicamento para continuar.",
     "Take the photo with the camera": "Haga la foto con la cámara",
-    "Point the camera at the boxes and press the red <b>Take photo</b> button. The photo appears here by itself in a few seconds.":
-        "Apunte la cámara a las cajas y pulse el botón rojo <b>Take photo</b>. La foto aparece aquí sola en unos segundos.",
+    "Point the camera at the boxes and press the red <b>Take the photo</b> button. The photo appears here by itself in a few seconds.":
+        "Apunte la cámara a las cajas y pulse el botón rojo <b>Take the photo</b>. La foto aparece aquí sola en unos segundos.",
     "Take the photo in the room": "Haga la foto en la sala",
-    "Press the red <b>Take photo</b> button on the left of the room. The photo appears here by itself in a few seconds.":
-        "Pulse el botón rojo <b>Take photo</b> a la izquierda de la sala. La foto aparece aquí sola en unos segundos.",
+    "In the room on the left: choose a table, press <b>Raise the phone</b>, then the red <b>Take the photo</b> button. The photo appears here by itself in a few seconds.":
+        "En la sala de la izquierda: elija una mesa, pulse <b>Raise the phone</b> y luego el botón rojo <b>Take the photo</b>. La foto aparece aquí sola en unos segundos.",
     "Upload a photo": "Subir una foto", "Type a code": "Escribir un código", "Open a saved plan": "Abrir un plan guardado", "Demo photos": "Fotos de prueba",
     "A plan saved before with **Save this plan** (on the last screen). The boxes are checked again with the official database.":
         "Un plan guardado antes con **Guardar este plan** (en la última pantalla). Las cajas se vuelven a comprobar con la base de datos oficial.",
@@ -202,20 +202,20 @@ ES = {
     "{x0} boxes": "{x0} cajas",
     "Remove this medicine": "Quitar este medicamento",
     "Added by you": "Añadido por usted",
-    '<div class="mt-name">A box I could not recognise</div>{x0}<div class="mt-meta">{x1}</div>':
-        '<div class="mt-name">Una caja que no pude reconocer</div>{x0}<div class="mt-meta">{x1}</div>',
+    '<div class="mt-name">Box not recognised</div>{x0}<div class="mt-meta">{x1}</div>':
+        '<div class="mt-name">Caja no reconocida</div>{x0}<div class="mt-meta">{x1}</div>',
     "Not in the plan": "Fuera del plan",
     "reason unknown": "motivo desconocido",
     "Try again": "Reintentar",
     "Dismiss": "Descartar",
-    '<div class="mt-name">A box where I could not read a code</div>{x0}<div class="mt-meta">Take a close-up photo of this box (about 30 cm above it, the printed code facing up), or type the code printed on it. ':
-        '<div class="mt-name">Una caja en la que no pude leer el código</div>{x0}<div class="mt-meta">Haga una foto de cerca de esta caja (a unos 30 cm, con el código impreso hacia arriba), o escriba el código impreso en ella. ',
+    '<div class="mt-name">Box with no code read</div>{x0}<div class="mt-meta">Take a close-up photo of this box (about 30 cm above it, the printed code facing up), or type the code printed on it. ':
+        '<div class="mt-name">Caja sin código leído</div>{x0}<div class="mt-meta">Haga una foto de cerca de esta caja (a unos 30 cm, con el código impreso hacia arriba), o escriba el código impreso en ella. ',
     "Not in the plan yet": "Todavía fuera del plan",
-    "Bring the camera closer to this box, then press <b>Take photo</b>. ": "Acerque la cámara a esta caja y pulse <b>Take photo</b>. ",
-    "In the room, press <b>Close-up of the box with no code</b> on the left, then <b>Take photo</b>. ":
-        "En la sala, pulse <b>Close-up of the box with no code</b> a la izquierda y luego <b>Take photo</b>. ",
-    "I may be wrong: it can also be something that is not a medicine.</div>": "Puedo equivocarme: puede ser algo que no es un medicamento.</div>",
-    "Done: I added it or it is not a medicine": "Hecho: lo añadí o no es un medicamento",
+    "Bring the camera closer to this box, then press <b>Take the photo</b>. ": "Acerque la cámara a esta caja y pulse <b>Take the photo</b>. ",
+    "In the room, press <b>Close-up of the box with no code</b> on the left, then <b>Take the photo</b>. ":
+        "En la sala, pulse <b>Close-up of the box with no code</b> a la izquierda y luego <b>Take the photo</b>. ",
+    "It may also be something that is not a medicine.</div>": "También puede ser algo que no es un medicamento.</div>",
+    "Done: added, or not a medicine": "Hecho: añadido, o no es un medicamento",
     "Looking for boxes in {name} (about 30 seconds)...": "Buscando cajas en {name} (unos 30 segundos)...",
     "This step could not run ({exc}). You can type the code on the box instead.": "Este paso no se pudo hacer ({exc}). Puede escribir el código de la caja.",
     "Box {x0}": "Caja {x0}",
@@ -231,8 +231,8 @@ ES = {
     "Yes, this is the medicine": "Sí, es este medicamento",
     # ---- screen 2 ----------------------------------------------------------------------------------------------------------
     "Choose the doses": "Elija las dosis",
-    "For each medicine, choose <b>how many to take</b> at each time of day, as written on the doctor's paper. Then tick the box under it. I never choose an amount for you, and medicines that are not ticked stay out of the plan.":
-        "Para cada medicamento, elija <b>cuántos tomar</b> en cada momento del día, como pone en el papel del médico. Después marque la casilla de debajo. Nunca elijo una cantidad por usted, y los medicamentos sin marcar quedan fuera del plan.",
+    "For each medicine, choose <b>how many to take</b> at each time of day, as written on the doctor's paper. Then tick the box under it. No amount is filled in for you, and medicines that are not ticked stay out of the plan.":
+        "Para cada medicamento, elija <b>cuántos tomar</b> en cada momento del día, como pone en el papel del médico. Después marque la casilla de debajo. No se rellena ninguna cantidad por usted, y los medicamentos sin marcar quedan fuera del plan.",
     "{ready} of {x1} ready for the plan": "{ready} de {x1} listos para el plan",
     "Have a photo of the doctor's schedule? Let the computer copy it (optional)":
         "¿Tiene una foto de la pauta del médico? Deje que el ordenador la copie (opcional)",
@@ -301,7 +301,7 @@ ES = {
         '<ul style="margin:.3rem 0 0 1.1rem;padding:0">{x0}</ul><div class="mt-meta">Calculado con el tamaño de envase que indica AEMPS CIMA, para una caja llena. Pida la siguiente caja una semana antes.</div>',
     "Waiting for you ({x0})": "Pendientes de usted ({x0})",
     "Not in the plan until you tick the box on the Doses screen: {x0}.": "No estarán en el plan hasta que marque la casilla en la pantalla Dosis: {x0}.",
-    "Left out: a box I could not recognise": "Fuera del plan: una caja que no pude reconocer",
+    "Left out: a box not recognised": "Fuera del plan: una caja no reconocida",
     ". It is not in the plan.": ". No está en el plan.",
     "Left out: {what}": "Fuera del plan: {what}",
     " <b>What to do:</b> {x0}": " <b>Qué hacer:</b> {x0}",

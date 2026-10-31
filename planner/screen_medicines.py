@@ -43,13 +43,13 @@ from planner.table import Table, changes_box, medicine_card
 
 def render(t: Table) -> None:
     entries, boxes_of, typed_only, unverified, medicines, today = t.entries, t.boxes_of, t.typed_only, t.unverified, t.medicines, t.today
-    header(1, tr("Show me the medicines"), tr("Take a photo of the medicine boxes on the table. I read the code printed on each box."))
+    header(1, tr("Medicines"), tr("Take a photo of the medicine boxes on the table. Each box is identified by the code printed on it."))
     st.info(tr("This is a helper for planning. It gives no medical advice and does not replace the doctor or the pharmacist."))
     if embedded():
         if from_camera():
-            box("tip", tr("Take the photo with the camera"), tr("Point the camera at the boxes and press the red <b>Take photo</b> button. The photo appears here by itself in a few seconds."))
+            box("tip", tr("Take the photo with the camera"), tr("Point the camera at the boxes and press the red <b>Take the photo</b> button. The photo appears here by itself in a few seconds."))
         else:
-            box("tip", tr("Take the photo in the room"), tr("Press the red <b>Take photo</b> button on the left of the room. The photo appears here by itself in a few seconds."))
+            box("tip", tr("Take the photo in the room"), tr("In the room on the left: choose a table, press <b>Raise the phone</b>, then the red <b>Take the photo</b> button. The photo appears here by itself in a few seconds."))
         add_area = st.expander(tr("Add a medicine another way"))
     else:
         box("tip", tr("For a good photo"), tr("Put the boxes on a table with the printed codes facing up, and hold the phone about 90 cm (3 feet) above them or closer."))
@@ -130,7 +130,7 @@ def render(t: Table) -> None:
         st.button(tr("Undo: put it back"), on_click=undo_last, key="undo_btn", type="primary")
 
     if not entries and not st.session_state.manual:
-        box("tip", tr("Nothing yet"), tr("Add a photo or type a code above. The medicines I recognise will appear here."))
+        box("tip", tr("Nothing yet"), tr("Add a photo or type a code above. The medicines found are listed here."))
     for cn, rs in boxes_of.items():
         expiries = sorted({r.expiry for r in rs if r.expiry})
         chips = chip(tr("Recognised from its code"), "ok") + (chip(tr('{x0} boxes', x0=len(rs)), "grey") if len(rs) > 1 else "") \
@@ -150,7 +150,7 @@ def render(t: Table) -> None:
             crop = image[max(y0 - pad, 0):y1 + pad, max(x0 - pad, 0):x1 + pad]
             crop = crop if crop.size else None
         with st.container(border=True):
-            card(crop, tr('<div class="mt-name">A box I could not recognise</div>{x0}<div class="mt-meta">{x1}</div>', x0=chip(tr("Not in the plan"), "bad"), x1=esc("; ".join(explain_problem(p) for p in r.problems) or tr("reason unknown"))), plain=True)
+            card(crop, tr('<div class="mt-name">Box not recognised</div>{x0}<div class="mt-meta">{x1}</div>', x0=chip(tr("Not in the plan"), "bad"), x1=esc("; ".join(explain_problem(p) for p in r.problems) or tr("reason unknown"))), plain=True)
             if identify.UNREACHABLE in r.problems:
                 st.button(tr("Try again"), key=f"retry_{r.raw}", on_click=retry_lookups, type="primary")
             st.button(tr("Dismiss"), key=f"dismiss_{r.raw}", on_click=dismiss_code, args=(r.raw,), type="tertiary")
@@ -165,15 +165,15 @@ def render(t: Table) -> None:
                 crop = image[max(y0 - 10, 0):y1 + 10, max(x0 - 10, 0):x1 + 10]
                 crop = crop if crop.size else None
             with st.container(border=True):
-                card(crop, tr('<div class="mt-name">A box where I could not read a code</div>{x0}<div class="mt-meta">Take a close-up photo of this box (about 30 cm above it, the printed code facing up), or type the code printed on it. ', x0=chip(tr("Not in the plan yet"), "warn"))
-                     + ((tr('Bring the camera closer to this box, then press <b>Take photo</b>. ') if from_camera() else tr('In the room, press <b>Close-up of the box with no code</b> on the left, then <b>Take photo</b>. ')) if embedded() else "")
-                     + tr('I may be wrong: it can also be something that is not a medicine.</div>'), plain=True)
-                st.button(tr("Done: I added it or it is not a medicine"), key=f"nocode_{key}", on_click=nocode_dealt_with, args=(key,), type="tertiary")
+                card(crop, tr('<div class="mt-name">Box with no code read</div>{x0}<div class="mt-meta">Take a close-up photo of this box (about 30 cm above it, the printed code facing up), or type the code printed on it. ', x0=chip(tr("Not in the plan yet"), "warn"))
+                     + ((tr('Bring the camera closer to this box, then press <b>Take the photo</b>. ') if from_camera() else tr('In the room, press <b>Close-up of the box with no code</b> on the left, then <b>Take the photo</b>. ')) if embedded() else "")
+                     + tr('It may also be something that is not a medicine.</div>'), plain=True)
+                st.button(tr("Done: added, or not a medicine"), key=f"nocode_{key}", on_click=nocode_dealt_with, args=(key,), type="tertiary")
     if entries or st.session_state.manual:
         st.caption(tr("Is a box missing? Take another photo that shows it close up with its code facing up, or type its code. Wrong box? Remove it."))
 
     if not public_demo():      # SAM 3 needs a GPU and the model call a key: not on the shared server
-        with st.expander(tr("A box has no code I can read? Find it in the photo and choose it from the database")):
+        with st.expander(tr("A box with no readable code? Find it in the photo and choose it from the database")):
             st.write(tr("The computer looks for boxes in the photo that have no readable code and suggests possible medicines from the official database. "
                      "**Nothing enters the plan until you choose one and confirm it against the official picture.**"))
             photos = st.session_state.photos

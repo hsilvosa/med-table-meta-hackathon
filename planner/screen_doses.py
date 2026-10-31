@@ -19,7 +19,7 @@ def render(t: Table) -> None:
     rows, medicines, expired_cns = t.rows, t.medicines, t.expired_cns
     header(2, tr("Choose the doses"),
            tr("For each medicine, choose <b>how many to take</b> at each time of day, as written on the doctor's paper. "
-           "Then tick the box under it. I never choose an amount for you, and medicines that are not ticked stay out of the plan."))
+           "Then tick the box under it. No amount is filled in for you, and medicines that are not ticked stay out of the plan."))
     ready = sum(1 for r in rows if r.confirmed and r.has_dose)
     if rows:
         st.progress(ready / len(rows), text=tr('{ready} of {x1} ready for the plan', ready=ready, x1=count(len(rows), 'medicine')))

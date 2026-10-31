@@ -156,6 +156,6 @@ def test_online_each_visitor_keeps_their_own_room_photos_and_there_is_no_camera_
         with pytest.raises(urllib.error.HTTPError) as error:
             urllib.request.urlopen(url + "/camera.html", timeout=10)
         assert error.value.code == 404
-        assert b"Not medical advice" in urllib.request.urlopen(url + "/", timeout=10).read()
+        assert b"not medical advice" in urllib.request.urlopen(url + "/", timeout=10).read()
     finally:
         httpd.shutdown()
