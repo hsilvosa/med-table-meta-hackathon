@@ -6,6 +6,8 @@
 
 Built during the hackathon with Meta's **Muse Spark** (Meta Model API) and **SAM 3 / 3.1**.
 
+**Try it online, nothing to install: [med-table-515554948327.europe-west1.run.app](https://med-table-515554948327.europe-west1.run.app)** (the 3D room and the planner; the first visit may take a few seconds to start).
+
 > med-table organises what the doctor prescribed. It gives no medical advice, never decides a dose and is not a medical device. Every warning quotes its official source, word for word, for the pharmacist to review.
 
 ## The problem
@@ -54,7 +56,9 @@ photo of the boxes ─► code on each box ─► AEMPS CIMA ─► doses chosen
 
 ## Try it
 
-Python 3.12. The demo needs no internet connection: the CIMA data of its medicines is in `demo_cache/`.
+**Online**: [med-table-515554948327.europe-west1.run.app](https://med-table-515554948327.europe-west1.run.app). A shared public demo of the 3D room and the planner, with the demo data. Please do not upload photos of real prescriptions or personal data there. The online version runs without the voice, the Muse Spark and SAM 3 features and the camera page; these run in the local installation below. It is served from Google Cloud Run (`Dockerfile`, `scripts/deploy_cloudrun.py`).
+
+**Locally**: Python 3.12. The demo needs no internet connection: the CIMA data of its medicines is in `demo_cache/`.
 
 ```bash
 python -m venv .venv-app && .venv-app/Scripts/python.exe -m pip install -r requirements.txt
@@ -140,7 +144,6 @@ python scripts/build_world.py                     # the room in web/world
 ## Next steps
 
 - Validation with photos of real packs and on physical phones, and a pilot with caregivers and community pharmacists.
-- A hosted demo link, so the planner can be tried without installing anything.
 - The 3D room and the camera page in Spanish, and more languages.
 - Checking a filled pill organiser against the plan from a photo.
 - Other countries' medicine databases: the GS1 code is international, and the national lookup is a single module.
