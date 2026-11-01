@@ -3,47 +3,146 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>med-table</title>
+<title>med-table · a verified medication plan from a photo of the boxes</title>
+<meta name="description" content="Each medicine box is identified from the code printed on it and checked against AEMPS CIMA. The caregiver enters the doses from the prescription; the tool prints a calendar, a weekly pill organiser guide and phone reminders.">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="med-table">
+<meta property="og:description" content="A verified medication plan from a photo of the boxes. Public demo with demo data.">
+<meta property="og:image" content="https://medtable.hsilvosa.com/assets/og.jpg">
+<meta property="og:url" content="https://medtable.hsilvosa.com/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" href="./fonts/atkinson-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="./fonts/atkinson-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./tokens.css">
 <style>
-  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #fff; color: #14202b; font-size: 18px; line-height: 1.5; }
-  main { max-width: 760px; margin: 0 auto; padding: 40px 20px 48px; }
-  h1 { font-size: 1.9rem; margin: 0 0 .4rem; }
-  h2 { font-size: 1.15rem; margin: 2rem 0 .5rem; }
-  p { margin: 0 0 .8rem; }
-  .actions { display: flex; gap: 12px; flex-wrap: wrap; margin: 1.4rem 0 .4rem; }
-  .go { display: inline-block; background: #1b5e8a; color: #fff; text-decoration: none; font-weight: 700; padding: 14px 22px; border-radius: 10px; }
-  .go.alt { background: #fff; color: #1b5e8a; border: 2px solid #1b5e8a; padding: 12px 20px; }
-  ol { padding-left: 1.4rem; margin: 0; } li { margin: .35rem 0; }
-  .small { color: #55606e; font-size: .9rem; }
-  .notice { border-left: 4px solid #d99a00; padding: .2rem 0 .2rem .9rem; margin: 1.6rem 0 0; font-size: .95rem; color: #33404d; }
-  a { color: #1b5e8a; }
+  * { box-sizing: border-box; }
+  html { font-size: 18px; }
+  body { margin: 0; font-family: var(--mt-font); color: var(--mt-ink); background: var(--mt-surface); line-height: 1.5; }
+  a { color: var(--mt-accent); }
+  :focus-visible { outline: 3px solid var(--mt-focus); outline-offset: 2px; }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+  header.bar { border-bottom: 1px solid var(--mt-line); }
+  header.bar .wrap { display: flex; align-items: center; gap: 12px; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--mt-ink); text-decoration: none; font-weight: 700; }
+  .brand img { width: 30px; height: 30px; }
+  header nav { margin-left: auto; display: flex; gap: 22px; font-size: var(--mt-fs-sm); }
+  header nav a { color: var(--mt-muted); text-decoration: none; }
+  header nav a:hover { color: var(--mt-ink); text-decoration: underline; }
+
+  .hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: 48px; align-items: center; padding: 56px 24px 48px; }
+  .hero h1 { font-size: 2.6rem; line-height: 1.12; margin: 0 0 18px; letter-spacing: -.01em; }
+  .hero .lead { font-size: 1.12rem; color: #3a4652; margin: 0 0 26px; max-width: 34rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; }
+  .go { display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 22px; border-radius: var(--mt-radius); font-weight: 700; text-decoration: none; border: 1px solid var(--mt-line-strong); color: var(--mt-ink); background: var(--mt-surface); }
+  .go:hover { border-color: var(--mt-accent); }
+  .go.primary { background: var(--mt-accent); color: #fff; border-color: var(--mt-accent); box-shadow: var(--mt-shadow); }
+  .go.primary:hover { background: var(--mt-accent-hover); }
+  .go svg { width: 20px; height: 20px; }
+  .alt-lang { margin: -6px 0 18px; font-size: var(--mt-fs-sm); color: var(--mt-muted); }
+  .demo-note { font-size: var(--mt-fs-sm); color: var(--mt-muted); display: flex; gap: 10px; align-items: flex-start; max-width: 34rem; }
+  .demo-note::before { content: ""; flex: none; width: 9px; height: 9px; margin-top: .45em; border-radius: 50%; background: #e0a100; }
+  .shot { margin: 0; }
+  .shot img { display: block; width: 100%; height: auto; border-radius: var(--mt-radius-lg); box-shadow: var(--mt-shadow-lg); border: 1px solid var(--mt-line); background: #0e1319; }
+  .shot figcaption { font-size: .8rem; color: var(--mt-muted); margin-top: 10px; }
+
+  section.band { background: var(--mt-bg); border-top: 1px solid var(--mt-line); border-bottom: 1px solid var(--mt-line); padding: 52px 0 56px; }
+  h2 { font-size: 1.5rem; margin: 0 0 6px; }
+  .sub { color: var(--mt-muted); margin: 0 0 26px; }
+  ol.steps { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; counter-reset: n; }
+  ol.steps li { background: var(--mt-surface); border: 1px solid var(--mt-line); border-radius: var(--mt-radius); padding: 18px 18px 20px; counter-increment: n; }
+  ol.steps li::before { content: counter(n); display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--mt-accent); color: #fff; font-weight: 700; font-size: .9rem; margin-bottom: 12px; }
+  ol.steps b { display: block; margin-bottom: 4px; }
+  ol.steps span { color: #3a4652; font-size: .95rem; }
+  .keys { margin: 22px 0 0; font-size: var(--mt-fs-sm); color: var(--mt-muted); }
+  kbd { background: var(--mt-surface); border: 1px solid var(--mt-line-strong); border-bottom-width: 2px; border-radius: 5px; padding: 0 6px; font: 700 .78rem ui-monospace, "Cascadia Mono", monospace; color: var(--mt-ink); }
+
+  .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; padding: 52px 24px; }
+  .facts h3 { font-size: 1.05rem; margin: 0 0 6px; }
+  .facts p { margin: 0; color: #3a4652; font-size: .95rem; }
+
+  .notice { border: 1px solid var(--mt-warn-line); background: var(--mt-warn-soft); border-radius: var(--mt-radius); padding: 18px 22px; margin: 0 0 52px; font-size: .95rem; color: #3d2900; }
+  .notice b { display: block; margin-bottom: 4px; }
+
+  footer { border-top: 1px solid var(--mt-line); padding: 22px 0 30px; font-size: .82rem; color: var(--mt-muted); }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+  footer a { color: var(--mt-muted); }
+
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; gap: 30px; padding-top: 34px; }
+    .facts { padding: 40px 24px; }
+    .hero h1 { font-size: 2rem; }
+    ol.steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .facts { grid-template-columns: 1fr; gap: 22px; }
+  }
+  @media (max-width: 560px) {
+    html { font-size: 17px; }
+    header nav a.optional { display: none; }
+    ol.steps { grid-template-columns: 1fr; }
+    .go { width: 100%; justify-content: center; }
+  }
 </style>
 </head>
 <body>
+<header class="bar"><div class="wrap">
+  <a class="brand" href="./"><img src="./favicon.svg" alt="">med-table</a>
+  <nav aria-label="Links">
+    <a class="optional" href="https://github.com/hsilvosa/med-table-meta-hackathon#readme" target="_blank" rel="noopener">How it works</a>
+    <a href="https://github.com/hsilvosa/med-table-meta-hackathon" target="_blank" rel="noopener">Source code</a>
+  </nav>
+</div></header>
+
 <main>
-  <h1>med-table</h1>
-  <p>A medication planner for caregivers. Each medicine box is identified from the code printed on it and checked against Spain's official medicines database (AEMPS CIMA). The caregiver enters the doses from the prescription, and the tool prints a calendar, a weekly pill organiser guide and phone reminders.</p>
-
-  <div class="actions">
-    <a class="go" href="index.html">Open the 3D room</a>
-    <a class="go alt" href="app/">Open the planner only</a>
-    <a class="go alt" href="app/?lang=es">Planificador en español</a>
+  <div class="wrap hero">
+    <div>
+      <h1>A verified medication plan from a photo of the boxes</h1>
+      <p class="lead">A planner for caregivers. Each medicine box is identified from the code printed on it and checked against Spain's official medicines database (AEMPS CIMA). The caregiver enters the doses from the prescription, and the tool prints a calendar, a weekly pill organiser guide and phone reminders.</p>
+      <div class="actions">
+        <a class="go primary" href="index.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          Open the 3D room</a>
+        <a class="go" href="app/">Open the planner only</a>
+      </div>
+      <p class="alt-lang" lang="es">En español: <a href="app/?lang=es">abrir el planificador</a></p>
+      <p class="demo-note">Public demo with demo data. A planning aid, not medical advice. The 3D room works best on a computer with a mouse.</p>
+    </div>
+    <figure class="shot">
+      <img src="./assets/room.jpg" width="1600" height="1000" alt="The 3D room: the virtual phone held over a table of medicine boxes, with a green frame on each box whose code was read">
+      <figcaption>The virtual phone over table 1: a green frame marks each box whose code was read and checked; amber, a box with no readable code.</figcaption>
+    </figure>
   </div>
-  <p class="small">The 3D room works best on a computer with a mouse.</p>
 
-  <h2>Taking the photo in the 3D room</h2>
-  <ol>
-    <li>On the left, choose <b>Table 1</b>, <b>Table 2</b> or <b>Table 3</b>.</li>
-    <li>Press <b>Raise the phone</b>. The view becomes the phone camera, 90 cm above the table. Hold still: green frames mark the boxes whose code was read, amber ones the boxes without a readable code.</li>
-    <li>Press the red <b>Take the photo</b> button. The planner opens on the right with the medicines found.</li>
-    <li>In the planner, choose the doses, tick each medicine, check the plan and download the calendar.</li>
-  </ol>
-  <p class="small" style="margin-top:.6rem">Keys: W A S D walk, mouse wheel zooms, R and F raise or lower the phone, Space takes the photo, Tab shows or hides the planner.</p>
+  <section class="band">
+    <div class="wrap">
+      <h2>Taking the photo in the 3D room</h2>
+      <p class="sub">The panel on the left of the room follows the same steps.</p>
+      <ol class="steps">
+        <li><b>Choose a table</b><span>Press <b style="display:inline">Table 1</b>, <b style="display:inline">Table 2</b> or <b style="display:inline">Table 3</b>.</span></li>
+        <li><b>Raise the phone</b><span>The view becomes the phone camera, 90 cm above the table. Hold still while the boxes are marked.</span></li>
+        <li><b>Take the photo</b><span>The planner opens on the right with the medicines found.</span></li>
+        <li><b>Plan the doses</b><span>Choose the doses, tick each medicine, check the plan and download the calendar.</span></li>
+      </ol>
+      <p class="keys"><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> walk · mouse wheel zooms · <kbd>R</kbd> <kbd>F</kbd> raise or lower the phone · <kbd>Space</kbd> takes the photo · <kbd>Tab</kbd> shows or hides the planner. Without the room: open the planner, then <b>Demo photos</b> and <b>Load a demo photo</b>.</p>
+    </div>
+  </section>
 
-  <h2>Without the 3D room</h2>
-  <p>Open the planner, then <b>Demo photos</b> and <b>Load a demo photo</b>.</p>
+  <div class="wrap facts">
+    <div><h3>Read from the box</h3><p>The Data Matrix or the national code printed on each pack is decoded and its check digit validated.</p></div>
+    <div><h3>Checked with AEMPS CIMA</h3><p>A box counts as recognised only when the official database knows its national code. Expired packs are left out of the plan.</p></div>
+    <div><h3>Every dose is the caregiver's</h3><p>No amount is filled in: each dose is chosen from the doctor's paper and ticked medicine by medicine.</p></div>
+  </div>
 
-  <p class="notice">This is a public demo on a shared server: use the demo data only, and do not upload photos of real prescriptions or personal data. It is a planning aid, not medical advice. The voice, the Muse Spark and SAM 3 features and the camera page run only in the local installation (<a href="https://github.com/hsilvosa/med-table-meta-hackathon" target="_blank">source code</a>). Medicine data and photos: AEMPS CIMA, cima.aemps.es.</p>
+  <div class="wrap">
+    <div class="notice"><b>Public demo on a shared server</b>Use the demo data only. Do not upload photos of real prescriptions or anything showing a name, address or ID number; photos from the 3D room are deleted after an hour. The voice, the Muse Spark and SAM 3 features and the camera page run only in the local installation.</div>
+  </div>
 </main>
+
+<footer><div class="wrap">
+  <span>Medicine data and photos: AEMPS CIMA, cima.aemps.es</span>
+  <span>Typeface: Atkinson Hyperlegible (Braille Institute)</span>
+  <a href="https://github.com/hsilvosa/med-table-meta-hackathon" target="_blank" rel="noopener">Source code</a>
+  <a href="https://hsilvosa.com" target="_blank" rel="noopener">hsilvosa.com</a>
+</div></footer>
 </body>
 </html>
