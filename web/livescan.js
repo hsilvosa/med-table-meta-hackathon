@@ -8,8 +8,9 @@ const GREEN = '#22c55e', AMBER = '#f59e0b', INK = '#10151a';
 export function drawScan(canvas, srcWidth, state, noCodeText, fontPx = 13) {
   const g = canvas.getContext('2d'), k = canvas.width / srcWidth;
   g.clearRect(0, 0, canvas.width, canvas.height);
-  g.font = `600 ${fontPx}px system-ui, sans-serif`; g.textBaseline = 'bottom';
-  const bar = Math.round(fontPx * 1.5), now = performance.now();
+  g.font = `700 ${fontPx}px "Atkinson Hyperlegible", system-ui, sans-serif`; g.textBaseline = 'bottom';
+  const bar = Math.round(fontPx * 1.6), now = performance.now();
+  const pill = (x, y, w, h, color) => { g.fillStyle = color; g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, 5) : g.rect(x, y, w, h); g.fill(); };
   let animating = false;
   const taken = [];        // labels already drawn: a label that would cover one moves below its box, then further down, so every name stays readable
   const place = (x, y, w, h, below) => {
@@ -28,19 +29,19 @@ export function drawScan(canvas, srcWidth, state, noCodeText, fontPx = 13) {
     if (pop > 0) animating = true;
     const cx = (x0 + x1) / 2 * k, cy = (y0 + y1) / 2 * k, half = (Math.max((x1 - x0) * k, (y1 - y0) * k, 18) / 2 + 4) * (1 + 0.8 * pop);      // never smaller than a fingertip
     const ok = code.status === 'verified', color = ok ? GREEN : AMBER;
-    g.lineWidth = 3 + 3 * pop; g.strokeStyle = color; g.strokeRect(cx - half, cy - half, half * 2, half * 2);
+    g.lineWidth = 3 + 3 * pop; g.strokeStyle = color; g.beginPath(); g.roundRect ? g.roundRect(cx - half, cy - half, half * 2, half * 2, 6) : g.rect(cx - half, cy - half, half * 2, half * 2); g.stroke();
     const label = ok ? 'Recognised: ' + (code.name || '').split(' ')[0].toLowerCase().replace(/^./, s => s.toUpperCase()) + (code.expired ? ' (EXPIRED)' : '') : 'Not verified';
-    const w = g.measureText(label).width + 10, lx = Math.min(Math.max(cx - half, 0), Math.max(canvas.width - w, 0));     // kept inside the picture
+    const w = g.measureText(label).width + 14, lx = Math.min(Math.max(cx - half, 0), Math.max(canvas.width - w, 0));     // kept inside the picture
     const ly = Math.max(place(lx, cy - half - bar, w, bar, cy + half), 0);
-    g.fillStyle = color; g.fillRect(lx, ly, w, bar);
-    g.fillStyle = INK; g.fillText(label, lx + 5, ly + bar - 3);
+    pill(lx, ly, w, bar, color);
+    g.fillStyle = INK; g.fillText(label, lx + 7, ly + bar - 4);
   }
   for (const [x0, y0, x1, y1] of state.nocode) {      // a pack was seen here and no code was read from it
     const left = x0 * k, top = y0 * k, wide = (x1 - x0) * k, high = (y1 - y0) * k;
     g.lineWidth = 3; g.strokeStyle = AMBER; g.setLineDash([9, 6]); g.strokeRect(left, top, wide, high); g.setLineDash([]);
-    const w = g.measureText(noCodeText).width + 10;
+    const w = g.measureText(noCodeText).width + 14;
     const lx = Math.min(Math.max(left, 0), Math.max(canvas.width - w, 0)), ly = place(lx, top > bar + 3 ? top - bar : top + high, w, bar, top + high);
-    g.fillStyle = AMBER; g.fillRect(lx, ly, w, bar); g.fillStyle = INK; g.fillText(noCodeText, lx + 5, ly + bar - 3);
+    pill(lx, ly, w, bar, AMBER); g.fillStyle = INK; g.fillText(noCodeText, lx + 7, ly + bar - 4);
   }
   return animating;
 }

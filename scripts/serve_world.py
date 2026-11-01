@@ -29,6 +29,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from medtable import decode, live_scan  # noqa: E402       (decode: the tests replace its scan_stages)
 
 mimetypes.add_type("text/javascript", ".js")   # Windows registries often say text/plain, which blocks ES modules
+mimetypes.add_type("font/woff2", ".woff2")
+mimetypes.add_type("image/svg+xml", ".svg")
 OUT = Path("data/world_photos")
 PUBLIC = os.environ.get("PUBLIC_DEMO") == "1"      # the online demo: each visitor's photos in their own folder, deleted after an hour
 KEEP_S = 3600

@@ -119,7 +119,7 @@ async function showCameraInfo() {
   const [w, h] = sourceSize();
   const distance = Math.min(90, Math.max(15, Math.round(90 * w / 4000 / 5) * 5));      // scaled from the room: 90 cm for a 4000 px wide picture, in proportion for a smaller one
   $('camChip').textContent = `Camera ${w} x ${h}`; $('camChip').style.display = 'inline-block';
-  $('hint').textContent = `Put the boxes on a table with the printed codes facing up. Hold the camera about ${distance} cm above them, or closer. A green frame appears on every box that I recognise.`;
+  $('hint').textContent = `Put the boxes on a table with the printed codes facing up. Hold the camera about ${distance} cm above them, or closer. A green frame appears on every box that is recognised.`;
   const cameras = (await navigator.mediaDevices.enumerateDevices().catch(() => [])).filter(d => d.kind === 'videoinput');
   $('btnFlip').style.display = cameras.length > 1 ? 'block' : 'none';
   layoutOverlay();
@@ -193,7 +193,7 @@ function updateChips() {
 function refreshAdvice() {
   if (!ready()) return;
   if (!$('live').checked) { showAdvice('Frames on the boxes are switched off. You can still take the photo.', '', false); return; }
-  if (live.error) showAdvice('I cannot look at the boxes right now, but you can still take the photo.', 'mid', false);
+  if (live.error) showAdvice('The live preview is not available right now. You can still take the photo.', 'mid', false);
   else if (live.advice) showAdvice(live.advice.text, live.advice.level);
   else if (live.busy) showAdvice('Looking at the boxes...', '', false);
   else showAdvice('Hold the camera still over the boxes.', '', false);

@@ -1,0 +1,46 @@
+/* Design tokens shared by every page of med-table: the welcome page, the 3D room, the camera page and the planner
+   (planner/style.py inlines this file). One accent colour for actions, three status colours, one typeface.
+
+   Typeface: Atkinson Hyperlegible (Braille Institute, SIL Open Font License, web/fonts/OFL.txt), drawn so that
+   similar letters (l/I/1, O/0, rn/m) stay apart for readers with low vision.
+   Every text/background pair below has a contrast of at least 4.5:1. */
+@font-face { font-family: "Atkinson Hyperlegible"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/atkinson-400.woff2") format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-style: normal; font-weight: 700; font-display: swap; src: url("fonts/atkinson-700.woff2") format("woff2"); }
+
+:root {
+  --mt-font: "Atkinson Hyperlegible", system-ui, "Segoe UI", Roboto, sans-serif;
+
+  /* neutrals */
+  --mt-ink: #16212c;          /* text */
+  --mt-muted: #56616d;        /* secondary text */
+  --mt-line: #dde3ea;         /* hairlines, card borders */
+  --mt-line-strong: #b7c1cc;  /* input and button borders */
+  --mt-bg: #f4f6f8;           /* page background */
+  --mt-surface: #ffffff;      /* cards, panels */
+  --mt-subtle: #eef2f5;       /* quiet fills */
+
+  /* the one accent: actions and the current step */
+  --mt-accent: #1b5e8a;
+  --mt-accent-hover: #164d72;
+  --mt-accent-soft: #e7f0f7;
+
+  /* status: only for state, never for decoration */
+  --mt-ok: #17704a;    --mt-ok-soft: #e4f3eb;
+  --mt-warn: #7a4f00;  --mt-warn-soft: #fff3d9;  --mt-warn-line: #e9c46a;
+  --mt-bad: #a52a1f;   --mt-bad-soft: #fdecea;
+  --mt-focus: #ffb000;
+
+  /* type scale: three sizes plus the page title */
+  --mt-fs-sm: .875rem;
+  --mt-fs-md: 1rem;
+  --mt-fs-lg: 1.25rem;
+  --mt-fs-title: 1.75rem;
+
+  /* shape and depth */
+  --mt-radius-sm: 8px;
+  --mt-radius: 12px;
+  --mt-radius-lg: 16px;
+  --mt-shadow: 0 1px 2px rgba(16, 24, 32, .06), 0 1px 3px rgba(16, 24, 32, .08);
+  --mt-shadow-lg: 0 8px 24px rgba(16, 24, 32, .12), 0 2px 6px rgba(16, 24, 32, .08);
+  --mt-space: .75rem;
+}

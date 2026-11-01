@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Scan my medicine boxes</title>
+<title>Scan the medicine boxes</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="./ui.css">
 <style>
   #video, #fake { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: contain; display: none; }
   #idle { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #d5dde6; font-size: 1.2rem; text-align: center; padding: 1.5rem; }
-  #stage #advice { position: absolute; left: .6rem; right: .6rem; bottom: .6rem; margin: 0; font-size: 1.15rem; box-shadow: 0 2px 10px rgba(0,0,0,.4); }
   label.btn { display: flex; align-items: center; justify-content: center; text-align: center; }
   #sticky { position: sticky; bottom: 0; background: var(--paper); padding: .4rem 0 .2rem; margin-top: auto; }
   #applink { display: none; padding: 1rem; line-height: 1.5; }
@@ -17,7 +17,7 @@
 <body>
 <aside id="side" aria-label="Controls">
   <div class="top">
-    <h1>Scan my medicine boxes</h1>
+    <h1>Scan the medicine boxes</h1>
     <button class="btn small" id="textSmaller" aria-label="Normal text size" aria-pressed="true">A</button>
     <button class="btn small" id="textBigger" aria-label="Larger text size" aria-pressed="false">A+</button>
   </div>
@@ -32,7 +32,7 @@
 
   <section class="step" id="step2" aria-labelledby="h2">
     <h2 id="h2"><b>2</b> Point it at the boxes</h2>
-    <p id="hint">Put the boxes on a table with the printed codes facing up. Hold the camera still. A green frame appears on every box that I recognise.</p>
+    <p id="hint">Put the boxes on a table with the printed codes facing up. Hold the camera still. A green frame appears on every box that is recognised.</p>
     <div class="row" style="margin-top:.5rem">
       <button class="btn small" id="btnZoomOut" style="display:none" aria-label="Zoom out">Zoom -</button>
       <button class="btn small" id="btnZoomIn" style="display:none" aria-label="Zoom in">Zoom +</button>
@@ -41,7 +41,7 @@
   </section>
 
   <section class="options" aria-label="Options">
-    <label><input type="checkbox" id="live" checked> Show frames on the boxes while I look</label>
+    <label><input type="checkbox" id="live" checked> Mark the boxes while the camera is on</label>
     <label><input type="checkbox" id="voice"> Read the messages aloud</label>
   </section>
 

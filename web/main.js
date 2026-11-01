@@ -10,7 +10,7 @@ const PHONE = { w: 4000, h: 3000, hfov: 71 };                      // a 12 MP ph
 let shot = { w: PHONE.w, h: PHONE.h };                              // size of the photo that is taken: 12 MP, or 48 MP (the same lens and field of view, four times the pixels)
 const PHONE_VFOV = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(PHONE.hfov) / 2) * PHONE.h / PHONE.w) * 180 / Math.PI;
 const PHONE_HEIGHT = 0.9;                                           // how high "Phone over the table" holds the phone, in metres
-const FRAME_FRACTION = 0.86;                                         // the viewfinder takes this share of the window height
+const FRAME_FRACTION = 0.76;                                         // the viewfinder takes this share of the window height (the status bar and the advice fit above and below)
 const EYE_MIN = 0.9, EYE_MAX = 1.9;
 
 const world = await (await fetch('world/world.json')).json();
@@ -19,7 +19,7 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xcfd8dc);
+scene.background = new THREE.Color(0xe9edf0);
 let dirty = true;                           // the room is drawn only when something changed: a still room costs the computer nothing
 const markDirty = () => { dirty = true; };
 THREE.DefaultLoadingManager.onLoad = markDirty;      // pictures arriving
@@ -68,11 +68,15 @@ const R = world.room;
 const floorTex = canvasTexture(512, (c, s) => wood(c, s, '#b58a5a', 6), [R.w / 1.4, R.d / 1.4]);
 const floor = new THREE.Mesh(new THREE.PlaneGeometry(R.w, R.d), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.55 }));
 floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
-const wallMat = new THREE.MeshStandardMaterial({ color: 0xeee9df, roughness: 0.95 });
+const wallTex = canvasTexture(256, (c, s) => {      // matt paint: a faint, even grain
+  c.fillStyle = '#f1ede6'; c.fillRect(0, 0, s, s);
+  for (let k = 0; k < 2600; k++) { c.fillStyle = `rgba(${Math.random() < 0.5 ? '0,0,0' : '255,255,255'},${Math.random() * 0.035})`; c.fillRect(Math.random() * s, Math.random() * s, 2, 2); }
+}, [6, 2]);
+const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.95, emissive: 0x3a3732 });      // a little self-light: walls in shade stay a soft white
 function wall(w, h, x, y, z, ry) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat); m.position.set(x, y, z); m.rotation.y = ry; m.receiveShadow = true; scene.add(m); return m; }
 wall(R.w, R.h, 0, R.h / 2, -R.d / 2, 0); wall(R.w, R.h, 0, R.h / 2, R.d / 2, Math.PI);
 wall(R.d, R.h, -R.w / 2, R.h / 2, 0, Math.PI / 2); wall(R.d, R.h, R.w / 2, R.h / 2, 0, -Math.PI / 2);
-const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(R.w, R.d), new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 1 }));
+const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(R.w, R.d), new THREE.MeshStandardMaterial({ color: 0xf4f1ea, roughness: 1, emissive: 0x9c9890 }));      // lit from below only: self-light keeps it white
 ceiling.rotation.x = Math.PI / 2; ceiling.position.y = R.h; scene.add(ceiling);
 const win = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.3), new THREE.MeshBasicMaterial({ color: 0xf3fbff }));
 win.position.set(-1.2, 1.55, -R.d / 2 + 0.01); scene.add(win);
@@ -80,6 +84,23 @@ const frameMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5 });
 for (const [w, h, x, y] of [[2.5, 0.06, 0, 0.65], [2.5, 0.06, 0, -0.65], [0.06, 1.32, -1.2, 0], [0.06, 1.32, 1.2, 0], [0.04, 1.3, 0, 0]]) {
   const f = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.05), frameMat); f.position.set(-1.2 + x, 1.55 + y, -R.d / 2 + 0.03); scene.add(f);
 }
+const trimMat = new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.6 });
+for (const [w, x, z, ry] of [[R.w, 0, -R.d / 2 + 0.01, 0], [R.w, 0, R.d / 2 - 0.01, Math.PI], [R.d, -R.w / 2 + 0.01, 0, Math.PI / 2], [R.d, R.w / 2 - 0.01, 0, -Math.PI / 2]]) {
+  const skirt = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, 0.02), trimMat); skirt.position.set(x, 0.05, z); skirt.rotation.y = ry; scene.add(skirt);
+}
+const door = new THREE.Group();      // on the left wall
+door.add(new THREE.Mesh(new THREE.BoxGeometry(0.92, 2.05, 0.04), new THREE.MeshStandardMaterial({ color: 0xd9d2c5, roughness: 0.7 })));
+const knob = new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 12), new THREE.MeshStandardMaterial({ color: 0x9a9fa5, metalness: 0.8, roughness: 0.3 }));
+knob.position.set(0.36, -0.05, 0.04); door.add(knob);
+for (const [w, h, x, y] of [[1.04, 0.06, 0, 1.05], [0.06, 2.1, -0.49, 0], [0.06, 2.1, 0.49, 0]]) { const f = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.06), trimMat); f.position.set(x, y, 0); door.add(f); }
+door.position.set(-R.w / 2 + 0.03, 1.025, 1.4); door.rotation.y = Math.PI / 2; scene.add(door);
+const print = new THREE.Group();      // a framed print on the right of the window
+print.add(new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.65, 0.03), new THREE.MeshStandardMaterial({ color: 0x2b3138, roughness: 0.5 })));
+const art = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.53), new THREE.MeshStandardMaterial({ map: canvasTexture(256, (c, s) => {
+  c.fillStyle = '#e8e2d6'; c.fillRect(0, 0, s, s); c.fillStyle = '#9fb4a3'; c.beginPath(); c.moveTo(0, s * 0.75); c.lineTo(s * 0.35, s * 0.35); c.lineTo(s * 0.6, s * 0.6); c.lineTo(s * 0.8, s * 0.42); c.lineTo(s, s * 0.7); c.lineTo(s, s); c.lineTo(0, s); c.fill();
+  c.fillStyle = '#d9b77a'; c.beginPath(); c.arc(s * 0.72, s * 0.24, s * 0.08, 0, 7); c.fill();
+}), roughness: 0.8 }));
+art.position.z = 0.017; print.add(art); print.position.set(2.4, 1.6, -R.d / 2 + 0.03); scene.add(print);
 const rug = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 2.8), new THREE.MeshStandardMaterial({ color: 0x5f6f80, roughness: 1 }));
 rug.rotation.x = -Math.PI / 2; rug.position.set(0, 0.004, -0.6); scene.add(rug);
 const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.9, 0.35), new THREE.MeshStandardMaterial({ color: 0x8a7458, roughness: 0.8 }));
@@ -110,6 +131,11 @@ for (const t of world.tables) {
     leg.position.set(t.x + dx * (t.w / 2 - 0.06), (t.h - 0.04) / 2, t.z + dz * (t.d / 2 - 0.06)); leg.castShadow = true; scene.add(leg);
   }
   const lamp = new THREE.SpotLight(0xfff3e0, 3.2, 7, 1.1, 0.9, 1.2);
+  const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.17, 0.14, 32, 1, true), new THREE.MeshStandardMaterial({ color: 0x2f3a44, roughness: 0.5, side: THREE.DoubleSide }));
+  const bulb = new THREE.Mesh(new THREE.CircleGeometry(0.12, 32), new THREE.MeshBasicMaterial({ color: 0xfff6e5 }));
+  const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.3, 6), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+  shade.position.set(t.x, R.h - 0.37, t.z + 0.4); bulb.rotation.x = Math.PI / 2; bulb.position.set(t.x, R.h - 0.43, t.z + 0.4); cord.position.set(t.x, R.h - 0.15, t.z + 0.4);
+  scene.add(shade, bulb, cord);      // above the lamp light (R.h - 0.2 is where it shines from): they cast no shadow
   lamp.position.set(t.x, R.h - 0.2, t.z + 0.4); lamp.target.position.set(t.x, t.h, t.z); scene.add(lamp, lamp.target);
 
   for (const item of t.items) {
@@ -207,6 +233,23 @@ function planner(open) {
   if (document.body.classList.contains('planner')) document.exitPointerLock?.();
 }
 $('btnPlanner').addEventListener('click', () => planner());
+{
+  const KEY = 'medtable.panel', resizer = $('resizer');
+  const setWidth = px => { const w = Math.round(THREE.MathUtils.clamp(px, 360, innerWidth * 0.7)); document.documentElement.style.setProperty('--panel', `${w}px`); return w; };
+  try { const saved = +localStorage.getItem(KEY); if (saved) setWidth(saved); } catch { /* private mode */ }
+  resizer.addEventListener('pointerdown', e => {
+    e.preventDefault(); resizer.setPointerCapture(e.pointerId); resizer.classList.add('drag'); document.body.classList.add('resizing');
+    const move = ev => setWidth(innerWidth - ev.clientX);
+    const up = ev => { resizer.removeEventListener('pointermove', move); resizer.classList.remove('drag'); document.body.classList.remove('resizing');
+      try { localStorage.setItem(KEY, setWidth(innerWidth - ev.clientX)); } catch { /* ignore */ } };
+    resizer.addEventListener('pointermove', move); resizer.addEventListener('pointerup', up, { once: true });
+  });
+  resizer.addEventListener('keydown', e => {      // arrows also resize it
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault(); const now = $('panel').getBoundingClientRect().width;
+    try { localStorage.setItem(KEY, setWidth(now + (e.key === 'ArrowLeft' ? 40 : -40))); } catch { /* ignore */ }
+  });
+}
 $('btnClose').addEventListener('click', () => planner(false));
 $('hires').addEventListener('change', () => { window.__world.setMegapixels($('hires').checked ? 48 : 12); toast($('hires').checked ? 'High-resolution mode: 48 MP photos, slower to take and to read' : 'Standard mode: 12 MP photos'); });
 
@@ -237,6 +280,7 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => keys.delete(e.code));
 $('shutter').addEventListener('click', () => shoot());
+$('shutterIn').addEventListener('click', () => shoot());
 document.querySelectorAll('[data-table]').forEach(b => b.addEventListener('click', () => { goTo(world.tables[+b.dataset.table], false); }));
 $('btnPhone').addEventListener('click', () => { if (phoneMode) { phoneMode = false; setPhoneUi(); } else goTo(nearestTable().table, true); });
 canvas.addEventListener('click', () => { if (!locked) canvas.requestPointerLock?.(); });
@@ -464,7 +508,7 @@ function liveStatus() {
 function roomAdvice() {      // the one sentence on what to do next
   if (!phoneMode) return showAdvice('Choose a table, then press "Raise the phone".', '', false);
   if (!$('live').checked) return showAdvice('Frames on the boxes are switched off. You can still take the photo.', '', false);
-  if (live.error) return showAdvice('I cannot look at the boxes right now, but you can still take the photo.', 'mid', false);
+  if (live.error) return showAdvice('The live preview is not available right now. You can still take the photo.', 'mid', false);
   if (live.advice && live.scannedKey === poseKey()) return showAdvice(live.advice.text, live.advice.level);
   return showAdvice(live.busy ? 'Looking at the boxes...' : 'Hold the phone still.', '', false);
 }
