@@ -4,6 +4,8 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
+import cv2
+import numpy as np
 import streamlit as st
 
 from medtable import voice
@@ -14,8 +16,19 @@ from medtable.pillbox_pdf import render_pillbox
 from medtable.pipeline import make_plan
 from medtable.plan import NOT_CONFIRMED, SLOT_LABELS, box_days, large_amount, to_ics, units_in_pack
 from medtable.schedule import SLOTS
-from planner.common import ask_reset, box, esc, header, nav, page_preview, patient_field, saved_file, smpc_source, source_html, what_to_do
+from planner.common import ask_reset, box, data_uri, esc, header, nav, page_preview, patient_field, saved_file, smpc_source, source_html, what_to_do
 from planner.table import Table, changes, changes_box
+
+CALENDAR_ICON = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">'
+                 '<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h3"/></svg>')
+SAVE_ICON = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">'
+             '<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>')
+
+
+def download_card(preview, title: str, hint: str, icon: str = "") -> None:
+    """A small picture of the file (the first page of a PDF, or an icon), its name and one line on what it is for."""
+    picture = f'<img src="{data_uri(cv2.cvtColor(np.asarray(preview.convert("RGB")), cv2.COLOR_RGB2BGR), 160)}" alt="">' if preview is not None else f'<div class="mt-ico">{icon}</div>'
+    st.markdown(f'<div class="mt-dl">{picture}<div><b>{esc(title)}</b><span>{esc(hint)}</span></div></div>', unsafe_allow_html=True)
 
 
 def render(t: Table, step: int, use_smpc: bool) -> None:
@@ -46,8 +59,9 @@ def render(t: Table, step: int, use_smpc: bool) -> None:
                             + (f' <span class="mt-meta">({esc(e.line.remarks)})</span>' if e.line.remarks else '') + '</div>' for e in plan.slot_entries(slot))
             rows_html.append(f'<tr><td class="mt-slot">{esc(tr(SLOT_LABELS[slot]))}<span class="mt-time">{esc(time_text)}</span></td>'
                              f'<td>{items or tr("<span class=mt-empty>Nothing</span>")}</td></tr>')
-        with st.container(border=True):
-            st.markdown(f'<table class="mt-agenda">{"".join(rows_html)}</table>', unsafe_allow_html=True)
+        with st.container():
+            head = f'<tr><th>{esc(tr("Time of day"))}</th><th>{esc(tr("What to take"))}</th></tr>'
+            st.markdown(f'<table class="mt-agenda">{head}{"".join(rows_html)}</table>', unsafe_allow_html=True)
 
         lines_in = {}
         for e in plan.entries:
@@ -71,11 +85,17 @@ def render(t: Table, step: int, use_smpc: bool) -> None:
             else:
                 box("bad", tr('Left out: {what}', what=what), esc(tr_reason(why)[0].upper() + tr_reason(why)[1:]) + "." + (tr(' <b>What to do:</b> {x0}', x0=esc(todo)) if (todo := what_to_do(why)) else ""))
         if review:
-            st.markdown(tr('<p class="mt-title" style="font-size:1.3rem;margin-top:1rem">To ask your pharmacist ({x0})</p>', x0=len(review)), unsafe_allow_html=True)
+            st.markdown(tr('<p class="mt-title sub">To ask your pharmacist ({x0})</p>', x0=len(review)), unsafe_allow_html=True)
+            groups: dict[str, list] = {}
             for f in review:
-                quote = f'<div class="mt-quote">{esc(f.quote)}</div>' if f.quote else ""
-                body = esc(f.text() if not f.quote else f.text().split(": " + chr(34))[0] + ".")
-                box("warn", f.title, body + quote + (tr('<div class="mt-meta">Source: {x0}</div>', x0=source_html(f.source)) if f.source else ""))
+                groups.setdefault(f.title, []).append(f)
+            for title, found in groups.items():      # one heading per kind of note; each note keeps its plain sentence, the long leaflet quote is folded
+                items = ""
+                for f in found:
+                    quote = (f'<details><summary>{esc(tr("Quote from the official leaflet"))}</summary><div class="mt-quote">{esc(f.quote)}</div></details>' if f.quote else "")
+                    body = esc(f.text() if not f.quote else f.text().split(": " + chr(34))[0] + ".")
+                    items += (f'<div class="mt-finding">{body}{quote}' + (tr('<div class="mt-meta">Source: {x0}</div>', x0=source_html(f.source)) if f.source else "") + '</div>')
+                st.markdown(f'<div class="mt-group">{esc(title)} <span>{len(found)}</span></div>{items}', unsafe_allow_html=True)
         if info:
             with st.expander(tr('More information ({x0})', x0=len(info))):
                 for f in info:
@@ -115,15 +135,30 @@ def render(t: Table, step: int, use_smpc: bool) -> None:
                 pillbox_bytes = render_pillbox(plan, Path(tmp) / "pillbox.pdf", st.session_state.patient, times=times).read_bytes()
                 pdf_bytes = pdf_path.read_bytes()
                 preview = page_preview(pdf_path)
+                pillbox_preview = page_preview(Path(tmp) / "pillbox.pdf")
+            st.markdown(tr('<p class="mt-title sub">Downloads</p>'), unsafe_allow_html=True)
+            left, right = st.columns(2)
+            with left.container(border=True):
+                download_card(preview, tr("A page to print"), tr("Large print, with the official picture of each medicine."))
+                st.download_button(tr("Download (PDF)"), pdf_bytes, "medication_plan.pdf", "application/pdf", type="primary", width="stretch", icon=":material/download:", key="dl_calendar",
+                                   help=tr("Download the calendar to print (PDF)"))
+            with right.container(border=True):
+                download_card(pillbox_preview, tr("A guide to fill the weekly pill organiser"), tr("One page: the seven days and four times of day, with what goes into each compartment."))
+                st.download_button(tr("Download (PDF)"), pillbox_bytes, "pill_organiser.pdf", "application/pdf", width="stretch", icon=":material/download:", key="dl_pillbox",
+                                   help=tr("Download the pill organiser sheet (PDF)"))
+            left, right = st.columns(2)
+            with left.container(border=True):
+                download_card(None, tr("Reminders on a phone"), tr("Open the file on the phone to add daily reminders to its calendar."), CALENDAR_ICON)
+                st.download_button(tr("Download (.ics)"), to_ics(plan, times).encode("utf-8"), "medication_plan.ics", "text/calendar", width="stretch", icon=":material/event:", key="dl_ics",
+                                   help=tr("Download the phone reminders (.ics)"))
+            with right.container(border=True):
+                download_card(None, tr("Continue later"), tr("Saves the medicines and the doses (not the photos) in a small file. Open it next month on the first screen."), SAVE_ICON)
+                st.download_button(tr("Save the plan"), saved_file().encode("utf-8"), "medication_plan_saved.json", "application/json", width="stretch", icon=":material/save:", key="dl_saved",
+                                   help=tr("Save this plan to continue later"))
             if preview is not None:
-                st.markdown(tr('<p class="mt-title" style="font-size:1.25rem;margin-top:1rem">This is the page you will print</p>'), unsafe_allow_html=True)
-                st.image(preview, width="stretch")
-            st.markdown(tr('<p class="mt-title" style="font-size:1.25rem;margin-top:1rem">A page to print</p><p class="mt-hint">Large print, with the official picture of each medicine.</p>'), unsafe_allow_html=True)
-            st.download_button(tr("Download the calendar to print (PDF)"), pdf_bytes, "medication_plan.pdf", "application/pdf", type="primary", width="stretch")
-            st.markdown(tr('<p class="mt-title" style="font-size:1.25rem;margin-top:1rem">A guide to fill the weekly pill organiser</p>'
-                        '<p class="mt-hint">One page: the seven days and four times of day, with what goes into each compartment.</p>'), unsafe_allow_html=True)
-            st.download_button(tr("Download the pill organiser sheet (PDF)"), pillbox_bytes, "pill_organiser.pdf", "application/pdf", width="stretch")
-            st.markdown(tr('<p class="mt-title" style="font-size:1.25rem;margin-top:1rem">Listen to it</p><p class="mt-hint">A voice reads each time of day.</p>'), unsafe_allow_html=True)
+                with st.expander(tr("See the page at full size")):
+                    st.image(preview, width="stretch")
+            st.markdown(tr('<p class="mt-title sub">Listen to it</p><p class="mt-hint">A voice reads each time of day.</p>'), unsafe_allow_html=True)
             if voice.available(VOICE_CULTURE[language()]):
                 if st.button(tr("Read the plan aloud"), width="stretch"):
                     with tempfile.TemporaryDirectory() as tmp:
@@ -133,11 +168,6 @@ def render(t: Table, step: int, use_smpc: bool) -> None:
                     st.audio(audio, format="audio/wav")
             else:
                 st.caption(tr("Reading aloud needs a voice in this language on this computer; none is installed."))
-            st.markdown(tr('<p class="mt-title" style="font-size:1.25rem;margin-top:1rem">Reminders on a phone</p><p class="mt-hint">Open the file on the phone to add daily reminders to its calendar.</p>'), unsafe_allow_html=True)
-            st.markdown(tr('<p class="mt-title" style="font-size:1.25rem;margin-top:1rem">Continue later</p><p class="mt-hint">'
-                        'Saves the medicines and the doses (not the photos) in a small file. Open it next month on the first screen.</p>'), unsafe_allow_html=True)
-            st.download_button(tr("Save this plan to continue later"), saved_file().encode("utf-8"), "medication_plan_saved.json", "application/json", width="stretch")
-            st.download_button(tr("Download the phone reminders (.ics)"), to_ics(plan, times).encode("utf-8"), "medication_plan.ics", "text/calendar", width="stretch")
         st.write("")
         nav(3, None)
         st.button(tr("Start over with new medicines"), on_click=ask_reset, key="start_over_end", width="stretch")

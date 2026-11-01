@@ -114,12 +114,18 @@ def render(t: Table) -> None:
                 continue
             card(official_photo(pack) if pack else None, body, plain=True)
             plural = form_noun(form)[1]
-            for slot in SLOTS:
-                question = tr('how many {plural}?', plural=tr(plural)) if plural != "doses" else tr("how many?")
-                st.segmented_control(f"{tr(SLOT_LABELS[slot])} ({tr(SLOT_HINT[slot])}): {question}", CHOICE_VALUES + [OTHER], format_func=lambda v: tr(CHOICE_LABELS[v]),
-                                     default=choice_for(row.doses[slot]), key=row.key("dose", slot), on_change=set_dose, args=(row, slot))
-                if choice_for(row.doses[slot]) == OTHER:
-                    st.text_input(tr("Type the amount (for example 4 or 2,5)"), value=row.doses[slot], key=row.key("other", slot), on_change=set_other, args=(row, slot))
+            question = tr('how many {plural}?', plural=tr(plural)) if plural != "doses" else tr("how many?")
+            first = next((i for i, c in enumerate(question) if c.isalpha()), 0)
+            st.markdown(f'<p class="mt-qhead">{esc(question[:first] + question[first].upper() + question[first + 1:])}</p>', unsafe_allow_html=True)
+            options = CHOICE_VALUES + [OTHER]
+            labels = {v: tr(CHOICE_LABELS[v]) for v in options}      # translated now: the menu may format its options later, in another thread
+            with st.container(key=f"mtgrid_{row.id}"):
+                for col, slot in zip(st.columns(len(SLOTS)), SLOTS):
+                    with col:
+                        st.selectbox(f"{tr(SLOT_LABELS[slot])} ({tr(SLOT_HINT[slot])})", options, format_func=labels.get,
+                                     index=options.index(choice_for(row.doses[slot])), key=row.key("dose", slot), on_change=set_dose, args=(row, slot))
+                        if choice_for(row.doses[slot]) == OTHER:
+                            st.text_input(tr("Type the amount (for example 4 or 2,5)"), value=row.doses[slot], key=row.key("other", slot), on_change=set_other, args=(row, slot))
             every = tuple(row.days) == ALL_DAYS
             st.segmented_control(tr("Which days?"), ["every", "some"], format_func={"every": tr("Every day"), "some": tr("Only some days of the week")}.get,
                                  default="every" if every else "some", key=row.key("often"), on_change=set_often, args=(row,))

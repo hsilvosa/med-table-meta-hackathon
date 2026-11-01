@@ -45,12 +45,12 @@ def widget(items, kind, row_id, slot=""):
 
 
 def pick(at, row_id, slot, value):
-    widget(at.button_group, "dose", row_id, slot).set_value(value)
+    widget(at.selectbox, "dose", row_id, slot).set_value(value)
     return at.run()
 
 
 def doses_of(at):
-    return [g for g in at.button_group if g.key.startswith("dose_")]
+    return [g for g in at.selectbox if g.key.startswith("dose_")]
 
 
 def confirm(at, row_id):
@@ -64,7 +64,7 @@ def to_doses(at):
 
 
 def test_demo_photo_gives_recognised_boxes_and_one_that_is_not_in_the_plan(app):
-    assert any("does not replace the doctor or the pharmacist" in i.value for i in app.info)
+    assert "does not replace the doctor or the pharmacist" in texts(app)
     assert [b.disabled for b in app.button if b.label.startswith("Next:")] == [True]       # nothing to plan yet
     click(app, "Load a demo photo")
     assert not app.exception
@@ -164,7 +164,7 @@ def test_the_whole_flow_can_be_done_in_spanish(env):
     at = AppTest.from_file(APP, default_timeout=120)
     at.query_params["lang"] = "es"
     at.run()
-    assert "Cada caja se identifica por el código impreso en ella" in texts(at) and any("no sustituye al médico" in i.value for i in at.info)
+    assert "Cada caja se identifica por el código impreso en ella" in texts(at) and "no sustituye al médico" in texts(at)
     click(at, "Cargar una foto de prueba")
     assert "Medicamentos encontrados: 5" in texts(at) and "Caja no reconocida" in texts(at)
     click(at, "Siguiente: elegir las dosis")
@@ -185,6 +185,6 @@ def test_the_public_demo_warns_and_offers_no_model_upload_and_shows_only_this_vi
     at.run()
     assert "Public online demo" in texts(at) and "Do not upload photos of real prescriptions" in texts(at)
     assert not [b for b in at.button if b.label.startswith("Load the latest room photo")]           # not this visitor's photo
-    assert not [e for e in at.expander if "no code I can read" in e.label]                         # SAM 3 and the model call are off
+    assert not [e for e in at.expander if "no readable code" in e.label]                         # SAM 3 and the model call are off
     to_doses(at)
     assert not [e for e in at.expander if "doctor's schedule" in e.label] and not at.exception

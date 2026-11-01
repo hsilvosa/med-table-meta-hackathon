@@ -44,12 +44,11 @@ from planner.table import Table, changes_box, medicine_card
 def render(t: Table) -> None:
     entries, boxes_of, typed_only, unverified, medicines, today = t.entries, t.boxes_of, t.typed_only, t.unverified, t.medicines, t.today
     header(1, tr("Medicines"), tr("Take a photo of the medicine boxes on the table. Each box is identified by the code printed on it."))
-    st.info(tr("This is a helper for planning. It gives no medical advice and does not replace the doctor or the pharmacist."))
     if embedded():
         if from_camera():
-            box("tip", tr("Take the photo with the camera"), tr("Point the camera at the boxes and press the red <b>Take the photo</b> button. The photo appears here by itself in a few seconds."))
+            box("tip", tr("Take the photo with the camera"), tr("Point the camera at the boxes and press <b>Take the photo</b>. The photo appears here by itself in a few seconds."))
         else:
-            box("tip", tr("Take the photo in the room"), tr("In the room on the left: choose a table, press <b>Raise the phone</b>, then the red <b>Take the photo</b> button. The photo appears here by itself in a few seconds."))
+            box("tip", tr("Take the photo in the room"), tr("In the room on the left: choose a table, press <b>Raise the phone</b>, then <b>Take the photo</b>. The photo appears here by itself in a few seconds."))
         add_area = st.expander(tr("Add a medicine another way"))
     else:
         box("tip", tr("For a good photo"), tr("Put the boxes on a table with the printed codes facing up, and hold the phone about 90 cm (3 feet) above them or closer."))
@@ -124,7 +123,7 @@ def render(t: Table) -> None:
     if (notice := st.session_state.get("notice")):
         box(*notice)
     changes_box(t, with_amounts=False)
-    st.markdown(tr('<p class="mt-title" style="font-size:1.35rem;margin-top:1.2rem">Medicines found: {x0}</p>', x0=len(medicines)), unsafe_allow_html=True)
+    st.markdown(tr('<p class="mt-title sub">Medicines found: {x0}</p>', x0=len(medicines)), unsafe_allow_html=True)
     if (undo := st.session_state.get("undo")):
         box("ok", tr('Removed: {x0}', x0=undo['label']), tr("Removed by mistake? Press the button to put it back."))
         st.button(tr("Undo: put it back"), on_click=undo_last, key="undo_btn", type="primary")
@@ -135,13 +134,18 @@ def render(t: Table) -> None:
         expiries = sorted({r.expiry for r in rs if r.expiry})
         chips = chip(tr("Recognised from its code"), "ok") + (chip(tr('{x0} boxes', x0=len(rs)), "grey") if len(rs) > 1 else "") \
             + ("".join(expiry_chip(e, today) for e in expiries) if expiries else expiry_chip(None, today))
-        with st.container(border=True):
-            medicine_card(t, rs[0].medicine, chips, rs)
-            st.button(tr("Remove this medicine"), key=f"del_{cn}", on_click=remove_medicine, args=(cn, rs[0].medicine.name), type="tertiary")
+        with st.container(border=True, key=f"mtrow_{cn}"):
+            body, act = st.columns([12, 1])
+            with body:
+                medicine_card(t, rs[0].medicine, chips, rs)
+            act.button("", icon=":material/delete:", help=tr("Remove this medicine"), key=f"del_{cn}", on_click=remove_medicine, args=(cn, rs[0].medicine.name), type="tertiary")
     for pack in typed_only:
-        with st.container(border=True):
-            medicine_card(t, pack.medicine, chip(tr("Added by you"), "ok"), [])
-            st.button(tr("Remove this medicine"), key=f"del_{pack.medicine.cn}", on_click=remove_medicine, args=(pack.medicine.cn, pack.medicine.name), type="tertiary")
+        with st.container(border=True, key=f"mtrow_{pack.medicine.cn}"):
+            body, act = st.columns([12, 1])
+            with body:
+                medicine_card(t, pack.medicine, chip(tr("Added by you"), "ok"), [])
+            act.button("", icon=":material/delete:", help=tr("Remove this medicine"), key=f"del_{pack.medicine.cn}", on_click=remove_medicine,
+                       args=(pack.medicine.cn, pack.medicine.name), type="tertiary")
     for name, r in unverified:
         image, crop = st.session_state.photos.get(name), None
         if image is not None and r.bbox:

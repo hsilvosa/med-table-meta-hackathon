@@ -24,21 +24,23 @@ from medtable.i18n import LANGUAGES, set_language, tr  # noqa: E402
 from planner import common, screen_doses, screen_medicines, screen_plan, table  # noqa: E402
 from planner.style import css  # noqa: E402
 
-st.set_page_config(page_title="Medication planner", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Medication planner · med-table", page_icon=str(ROOT / "web" / "favicon.svg"), layout="wide", initial_sidebar_state="collapsed")
 st.session_state.setdefault("large_text", False)
 st.session_state.setdefault("lang", st.query_params.get("lang", "en") if st.query_params.get("lang") in LANGUAGES else "en")
 set_language(st.session_state.lang)
 st.markdown(css(1.25 if st.session_state.large_text else 1.0), unsafe_allow_html=True)
 common.state_defaults()
 t = table.current(date.today())
-if common.public_demo():
-    common.box("warn", tr("Public online demo"), tr(
-        "Try it with the demo photo or the 3D room. Do not upload photos of real prescriptions or of anything showing a name, address or ID "
-        "number: pictures are processed on a shared server (photos from the 3D room are deleted after an hour). This is a planning aid, not "
-        "medical advice. In this online version the voice, reading the doctor's schedule with Muse Spark and SAM 3 are turned off; they run in "
-        'the local installation (<a href="https://github.com/hsilvosa/med-table-meta-hackathon" target="_blank">source code</a>).'))
+# top bar: the name (or, inside the 3D room, which already shows it, the steps) and the settings
+with st.container(key="mt_top"):
+    left, right = st.columns([6, 1], vertical_alignment="center")
+    left.markdown(common.steps_html(st.session_state.step) if common.embedded() else common.brand_html(), unsafe_allow_html=True)
+    settings = right.popover(tr("Settings"), icon=":material/settings:")
+if not common.embedded():
+    st.markdown(common.steps_html(st.session_state.step), unsafe_allow_html=True)
+common.notice()
 
-with st.popover(tr("Settings")):
+with settings:
     st.segmented_control(tr("Language"), list(LANGUAGES), format_func=LANGUAGES.get, key="lang", on_change=lambda: set_language(st.session_state.lang or "en"))
     st.toggle(tr("Larger text"), key="large_text")
     use_smpc = st.toggle(tr("Quote the official leaflets (AEMPS) in the notes"), value=True)

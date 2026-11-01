@@ -301,7 +301,7 @@ def data_uri(image: np.ndarray, width: int = 220) -> str:
 def picture(source: str | np.ndarray | None) -> str:
     """An <img> for a card: a downsized data URI for local files and arrays, the URL itself for remote photos."""
     if source is None:
-        return tr('<div class="mt-pic none">No picture</div>')
+        return f'<div class="mt-pic none" title="{esc(tr("No picture"))}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg></div>'
     if isinstance(source, str) and source.startswith("http"):
         return f'<img class="mt-pic" src="{esc(source)}">'
     image = cv2.imread(source) if isinstance(source, str) else source
@@ -353,9 +353,35 @@ def expiry_chip(expiry: date | None, today: date) -> str:
     return chip(tr('Expires on {x0}', x0=expiry.isoformat()), "grey")
 
 
+MARK = "data:image/svg+xml;base64," + base64.b64encode((Path(__file__).resolve().parent.parent / "web" / "favicon.svg").read_bytes()).decode()
+
+
+def brand_html() -> str:
+    return f'<div class="mt-brandbar"><img src="{MARK}" alt=""><span><b>med-table</b><span>{esc(tr("Medication planner"))}</span></span></div>'
+
+
+def steps_html(step: int) -> str:
+    cells = "".join(f'<li class="mt-s {"cur" if i == step else "done" if i < step else ""}"{" aria-current=\"step\"" if i == step else ""}>'
+                    f'<b>{"&#10003;" if i < step else i}</b><span>{esc(tr(name))}</span></li>' for i, name in enumerate(STEPS, 1))
+    return f'<ol class="mt-steps">{cells}</ol>'
+
+
+def notice() -> None:
+    """One quiet line on every screen: a planning aid, not medical advice; on the public demo, the rest is folded under More."""
+    helper = esc(tr("This is a helper for planning. It gives no medical advice and does not replace the doctor or the pharmacist."))
+    if not public_demo():
+        st.markdown(f'<div class="mt-note"><p style="padding:.5rem .8rem">{helper}</p></div>', unsafe_allow_html=True)
+        return
+    more = tr("Try it with the demo photo or the 3D room. Do not upload photos of real prescriptions or of anything showing a name, address or ID "
+              "number: pictures are processed on a shared server (photos from the 3D room are deleted after an hour). This is a planning aid, not "
+              "medical advice. In this online version the voice, reading the doctor's schedule with Muse Spark and SAM 3 are turned off; they run in "
+              'the local installation (<a href="https://github.com/hsilvosa/med-table-meta-hackathon" target="_blank">source code</a>).')
+    st.markdown(f'<details class="mt-note"><summary><b>{esc(tr("Public online demo"))}.</b> <span>{helper}</span><span class="mt-more">{esc(tr("More"))}</span></summary>'
+                f'<p>{more}</p></details>', unsafe_allow_html=True)
+
+
 def header(step: int, title: str, lead: str) -> None:
-    cells = "".join(f'<div class="mt-s {"cur" if i == step else "done" if i < step else ""}"><b>{i}</b>{esc(tr(name))}</div>' for i, name in enumerate(STEPS, 1))
-    st.markdown(f'<p class="mt-brand">{esc(tr("Medication planner"))}</p><div class="mt-steps">{cells}</div><p class="mt-title">{esc(title)}</p><p class="mt-lead">{lead}</p>', unsafe_allow_html=True)
+    st.markdown(f'<p class="mt-title">{esc(title)}</p><p class="mt-lead">{lead}</p>', unsafe_allow_html=True)
 
 
 def nav(back: int | None, forward: int | None, forward_label: str = "", enabled: bool = True, why_not: str = "") -> None:

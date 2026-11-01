@@ -79,9 +79,10 @@ def shared_ingredient(t: Table, medicine) -> list[str]:
 
 
 def medicine_card(t: Table, medicine, chips: str, rs: list) -> None:
-    body = f'<div class="mt-name">{esc(medicine.name)}</div>' + chips
+    body = f'<div class="mt-name">{esc(medicine.name)}</div>'
     if medicine.active_ingredients:
         body += tr('<div class="mt-meta">Active ingredient: {x0}</div>', x0=esc(", ".join(a.capitalize() for a in medicine.active_ingredients)))
+    body += f'<div style="margin-top:6px">{chips}</div>'
     old = [r for r in rs if r.expiry and r.expiry < t.today]
     if old and len(old) == len(rs):
         body += tr('<div class="mt-alert">This box has expired. Do not use it: it will be left out of the plan.</div>')

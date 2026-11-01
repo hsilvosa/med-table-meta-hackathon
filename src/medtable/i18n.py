@@ -59,6 +59,30 @@ ES = {
     # ---- app.py and shared parts -------------------------------------------------------------------------------------------
     "Medication planner": "Planificador de medicación",
     "Settings": "Ajustes",
+    "More": "Más",
+    "Download (PDF)": "Descargar (PDF)",
+    "Download (.ics)": "Descargar (.ics)",
+    "Save the plan": "Guardar el plan",
+    "No picture": "Sin foto",
+    "Time of day": "Momento del día",
+    "What to take": "Qué tomar",
+    "Quote from the official leaflet": "Cita de la ficha técnica oficial",
+    '<p class="mt-title sub">To ask your pharmacist ({x0})</p>': '<p class="mt-title sub">Para consultar con su farmacéutico ({x0})</p>',
+    '<p class="mt-title sub">Medicines found: {x0}</p>': '<p class="mt-title sub">Medicamentos encontrados: {x0}</p>',
+    '<p class="mt-title sub">Downloads</p>': '<p class="mt-title sub">Descargas</p>',
+    '<p class="mt-title sub">Listen to it</p><p class="mt-hint">A voice reads each time of day.</p>':
+        '<p class="mt-title sub">Escucharlo</p><p class="mt-hint">Una voz lee cada momento del día.</p>',
+    "A page to print": "Una página para imprimir",
+    "Large print, with the official picture of each medicine.": "Letra grande, con la foto oficial de cada medicamento.",
+    "A guide to fill the weekly pill organiser": "Una guía para llenar el pastillero semanal",
+    "One page: the seven days and four times of day, with what goes into each compartment.":
+        "Una página: los siete días y los cuatro momentos del día, con lo que va en cada casilla.",
+    "Reminders on a phone": "Recordatorios en el móvil",
+    "Open the file on the phone to add daily reminders to its calendar.": "Abra el archivo en el móvil para añadir recordatorios diarios a su calendario.",
+    "Continue later": "Seguir más tarde",
+    "Saves the medicines and the doses (not the photos) in a small file. Open it next month on the first screen.":
+        "Guarda los medicamentos y las dosis (no las fotos) en un archivo pequeño. Ábralo el mes que viene en la primera pantalla.",
+    "See the page at full size": "Ver la página a tamaño completo",
     "Public online demo": "Demo pública en línea",
     "Try it with the demo photo or the 3D room. Do not upload photos of real prescriptions or of anything showing a name, address or ID number: pictures are processed on a shared server (photos from the 3D room are deleted after an hour). This is a planning aid, not medical advice. In this online version the voice, reading the doctor's schedule with Muse Spark and SAM 3 are turned off; they run in the local installation (<a href=\"https://github.com/hsilvosa/med-table-meta-hackathon\" target=\"_blank\">source code</a>).":
         "Pruébela con la foto de prueba o con la sala 3D. No suba fotos de recetas reales ni de nada que muestre un nombre, una dirección o un DNI: las imágenes se procesan en un servidor compartido (las fotos de la sala 3D se borran al cabo de una hora). Es una ayuda para organizarse, no consejo médico. En esta versión en línea están desactivados la voz, la lectura de la pauta con Muse Spark y SAM 3; funcionan en la instalación local (<a href=\"https://github.com/hsilvosa/med-table-meta-hackathon\" target=\"_blank\">código fuente</a>).",
@@ -171,11 +195,11 @@ ES = {
     "Look for boxes without a code": "Buscar cajas sin código",
     "Add at least one medicine to continue.": "Añada al menos un medicamento para continuar.",
     "Take the photo with the camera": "Haga la foto con la cámara",
-    "Point the camera at the boxes and press the red <b>Take the photo</b> button. The photo appears here by itself in a few seconds.":
-        "Apunte la cámara a las cajas y pulse el botón rojo <b>Take the photo</b>. La foto aparece aquí sola en unos segundos.",
+    "Point the camera at the boxes and press <b>Take the photo</b>. The photo appears here by itself in a few seconds.":
+        "Apunte la cámara a las cajas y pulse <b>Take the photo</b>. La foto aparece aquí sola en unos segundos.",
     "Take the photo in the room": "Haga la foto en la sala",
-    "In the room on the left: choose a table, press <b>Raise the phone</b>, then the red <b>Take the photo</b> button. The photo appears here by itself in a few seconds.":
-        "En la sala de la izquierda: elija una mesa, pulse <b>Raise the phone</b> y luego el botón rojo <b>Take the photo</b>. La foto aparece aquí sola en unos segundos.",
+    "In the room on the left: choose a table, press <b>Raise the phone</b>, then <b>Take the photo</b>. The photo appears here by itself in a few seconds.":
+        "En la sala de la izquierda: elija una mesa, pulse <b>Raise the phone</b> y luego <b>Take the photo</b>. La foto aparece aquí sola en unos segundos.",
     "Upload a photo": "Subir una foto", "Type a code": "Escribir un código", "Open a saved plan": "Abrir un plan guardado", "Demo photos": "Fotos de prueba",
     "A plan saved before with **Save this plan** (on the last screen). The boxes are checked again with the official database.":
         "Un plan guardado antes con **Guardar este plan** (en la última pantalla). Las cajas se vuelven a comprobar con la base de datos oficial.",

@@ -2,8 +2,26 @@
 base = "light"
 primaryColor = "#1b5e8a"
 backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f3f6f9"
-textColor = "#1f2933"
+secondaryBackgroundColor = "#eef2f5"
+textColor = "#16212c"
+borderColor = "#dde3ea"
+baseRadius = "10px"
+font = "Atkinson Hyperlegible, system-ui, sans-serif"
+headingFont = "Atkinson Hyperlegible, system-ui, sans-serif"
+
+# the typeface of every med-table page (static/fonts, served at app/static/fonts; SIL Open Font License in static/fonts/OFL.txt)
+[[theme.fontFaces]]
+family = "Atkinson Hyperlegible"
+url = "app/static/fonts/atkinson-400.woff2"
+weight = 400
+
+[[theme.fontFaces]]
+family = "Atkinson Hyperlegible"
+url = "app/static/fonts/atkinson-700.woff2"
+weight = 700
+
+[server]
+enableStaticServing = true
 
 [browser]
 gatherUsageStats = false
