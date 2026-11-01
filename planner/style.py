@@ -78,7 +78,8 @@ h1, h2, h3 {{ letter-spacing: 0; }}
 .mt-note {{ margin: 0 0 1.1rem; font-size: .9rem; color: var(--mt-muted); border-radius: 10px; background: var(--mt-subtle); }}
 .mt-note summary {{ cursor: pointer; padding: .5rem .8rem; list-style: none; display: flex; gap: .6rem; align-items: baseline; }}
 .mt-note summary::-webkit-details-marker {{ display: none; }}
-.mt-note summary b {{ color: var(--mt-warn); }}
+.mt-note summary b {{ color: var(--mt-warn); flex: none; white-space: nowrap; }}
+.mt-note summary > span:not(.mt-more) {{ min-width: 0; }}
 .mt-note .mt-more {{ margin-left: auto; flex: none; color: var(--mt-accent); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }}
 .mt-note[open] .mt-more {{ visibility: hidden; }}
 .mt-note p {{ margin: 0 !important; padding: 0 .8rem .7rem; line-height: 1.5; font-size: .9rem !important; }}
