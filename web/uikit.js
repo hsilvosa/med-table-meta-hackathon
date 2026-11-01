@@ -19,10 +19,10 @@ export function initPrefs() {
 
 // On a narrow screen the picture is short, and the advice laid over it would hide the boxes: there it goes right under the picture, at the top of the controls.
 function placeAdvice() {
-  const banner = document.getElementById('advice'), stage = document.getElementById('stage'), side = document.getElementById('side');
+  const banner = document.getElementById('advice'), stage = document.getElementById('dock') || document.getElementById('stage'), side = document.getElementById('side');
   if (!banner || !stage || !side) return;
   const narrow = matchMedia('(max-width: 860px)');
-  const put = () => { if (narrow.matches) side.prepend(banner); else stage.append(banner); };
+  const put = () => { if (narrow.matches) side.prepend(banner); else stage.prepend(banner); };
   put();
   narrow.addEventListener('change', put);
 }

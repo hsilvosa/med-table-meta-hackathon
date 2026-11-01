@@ -10,7 +10,7 @@ const PHONE = { w: 4000, h: 3000, hfov: 71 };                      // a 12 MP ph
 let shot = { w: PHONE.w, h: PHONE.h };                              // size of the photo that is taken: 12 MP, or 48 MP (the same lens and field of view, four times the pixels)
 const PHONE_VFOV = 2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(PHONE.hfov) / 2) * PHONE.h / PHONE.w) * 180 / Math.PI;
 const PHONE_HEIGHT = 0.9;                                           // how high "Phone over the table" holds the phone, in metres
-const FRAME_FRACTION = 0.76;                                         // the viewfinder takes this share of the window height (the status bar and the advice fit above and below)
+const FRAME_FRACTION = 0.72;                                         // the viewfinder takes this share of the window height (the status bar and the advice fit above and below)
 const EYE_MIN = 0.9, EYE_MAX = 1.9;
 
 const world = await (await fetch('world/world.json')).json();
@@ -215,6 +215,9 @@ function setPhoneUi() {
   $('btnPhone').classList.toggle('on', phoneMode);
   $('btnPhone').textContent = phoneMode ? 'Lower the phone' : `Raise the phone over ${nearestTable().table.name}`;
   $('shutter').disabled = !phoneMode;
+  $('stageRaise').style.display = phoneMode ? 'none' : '';
+  $('stageShoot').style.display = phoneMode ? '' : 'none';
+  $('stageLower').style.display = phoneMode ? '' : 'none';
   $('shutterHelp').textContent = phoneMode ? 'The planner on the right reads the photo.' : 'Raise the phone first (step 2).';
   forgetSpoken(); roomAdvice();
   resize();
@@ -280,7 +283,9 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => keys.delete(e.code));
 $('shutter').addEventListener('click', () => shoot());
-$('shutterIn').addEventListener('click', () => shoot());
+$('stageShoot').addEventListener('click', () => shoot());
+$('stageRaise').addEventListener('click', () => goTo(nearestTable().table, true));
+$('stageLower').addEventListener('click', () => { phoneMode = false; setPhoneUi(); });
 document.querySelectorAll('[data-table]').forEach(b => b.addEventListener('click', () => { goTo(world.tables[+b.dataset.table], false); }));
 $('btnPhone').addEventListener('click', () => { if (phoneMode) { phoneMode = false; setPhoneUi(); } else goTo(nearestTable().table, true); });
 canvas.addEventListener('click', () => { if (!locked) canvas.requestPointerLock?.(); });
@@ -332,7 +337,7 @@ function nearestTable() {
   return { table: best, dist };
 }
 function hud() {
-  if (!phoneMode) $('btnPhone').textContent = `Raise the phone over ${nearestTable().table.name}`;
+  if (!phoneMode) { $('btnPhone').textContent = `Raise the phone over ${nearestTable().table.name}`; $('stageRaise').lastElementChild.textContent = `Raise the phone over ${nearestTable().table.name}`; }
   const { table, dist } = nearestTable();
   const cm = Math.round(dist * 100);
   $('where').textContent = phoneMode ? `${table.name}, ${cm} cm above it` : `Near ${table.name}`;
@@ -506,7 +511,7 @@ function liveStatus() {
   setScanChip(live.boxes.length || none ? parts.join(', ') : 'No codes read here');
 }
 function roomAdvice() {      // the one sentence on what to do next
-  if (!phoneMode) return showAdvice('Choose a table, then press "Raise the phone".', '', false);
+  if (!phoneMode) return showAdvice('Choose a table, then raise the phone over it.', '', false);
   if (!$('live').checked) return showAdvice('Frames on the boxes are switched off. You can still take the photo.', '', false);
   if (live.error) return showAdvice('The live preview is not available right now. You can still take the photo.', 'mid', false);
   if (live.advice && live.scannedKey === poseKey()) return showAdvice(live.advice.text, live.advice.level);

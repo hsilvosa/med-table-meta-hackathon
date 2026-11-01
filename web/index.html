@@ -18,15 +18,10 @@
   #frame::before { content: ""; position: absolute; inset: 33.3% 0; border-top: 1px solid rgba(255,255,255,.28); border-bottom: 1px solid rgba(255,255,255,.28); }
   #frame::after { content: ""; position: absolute; inset: 0 33.3%; border-left: 1px solid rgba(255,255,255,.28); border-right: 1px solid rgba(255,255,255,.28); }
   #overlay { inset: 0; width: 100%; height: 100%; pointer-events: none; border-radius: 14px; }
-  #shutterIn { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); width: 64px; height: 64px; border-radius: 50%; border: 4px solid #fff; padding: 0; z-index: 2;
-               background: rgba(255,255,255,.35); box-shadow: 0 2px 10px rgba(0,0,0,.4); cursor: pointer; pointer-events: auto; transition: background .15s, transform .1s; }
-  #shutterIn::after { content: ""; position: absolute; inset: 5px; border-radius: 50%; background: #fff; }
-  #shutterIn:hover { background: rgba(255,255,255,.55); } #shutterIn:active { transform: translateY(-50%) scale(.94); }
-  #lookhint { left: 50%; bottom: 4.4rem; transform: translateX(-50%); font-size: var(--mt-fs-sm); color: #fff; background: var(--hud); padding: .3rem .85rem; border-radius: 999px; white-space: nowrap; }
+  #lookhint { left: 50%; top: 3.4rem; transform: translateX(-50%); font-size: var(--mt-fs-sm); color: #fff; background: var(--hud); padding: .3rem .85rem; border-radius: 999px; white-space: nowrap; }
   #pad { position: absolute; right: .6rem; bottom: 4.6rem; display: none; grid-template-columns: repeat(3, 3.2rem); grid-template-rows: repeat(3, 3.2rem); gap: .3rem; }
   #pad .btn { min-height: 0; min-width: 0; width: 3.2rem; height: 3.2rem; padding: 0; background: rgba(255,255,255,.9); font-size: .8rem; user-select: none; -webkit-user-select: none; touch-action: none; }
   @media (pointer: coarse) { #pad { display: grid; } #lookhint, .keys-block { display: none; } }
-  @media (max-width: 860px) { #shutterIn { width: 54px; height: 54px; right: 12px; } }
 </style>
 </head>
 <body>
@@ -92,7 +87,7 @@
   <canvas id="c" aria-label="3D room with three tables of medicine boxes" tabindex="0"></canvas>
   <div id="cross" class="hud"></div>
   <div id="frame" class="hud"><canvas id="overlay" aria-hidden="true"></canvas><div id="sweep"></div>
-    <button id="shutterIn" aria-label="Take the photo" title="Take the photo (Space)"></button></div>
+</div>
   <div class="hud chips"><span class="chip" id="modeChip">Walking</span><span class="chip" id="where"></span><span class="chip" id="scanChip" style="display:none"></span></div>
   <div id="toast" class="hud" role="status" aria-live="polite"></div>
   <div id="lookhint" class="hud"></div>
@@ -101,7 +96,14 @@
     <button class="btn" data-key="KeyA" aria-label="Walk left">Left</button><button class="btn" data-key="KeyS" aria-label="Walk back">Back</button><button class="btn" data-key="KeyD" aria-label="Walk right">Right</button>
     <button class="btn" data-key="KeyR" aria-label="Raise the view">Up</button><span></span><button class="btn" data-key="KeyF" aria-label="Lower the view">Down</button>
   </div>
-  <div id="advice" role="status" aria-live="polite">Choose a table, then press "Raise the phone".</div>
+  <div id="dock">
+    <div id="advice" role="status" aria-live="polite">Press "Raise the phone" to hold the phone over the table.</div>
+    <div id="dockActions">
+      <button class="btn primary" id="stageRaise" title="Shift + 1, 2 or 3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg><span>Raise the phone</span></button>
+      <button class="btn primary" id="stageShoot" title="Space" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take the photo</button>
+      <button class="btn" id="stageLower" style="display:none">Lower the phone</button>
+    </div>
+  </div>
 </div>
 
 <div id="resizer" role="separator" aria-orientation="vertical" aria-label="Drag to change the width of the planner" tabindex="0"></div>

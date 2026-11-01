@@ -20,6 +20,7 @@ a { color: var(--mt-accent); }
 .top { display: flex; align-items: center; gap: .6rem; padding-bottom: .2rem; }
 .top .mark { flex: none; width: 32px; height: 32px; }
 .top .names { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; flex: 1; }
+.top .names b { font-size: var(--mt-fs-md); }
 .top .names a { font-weight: 700; font-size: var(--mt-fs-md); color: var(--mt-ink); text-decoration: none; }
 #side h1 { font-size: var(--mt-fs-sm); font-weight: 400; color: var(--mt-muted); margin: 0; }
 .top > h1 { flex: 1; font-size: var(--mt-fs-lg) !important; font-weight: 700 !important; color: var(--mt-ink) !important; }     /* camera page */
@@ -95,7 +96,7 @@ kbd { background: var(--mt-surface); border: 1px solid var(--mt-line-strong); bo
 .chips:not(:has(.chip:not(:empty))) { display: none; }
 .chip + .chip { border-left: 1px solid rgba(255,255,255,.25); }
 .chip:first-child { color: #c3d1de; font-weight: 400; }
-#toast { left: 50%; top: 3.5rem; transform: translateX(-50%); font-size: var(--mt-fs-md); background: var(--mt-surface); color: var(--mt-ink); padding: .65rem 1.1rem; border-radius: var(--mt-radius);
+#toast { left: 50%; top: 6rem; transform: translateX(-50%); font-size: var(--mt-fs-md); background: var(--mt-surface); color: var(--mt-ink); padding: .65rem 1.1rem; border-radius: var(--mt-radius);
          opacity: 0; transition: opacity .3s; max-width: min(90%, 36rem); text-align: center; box-shadow: var(--mt-shadow-lg); z-index: 3; }
 #overlay { position: absolute; pointer-events: none; }
 #sweep { position: absolute; left: 0; right: 0; height: 3px; top: 0; display: none; background: linear-gradient(90deg, transparent, #7ee2a8, transparent); box-shadow: 0 0 12px 2px rgba(126,226,168,.6);
@@ -107,8 +108,17 @@ kbd { background: var(--mt-surface); border: 1px solid var(--mt-line-strong); bo
           display: flex; align-items: flex-start; gap: .6rem; }
 #advice::before { content: ""; flex: none; width: .65rem; height: .65rem; margin-top: .37em; border-radius: 50%; background: #8fa0b1; }
 #advice.good::before { background: #22a06b; } #advice.mid::before { background: #e0a100; } #advice.bad::before { background: #d9473a; }
-#stage #advice { position: absolute; left: 50%; transform: translateX(-50%); bottom: .7rem; margin: 0; width: max-content; max-width: min(calc(100% - 1.4rem), 46rem);
-                 background: var(--hud); color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.3); pointer-events: none; }
+#stage > #advice { position: absolute; left: 50%; transform: translateX(-50%); bottom: .7rem; margin: 0; width: max-content; max-width: min(calc(100% - 1.4rem), 46rem);
+                   background: var(--hud); color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.3); pointer-events: none; }      /* camera page */
+/* the room: the sentence and the button that does it, side by side at the bottom of the picture */
+#dock { position: absolute; left: 50%; bottom: .8rem; transform: translateX(-50%); display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .5rem .6rem;
+        width: max-content; max-width: calc(100% - 1.4rem); z-index: 2; }
+#dock #advice { margin: 0; background: var(--hud); color: #fff; box-shadow: 0 4px 16px rgba(0,0,0,.3); min-width: 0; flex: 1 1 18rem; max-width: 40rem; }
+#dockActions { display: flex; gap: .5rem; flex: none; }
+#dockActions .btn { min-height: 52px; padding: .5rem 1.1rem; font-size: var(--mt-fs-md); box-shadow: 0 4px 16px rgba(0,0,0,.3); white-space: nowrap; }
+#dockActions .btn:not(.primary) { background: var(--mt-surface); }
+#dockActions .btn.primary { font-size: 1.1rem; }
+#dockActions .btn svg { width: 1.3em; height: 1.3em; }
 #side > #advice.good { background: var(--mt-ok-soft); } #side > #advice.mid { background: var(--mt-warn-soft); } #side > #advice.bad { background: var(--mt-bad-soft); }
 
 /* ---- planner panel ------------------------------------------------------------------------------------------------- */
@@ -136,6 +146,7 @@ body.planner #modeChip { display: none; }      /* a narrower picture: the status
   body.planner #resizer { display: none; }
   .keys-block { display: none; }
   #side > #advice { margin: 0; font-size: 1.05rem; }
+  #dockActions .btn { min-height: 48px; padding: .4rem .8rem; }
   #modeChip { display: none; }
 }
 @media (orientation: landscape) and (max-height: 520px) {

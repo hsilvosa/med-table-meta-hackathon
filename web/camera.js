@@ -50,6 +50,8 @@ function showSource(which) {
   $('idle').style.display = which ? 'none' : 'flex';
   state.source = which;
   $('shutter').disabled = !which;
+  $('stageStart').style.display = which ? 'none' : '';
+  $('stageShoot').style.display = which ? '' : 'none';
   $('step1').classList.toggle('current', !which); $('step2').classList.toggle('current', !!which);
   resetScan();
 }
@@ -252,7 +254,7 @@ $('live').addEventListener('change', () => { resetScan(); updateChips(); refresh
 // ---- the photo --------------------------------------------------------------------------------------------------------------------------
 async function takePhoto() {
   if (!ready() || shooting) return;
-  shooting = true; $('shutter').disabled = true;
+  shooting = true; $('shutter').disabled = true; $('stageShoot').disabled = true;
   try {
     let blob = null;
     if (state.source === video && 'ImageCapture' in window) {      // the camera's own full-size still, if the browser can take one
@@ -264,7 +266,7 @@ async function takePhoto() {
     toast('Photo taken. The planner is reading it now.', 6000);
     openPlanner(true);
   } catch (error) { toast(`The photo could not be saved. Please try again. (${error})`, 8000); }
-  finally { shooting = false; $('shutter').disabled = !ready(); }
+  finally { shooting = false; $('shutter').disabled = !ready(); $('stageShoot').disabled = !ready(); }
 }
 
 // ---- the planner -----------------------------------------------------------------------------------------------------------------------
@@ -280,6 +282,8 @@ function openPlanner(open) {
 }
 
 $('btnStart').addEventListener('click', startCamera);
+$('stageStart').addEventListener('click', startCamera);
+$('stageShoot').addEventListener('click', takePhoto);
 $('btnFlip').addEventListener('click', () => { state.facing = state.facing === 'environment' ? 'user' : 'environment'; startCamera(); });
 $('fakeFile').addEventListener('change', event => { if (event.target.files[0]) useAPhoto(event.target.files[0]); event.target.value = ''; });
 $('shutter').addEventListener('click', takePhoto);

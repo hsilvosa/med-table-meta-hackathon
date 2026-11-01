@@ -17,14 +17,13 @@
 <body>
 <aside id="side" aria-label="Controls">
   <div class="top">
-    <h1>Scan the medicine boxes</h1>
-    <button class="btn small" id="textSmaller" aria-label="Normal text size" aria-pressed="true">A</button>
-    <button class="btn small" id="textBigger" aria-label="Larger text size" aria-pressed="false">A+</button>
+    <img class="mark" src="./favicon.svg" alt="">
+    <div class="names"><b>med-table</b><h1>Scan the medicine boxes</h1></div>
   </div>
 
   <section class="step current" id="step1" aria-labelledby="h1">
     <h2 id="h1"><b>1</b> Turn on the camera</h2>
-    <button class="btn primary" id="btnStart">Turn on the camera</button>
+    <button class="btn primary" id="btnStart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Turn on the camera</button>
     <button class="btn" id="btnFlip" style="display:none; margin-top:.4rem">Use the other camera</button>
     <div id="error" role="alert"></div>
     <p>No camera here? <label class="btn" style="margin-top:.4rem">Use a photo instead<input type="file" id="fakeFile" accept="image/*" style="display:none"></label></p>
@@ -40,18 +39,23 @@
     </div>
   </section>
 
-  <section class="options" aria-label="Options">
-    <label><input type="checkbox" id="live" checked> Mark the boxes while the camera is on</label>
-    <label><input type="checkbox" id="voice"> Read the messages aloud</label>
-  </section>
+  <details class="fold options-block">
+    <summary>Options</summary>
+    <div class="textsize"><span>Text size</span><span class="seg" role="group" aria-label="Text size">
+      <button id="textSmaller" aria-pressed="true">Normal</button><button id="textBigger" aria-pressed="false">Large</button></span></div>
+    <section class="options" aria-label="Options">
+      <label><input type="checkbox" id="live" checked> Mark the boxes while the camera is on</label>
+      <label><input type="checkbox" id="voice"> Read the messages aloud</label>
+    </section>
+  </details>
 
   <button class="btn" id="btnPlanner">Show the medicine planner</button>
   <p class="help">The pictures stay on this computer. Nothing is sent to the internet.</p>
 
   <div id="sticky">
-    <section class="step" id="step3" aria-labelledby="h3" style="border-width:0; padding:0; background:none">
-      <h2 id="h3" style="margin-bottom:.3rem"><b>3</b> Take the photo</h2>
-      <button id="shutter" disabled>Take the photo</button>
+    <section class="step" id="step3" aria-labelledby="h3">
+      <h2 id="h3"><b>3</b> Take the photo</h2>
+      <button id="shutter" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take the photo</button>
     </section>
   </div>
 </aside>
@@ -61,10 +65,16 @@
   <canvas id="fake" role="img" aria-label="Photo used instead of the camera"></canvas>
   <canvas id="overlay" aria-hidden="true"></canvas>
   <div id="sweep"></div>
-  <div id="idle">The camera is off. Press "Turn on the camera".</div>
+  <div id="idle">The camera is off.</div>
   <div class="hud chips"><span class="chip" id="camChip" style="display:none"></span><span class="chip" id="scanChip" style="display:none"></span></div>
   <div id="toast" class="hud" role="status" aria-live="polite"></div>
-  <div id="advice" role="status" aria-live="polite">Press "Turn on the camera" to begin.</div>
+  <div id="dock">
+    <div id="advice" role="status" aria-live="polite">Press "Turn on the camera" to begin.</div>
+    <div id="dockActions">
+      <button class="btn primary" id="stageStart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Turn on the camera</button>
+      <button class="btn primary" id="stageShoot" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take the photo</button>
+    </div>
+  </div>
 </div>
 
 <aside id="panel" aria-label="Medicine planner">
