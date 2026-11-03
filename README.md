@@ -107,7 +107,7 @@ Measured on this repository's evaluation scenes (3D room photos and rendered tab
 - **A whole table in one photo from 90 cm**: about 95 % of the codes read with a 12 MP phone and 98 % with 48 MP, with **0 wrong identifications** in 243 verified boxes.
 - **Reading the doctor's schedule** with Muse Spark: **40 of 40 cells** right on a fictional 10-line schedule.
 - **Strength check** on 600 randomly drawn CIMA medicines: no false alarm on the official names or the usual ways of writing them, and every changed strength caught.
-- **38 automated tests**, one or more per design principle, run on every push; each was checked to fail when the principle it guards is broken.
+- **40 automated tests**, one or more per design principle, run on every push; each was checked to fail when the principle it guards is broken.
 
 ## Project structure
 
