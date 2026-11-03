@@ -53,11 +53,16 @@ def render(t: Table) -> None:
                             packs_now = [Pack(m, "verified") for m in medicines]
                             changed, merge_notes = merge_read_rows(rows, read.rows, packs_now)      # bumps `rev`, so the buttons show what was read
                             st.session_state.sheet_notes = read.problems + merge_notes + [tr("Check every medicine against the paper: a computer reading can contain mistakes.")]
+                            st.rerun()      # a fresh full run registers the rows' new widget keys at once (else the next tick can be lost)
             for note in st.session_state.get("sheet_notes", []):
                 st.warning(note)
 
+    # Every callback reads its widget with .get(): right after the schedule is read the rows get new widget keys (rev), and Streamlit can call
+    # the callback of a new widget before its value is in the session state (KeyError seen in the browser, not in AppTest). Then nothing changes.
     def set_dose(row: Row, slot: str) -> None:
-        picked = st.session_state[row.key("dose", slot)]
+        if row.key("dose", slot) not in st.session_state:
+            return
+        picked = st.session_state.get(row.key("dose", slot))
         if picked is None:      # clicking the selected button again would clear it: keep the choice
             st.session_state[row.key("dose", slot)] = choice_for(row.doses[slot])
             return
@@ -68,24 +73,33 @@ def render(t: Table) -> None:
         unconfirm(row)
 
     def set_other(row: Row, slot: str) -> None:
-        row.doses[slot] = st.session_state[row.key("other", slot)].strip()
+        typed = st.session_state.get(row.key("other", slot))
+        if typed is None:
+            return
+        row.doses[slot] = typed.strip()
         unconfirm(row)
 
     def set_often(row: Row) -> None:
-        picked = st.session_state[row.key("often")]
+        picked = st.session_state.get(row.key("often"))
         if picked is None:
             return
         row.days = list(ALL_DAYS) if picked == "every" else []        # "some days": the caregiver ticks them, none is assumed
         unconfirm(row)
 
     def set_days(row: Row) -> None:
+        if row.key("days") not in st.session_state:
+            return
         row.days = sorted(st.session_state[row.key("days")] or [])
         unconfirm(row)
 
     def set_quick(row: Row) -> None:
+        if row.key("quick") not in st.session_state:
+            return
         row.quick = list(st.session_state[row.key("quick")] or [])
 
     def set_field(row: Row, field: str, key: str) -> None:
+        if key not in st.session_state:
+            return
         setattr(row, field, st.session_state[key].strip() if field == "remarks" else st.session_state[key])
 
     for row in rows:
